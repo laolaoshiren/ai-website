@@ -1,7 +1,8 @@
 /**
- * AI 通用客户端 v2 - 多提供商支持、负载均衡、自动故障转移
+ * AI 通用客户端 v2 - 多提供商支持、负载均衡、工具调用
  */
 const { getActiveAIProvider, incrementProviderUsage, getAIProviders } = require('../db/database');
+const { executeTool, getToolDefinitions } = require('./tools');
 
 /**
  * 调用 AI API（自动选择提供商、故障转移）
@@ -10,7 +11,6 @@ async function callAI(messages, options = {}) {
   const providers = getAIProviders().filter(p => p.enabled);
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
 
-  // 轮询：选最少使用的
   providers.sort((a, b) => (a.request_count || 0) - (b.request_count || 0));
 
   let lastError = null;
@@ -37,6 +37,7 @@ async function callProvider(provider, messages, options = {}) {
     max_tokens: options.maxTokens ?? 4096,
   };
   if (options.jsonMode) body.response_format = { type: 'json_object' };
+  if (options.useTools) body.tools = getToolDefinitions();
 
   const response = await fetch(url, {
     method: 'POST',
@@ -54,8 +55,56 @@ async function callProvider(provider, messages, options = {}) {
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
   const tokensUsed = data.usage?.total_tokens || 0;
+  const toolCalls = data.choices?.[0]?.message?.tool_calls || null;
 
-  return { content, model: data.model, tokensUsed, provider: provider.name, providerId: provider.id };
+  return { content, model: data.model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
+}
+
+/**
+ * 带工具调用的 AI 对话（自动执行工具并循环）
+ */
+async function callAIWithTools(messages, options = {}, maxRounds = 3) {
+  const allMessages = [...messages];
+  let totalTokens = 0;
+  let provider = '';
+
+  for (let round = 0; round < maxRounds; round++) {
+    const result = await callAI(allMessages, { ...options, useTools: true });
+    totalTokens += result.tokensUsed;
+    provider = result.provider;
+
+    // 如果没有工具调用，直接返回
+    if (!result.toolCalls || result.toolCalls.length === 0) {
+      return { content: result.content, tokensUsed: totalTokens, provider, rounds: round + 1 };
+    }
+
+    // 执行工具调用
+    allMessages.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
+
+    for (const toolCall of result.toolCalls) {
+      const fnName = toolCall.function.name;
+      let args;
+      try { args = JSON.parse(toolCall.function.arguments); } catch { args = {}; }
+
+      console.log(`  🔧 调用工具: ${fnName}(${JSON.stringify(args).slice(0, 60)})`);
+      let toolResult;
+      try {
+        toolResult = await executeTool(fnName, args);
+      } catch (e) {
+        toolResult = { error: e.message };
+      }
+
+      allMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(toolResult).slice(0, 4000),
+      });
+    }
+  }
+
+  // 最后一轮不带工具
+  const finalResult = await callAI(allMessages, { ...options, useTools: false });
+  return { content: finalResult.content, tokensUsed: totalTokens + finalResult.tokensUsed, provider, rounds: maxRounds };
 }
 
 /**
@@ -103,4 +152,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIForJSON, parseJSON, testConnection };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection };
