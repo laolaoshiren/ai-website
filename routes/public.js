@@ -20,7 +20,8 @@ router.get('/', (req, res) => {
 
 // 分类页
 router.get('/category/:slug', (req, res) => {
-  const category = getCategoryBySlug(req.params.slug);
+  const slug = decodeURIComponent(req.params.slug);
+  const category = getCategoryBySlug(slug);
   if (!category) return res.status(404).render('pages/404', { title: '栏目不存在' });
   const page = parseInt(req.query.page) || 1;
   const limit = 12;
@@ -34,7 +35,8 @@ router.get('/category/:slug', (req, res) => {
 
 // 文章详情
 router.get('/article/:slug', (req, res) => {
-  const article = getPageBySlug(req.params.slug);
+  const slug = decodeURIComponent(req.params.slug);
+  const article = getPageBySlug(slug);
   if (!article || article.status !== 'published') {
     return res.status(404).render('pages/404', { title: '文章不存在' });
   }
