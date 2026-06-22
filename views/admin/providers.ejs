@@ -1,0 +1,52 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>🤖 AI 提供商管理</h1>
+    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addProvider').style.display='block'">➕ 添加提供商</button></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div id="addProvider" class="admin-panel" style="display:none">
+    <h2>添加新提供商</h2>
+    <form method="POST" action="/admin/providers/add">
+      <div class="form-grid">
+        <div class="form-group"><label>名称</label><input type="text" name="name" placeholder="如: DeepSeek" required></div>
+        <div class="form-group"><label>API 地址</label><input type="url" name="base_url" placeholder="https://api.deepseek.com/v1" required></div>
+        <div class="form-group"><label>API 密钥</label><input type="password" name="api_key" placeholder="sk-..." required></div>
+        <div class="form-group"><label>模型名称</label><input type="text" name="model" placeholder="deepseek-chat" required></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addProvider').style.display='none'">取消</button></div>
+    </form>
+  </div>
+
+  <div class="providers-hint">
+    <p>💡 支持多个提供商，系统会自动负载均衡和故障转移。建议添加 2-3 个不同提供商以提高可用性。</p>
+  </div>
+
+  <% if (providers.length > 0) { %>
+  <div class="providers-grid">
+    <% providers.forEach(function(p) { %>
+    <div class="provider-card <%= p.enabled ? '' : 'disabled' %>">
+      <div class="provider-header">
+        <h3><%= p.name %></h3>
+        <span class="status-dot <%= p.enabled ? 'dot-green' : 'dot-gray' %>"></span>
+      </div>
+      <div class="provider-info">
+        <p><strong>模型:</strong> <%= p.model %></p>
+        <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
+        <p><strong>调用次数:</strong> <%= p.request_count || 0 %> | <strong>错误:</strong> <%= p.error_count || 0 %></p>
+      </div>
+      <div class="provider-actions">
+        <form method="POST" action="/admin/providers/<%= p.id %>/test" style="display:inline"><button type="submit" class="btn btn-sm btn-outline">🔌 测试</button></form>
+        <form method="POST" action="/admin/providers/<%= p.id %>/toggle" style="display:inline"><button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
+        <form method="POST" action="/admin/providers/<%= p.id %>/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️ 删除</button></form>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+  <% } else { %>
+  <div class="empty-state"><p>🤖 还没有添加 AI 提供商</p><p>请添加至少一个提供商才能使用 AI 功能</p></div>
+  <% } %>
+</div>
+<%- include('layout-close') %>

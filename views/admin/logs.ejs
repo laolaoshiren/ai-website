@@ -1,0 +1,45 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar"><h1>📜 Agent 运行日志</h1></div>
+
+  <div class="admin-panel">
+    <h2>🤖 Agent 状态</h2>
+    <% if (Object.keys(agentStatuses).length > 0) { %>
+    <div class="agent-status-grid">
+      <% Object.entries(agentStatuses).forEach(function([role, s]) { var roleNames = {site_manager:'🏢 站长',editor:'✏️ 编辑',reviewer:'🔍 审核',technician:'🔧 技术员',news_collector:'📡 新闻采集',writer:'✍️ 写手',planner:'🧠 规划师',polisher:'💎 润色师',seo_expert:'📊 SEO专家',analyzer:'📈 分析师',user_tester:'👤 测评员'}; %>
+      <div class="agent-card">
+        <span class="status-dot <%= s.status === 'working' ? 'dot-blue' : s.status === 'idle' ? 'dot-green' : 'dot-gray' %>"></span>
+        <strong><%= roleNames[role] || role %></strong>
+        <span class="agent-task"><%= s.current_task || '空闲' %></span>
+      </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+    <p class="text-muted">暂无 Agent 运行记录</p>
+    <% } %>
+  </div>
+
+  <div class="admin-panel">
+    <h2>📋 最近日志</h2>
+    <table class="admin-table">
+      <thead><tr><th>时间</th><th>角色</th><th>操作</th><th>状态</th><th>详情</th></tr></thead>
+      <tbody>
+        <% if (logs.length > 0) { %>
+          <% var roleNames = {site_manager:'🏢 站长',editor:'✏️ 编辑',reviewer:'🔍 审核',technician:'🔧 技术员',news_collector:'📡 新闻采集',writer:'✍️ 写手',planner:'🧠 规划师',polisher:'💎 润色师',seo_expert:'📊 SEO专家',analyzer:'📈 分析师',user_tester:'👤 测评员'}; %>
+          <% logs.forEach(function(log) { %>
+          <tr>
+            <td class="td-time"><%= log.created_at || '' %></td>
+            <td><span class="agent-badge"><%= roleNames[log.agent_role] || log.agent_role %></span></td>
+            <td><%= log.action %></td>
+            <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
+            <td class="td-detail"><%= (log.detail || '').slice(0, 80) %></td>
+          </tr>
+          <% }); %>
+        <% } else { %>
+          <tr><td colspan="5" style="text-align:center">暂无日志</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('layout-close') %>

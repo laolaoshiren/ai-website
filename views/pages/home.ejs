@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('../partials/seo-head') %>
+  <link rel="alternate" type="application/rss+xml" title="<%= siteTitle %>" href="/rss.xml">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="main-content">
+
+    <section class="hero-section">
+      <div class="container">
+        <h1 class="hero-title"><%= siteTitle %></h1>
+        <p class="hero-subtitle"><%= siteDescription %></p>
+        <div class="hero-badge">🤖 由 AI 全自动维护 · 内容实时更新</div>
+      </div>
+    </section>
+
+    <% if (typeof featured !== 'undefined' && featured.length > 0) { %>
+    <section class="featured-section">
+      <div class="container">
+        <h2 class="section-title">📌 精选推荐</h2>
+        <div class="articles-grid featured-grid">
+          <% featured.forEach(function(article) { %>
+            <%- include('../partials/article-card', { article: article }) %>
+          <% }); %>
+        </div>
+      </div>
+    </section>
+    <% } %>
+
+    <section class="latest-section">
+      <div class="container">
+        <h2 class="section-title">📝 最新文章</h2>
+        <% if (typeof latest !== 'undefined' && latest.length > 0) { %>
+          <div class="articles-grid">
+            <% latest.forEach(function(article) { %>
+              <%- include('../partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="empty-state">
+            <div class="empty-icon">🤖</div>
+            <h3>AI 正在准备内容中...</h3>
+            <p>首次启动需要几分钟来生成初始文章</p>
+            <p>请前往后台配置 AI 后点击"冷启动"</p>
+            <a href="/admin" class="btn btn-primary">前往后台</a>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
+    <section class="categories-section">
+      <div class="container">
+        <h2 class="section-title">📂 栏目导航</h2>
+        <div class="categories-grid">
+          <% categories.forEach(function(cat) { %>
+            <a href="/category/<%= cat.slug %>" class="category-card">
+              <h3><%= cat.name %></h3>
+              <p><%= cat.description || '探索更多内容' %></p>
+            </a>
+          <% }); %>
+        </div>
+      </div>
+    </section>
+    <% } %>
+
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

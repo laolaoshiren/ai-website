@@ -1,0 +1,33 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar"><h1>⚙️ 系统设置</h1></div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 设置已保存</div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error">❌ <%= error %></div><% } %>
+
+  <form method="POST" action="/admin/settings">
+    <div class="admin-panel">
+      <h2>🌐 网站设置</h2>
+      <div class="form-grid">
+        <div class="form-group"><label>网站标题</label><input type="text" name="site_title" value="<%= config.site_title || '' %>"></div>
+        <div class="form-group"><label>网站描述</label><textarea name="site_description" rows="2"><%= config.site_description || '' %></textarea></div>
+        <div class="form-group"><label>🎯 网站主题</label><input type="text" name="site_theme" value="<%= config.site_theme || '' %>" placeholder="如: 人工智能与前端开发"></div>
+        <div class="form-group"><label>📈 发展方向</label><textarea name="site_direction" rows="2" placeholder="如: 聚焦最新 AI 工具评测"><%= config.site_direction || '' %></textarea></div>
+        <div class="form-group"><label>网站地址</label><input type="url" name="site_url" value="<%= config.site_url || 'http://localhost:3000' %>"></div>
+        <div class="form-group"><label>语言</label><select name="site_language"><option value="zh-CN" <%= config.site_language === 'zh-CN' ? 'selected' : '' %>>中文</option><option value="en" <%= config.site_language === 'en' ? 'selected' : '' %>>英文</option></select></div>
+      </div>
+    </div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary btn-lg">💾 保存设置</button></div>
+  </form>
+
+  <form method="POST" action="/admin/change-password" style="margin-top:1.5rem">
+    <div class="admin-panel">
+      <h2>🔒 修改密码</h2>
+      <div class="form-grid">
+        <div class="form-group"><label>原密码</label><input type="password" name="old_password" required></div>
+        <div class="form-group"><label>新密码</label><input type="password" name="new_password" required></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-outline">🔒 修改密码</button></div>
+    </div>
+  </form>
+</div>
+<%- include('layout-close') %>

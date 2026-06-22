@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('../partials/seo-head') %>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="main-content">
+
+    <section class="page-header">
+      <div class="container">
+        <h1 class="page-title"><%= category.name %></h1>
+        <% if (category.description) { %>
+          <p class="page-desc"><%= category.description %></p>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="container">
+        <% if (articles.length > 0) { %>
+          <div class="articles-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('../partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <% if (typeof hasMore !== 'undefined' && hasMore) { %>
+            <div class="pagination">
+              <% if (page > 1) { %>
+                <a href="?page=<%= page - 1 %>" class="btn btn-secondary">上一页</a>
+              <% } %>
+              <span class="page-current">第 <%= page %> 页</span>
+              <a href="?page=<%= page + 1 %>" class="btn btn-secondary">下一页</a>
+            </div>
+          <% } %>
+        <% } else { %>
+          <div class="empty-state">
+            <p>📭 该栏目暂无文章</p>
+            <p>AI 正在为这个栏目准备内容</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

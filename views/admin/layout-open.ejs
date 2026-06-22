@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - AI 智能网站后台</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-body">
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="sidebar-header"><span class="sidebar-icon">🤖</span><span class="sidebar-title">AI 控制台</span></div>
+      <nav class="sidebar-nav">
+        <a href="/admin" class="sidebar-link<%= currentPath === '/admin' ? ' active' : '' %>">📊 控制面板</a>
+        <a href="/admin/articles" class="sidebar-link<%= currentPath.startsWith('/admin/articles') ? ' active' : '' %>">📝 文章管理</a>
+        <a href="/admin/categories" class="sidebar-link<%= currentPath.startsWith('/admin/categories') ? ' active' : '' %>">📂 栏目管理</a>
+        <a href="/admin/providers" class="sidebar-link<%= currentPath.startsWith('/admin/providers') ? ' active' : '' %>">🤖 AI 提供商</a>
+        <a href="/admin/schedules" class="sidebar-link<%= currentPath.startsWith('/admin/schedules') ? ' active' : '' %>">⏰ 定时任务</a>
+        <a href="/admin/logs" class="sidebar-link<%= currentPath.startsWith('/admin/logs') ? ' active' : '' %>">📜 Agent 日志</a>
+        <a href="/admin/settings" class="sidebar-link<%= currentPath === '/admin/settings' ? ' active' : '' %>">⚙️ 系统设置</a>
+        <div class="sidebar-divider"></div>
+        <a href="/" class="sidebar-link" target="_blank">🌐 查看网站</a>
+        <a href="/admin/logout" class="sidebar-link">🚪 退出登录</a>
+      </nav>
+    </aside>
+    <main class="admin-main">

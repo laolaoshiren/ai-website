@@ -1,0 +1,43 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>📂 栏目管理</h1>
+    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addCat').style.display='block'">➕ 新增栏目</button></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div id="addCat" class="admin-panel" style="display:none">
+    <h2>新增栏目</h2>
+    <form method="POST" action="/admin/categories/add">
+      <div class="form-grid">
+        <div class="form-group"><label>栏目名称</label><input type="text" name="name" required></div>
+        <div class="form-group"><label>URL 标识</label><input type="text" name="slug" placeholder="自动生成（可修改）"></div>
+        <div class="form-group"><label>简介</label><input type="text" name="description"></div>
+        <div class="form-group"><label>排序</label><input type="number" name="sort_order" value="0"></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addCat').style.display='none'">取消</button></div>
+    </form>
+  </div>
+
+  <div class="admin-panel">
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>名称</th><th>标识</th><th>简介</th><th>排序</th><th>操作</th></tr></thead>
+      <tbody>
+        <% categories.forEach(function(cat) { %>
+        <tr>
+          <td><%= cat.id %></td>
+          <td><strong><%= cat.name %></strong></td>
+          <td><code><%= cat.slug %></code></td>
+          <td><%= (cat.description || '').slice(0, 40) %></td>
+          <td><%= cat.sort_order %></td>
+          <td class="td-actions">
+            <form method="POST" action="/admin/categories/<%= cat.id %>/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('删除栏目后文章将变为未分类，确认？')">🗑️ 删除</button></form>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('layout-close') %>

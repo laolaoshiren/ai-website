@@ -1,0 +1,17 @@
+<header class="site-header">
+  <div class="container">
+    <div class="header-inner">
+      <a href="/" class="site-logo">
+        <span class="logo-icon">🤖</span>
+        <span class="logo-text"><%= siteTitle %></span>
+      </a>
+      <nav class="main-nav">
+        <a href="/" class="nav-link<%= currentPath === '/' ? ' active' : '' %>">首页</a>
+        <% if (typeof categories !== 'undefined') { categories.forEach(function(cat) { %>
+          <a href="/category/<%= cat.slug %>" class="nav-link<%= currentPath === '/category/' + cat.slug ? ' active' : '' %>"><%= cat.name %></a>
+        <% }); } %>
+      </nav>
+      <button class="nav-toggle" onclick="document.querySelector('.main-nav').classList.toggle('open')" aria-label="菜单">☰</button>
+    </div>
+  </div>
+</header>

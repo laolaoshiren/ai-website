@@ -1,0 +1,64 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1><%= article ? '✏️ 编辑文章' : '📝 新建文章' %></h1>
+    <div class="header-actions"><a href="/admin/articles" class="btn btn-outline">← 返回列表</a></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <form method="POST" action="/admin/articles/save">
+    <% if (article) { %><input type="hidden" name="id" value="<%= article.id %>"><% } %>
+
+    <div class="admin-panel">
+      <h2>基本信息</h2>
+      <div class="form-grid">
+        <div class="form-group form-group-full"><label>标题</label><input type="text" name="title" value="<%= article ? article.title : '' %>" required></div>
+        <div class="form-group"><label>URL 标识</label><input type="text" name="slug" value="<%= article ? article.slug : '' %>" placeholder="自动生成"></div>
+        <div class="form-group"><label>栏目</label>
+          <select name="category_id"><option value="">未分类</option><% categories.forEach(function(cat) { %><option value="<%= cat.id %>" <%= article && article.category_id === cat.id ? 'selected' : '' %>><%= cat.name %></option><% }); %></select>
+        </div>
+        <div class="form-group form-group-full"><label>摘要</label><textarea name="summary" rows="2"><%= article ? article.summary : '' %></textarea></div>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <h2>文章内容</h2>
+      <div class="form-group"><label>正文（Markdown 格式）</label>
+        <textarea name="content_md" rows="20" class="editor-textarea"><%= article ? article.content_md : '' %></textarea>
+      </div>
+      <% if (article && article.id) { %>
+      <div class="form-actions"><button type="submit" formaction="/admin/articles/<%= article.id %>/polish" class="btn btn-outline" formmethod="POST">✨ AI 润色（提升文章质量）</button></div>
+      <% } %>
+    </div>
+
+    <div class="admin-panel">
+      <h2>SEO 设置</h2>
+      <div class="form-grid">
+        <div class="form-group"><label>SEO 标题</label><input type="text" name="seo_title" value="<%= article ? (article.seo_title || '') : '' %>" placeholder="留空使用文章标题"></div>
+        <div class="form-group"><label>SEO 关键词</label><input type="text" name="seo_keywords" value="<%= article ? (article.seo_keywords || '') : '' %>" placeholder="关键词1, 关键词2"></div>
+        <div class="form-group form-group-full"><label>SEO 描述</label><textarea name="seo_description" rows="2"><%= article ? (article.seo_description || '') : '' %></textarea></div>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <h2>发布设置</h2>
+      <div class="form-grid">
+        <div class="form-group"><label>状态</label>
+          <select name="status">
+            <option value="draft" <%= article && article.status === 'draft' ? 'selected' : '' %>>草稿</option>
+            <option value="published" <%= article && article.status === 'published' ? 'selected' : '' %>>已发布</option>
+            <option value="planned" <%= article && article.status === 'planned' ? 'selected' : '' %>>计划中</option>
+          </select>
+        </div>
+        <div class="form-group"><label><input type="checkbox" name="featured" <%= article && article.featured ? 'checked' : '' %>> 设为精选推荐</label></div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="margin-top:1.5rem">
+      <button type="submit" class="btn btn-primary btn-lg">💾 保存文章</button>
+      <a href="/admin/articles" class="btn btn-outline btn-lg">取消</a>
+    </div>
+  </form>
+</div>
+<%- include('layout-close') %>

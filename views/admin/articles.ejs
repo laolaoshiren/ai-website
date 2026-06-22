@@ -1,0 +1,46 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>📝 文章管理</h1>
+    <div class="header-actions">
+      <a href="/admin/articles/new" class="btn btn-primary">➕ 新建文章</a>
+      <a href="/admin/articles" class="btn btn-sm <%= !status ? 'btn-primary' : 'btn-outline' %>">全部</a>
+      <a href="/admin/articles?status=published" class="btn btn-sm <%= status === 'published' ? 'btn-primary' : 'btn-outline' %>">已发布</a>
+      <a href="/admin/articles?status=planned" class="btn btn-sm <%= status === 'planned' ? 'btn-primary' : 'btn-outline' %>">计划中</a>
+      <a href="/admin/articles?status=draft" class="btn btn-sm <%= status === 'draft' ? 'btn-primary' : 'btn-outline' %>">草稿</a>
+    </div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div class="admin-panel">
+    <table class="admin-table">
+      <thead><tr><th>标题</th><th>栏目</th><th>状态</th><th>浏览</th><th>创建时间</th><th>操作</th></tr></thead>
+      <tbody>
+        <% if (pages.length > 0) { %>
+          <% var statusMap = {published:'已发布',planned:'计划中',draft:'草稿',archived:'已归档'}; %>
+          <% pages.forEach(function(p) { %>
+          <tr>
+            <td class="td-title"><%= p.title %></td>
+            <td><%= p.category_name || '-' %></td>
+            <td><span class="status-badge status-<%= p.status %>"><%= statusMap[p.status] || p.status %></span></td>
+            <td><%= p.view_count || 0 %></td>
+            <td class="td-time"><%= (p.created_at || '').split(' ')[0] %></td>
+            <td class="td-actions">
+              <a href="/admin/articles/<%= p.id %>/edit" class="btn btn-sm btn-outline">✏️ 编辑</a>
+              <% if (p.status === 'published') { %><a href="/article/<%= p.slug %>" target="_blank" class="btn btn-sm btn-outline">👁 查看</a><% } %>
+              <% if (p.status === 'planned' || p.status === 'draft') { %>
+                <form method="POST" action="/admin/articles/<%= p.id %>/status" style="display:inline"><input type="hidden" name="status" value="published"><button class="btn btn-sm btn-success">▶️ 发布</button></form>
+              <% } %>
+              <form method="POST" action="/admin/articles/<%= p.id %>/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+            </td>
+          </tr>
+          <% }); %>
+        <% } else { %>
+          <tr><td colspan="6" style="text-align:center">暂无文章</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('layout-close') %>

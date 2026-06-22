@@ -1,0 +1,43 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>⏰ 定时任务</h1>
+    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addTask').style.display='block'">➕ 新增任务</button></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
+
+  <div id="addTask" class="admin-panel" style="display:none">
+    <h2>新增定时任务</h2>
+    <form method="POST" action="/admin/schedules/add">
+      <div class="form-grid">
+        <div class="form-group"><label>任务类型</label>
+          <select name="task_type"><option value="news_collector">📡 资讯采集</option><option value="plan_structure">🧠 结构规划</option><option value="generate_content">✍️ 内容生成</option><option value="seo_update">🔍 SEO更新</option><option value="seo_expert_audit">📊 SEO深度审计</option><option value="analyze">📈 数据分析</option><option value="user_test">👤 用户体验测评</option><option value="template_review">🔧 模板审查</option></select>
+        </div>
+        <div class="form-group"><label>Cron 表达式</label><input type="text" name="cron_expr" placeholder="0 8 * * *" required><small>分 时 日 月 周</small></div>
+        <div class="form-group"><label>描述</label><input type="text" name="description" placeholder="每天 8:00 生成文章"></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addTask').style.display='none'">取消</button></div>
+    </form>
+  </div>
+
+  <div class="admin-panel">
+    <table class="admin-table">
+      <thead><tr><th>任务</th><th>频率</th><th>状态</th><th>上次执行</th><th>操作</th></tr></thead>
+      <tbody>
+        <% schedules.forEach(function(s) { %>
+        <tr>
+          <td><strong><%= s.description || s.task_type %></strong></td>
+          <td><code><%= s.cron_expr %></code></td>
+          <td><span class="status-badge <%= s.enabled ? 'status-published' : 'status-archived' %>"><%= s.enabled ? '启用' : '禁用' %></span></td>
+          <td><%= s.last_run || '未执行' %></td>
+          <td class="td-actions">
+            <form method="POST" action="/admin/schedules/<%= s.id %>/toggle" style="display:inline"><button class="btn btn-sm btn-outline"><%= s.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
+            <form method="POST" action="/admin/schedules/<%= s.id %>/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('layout-close') %>

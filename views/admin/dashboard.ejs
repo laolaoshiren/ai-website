@@ -1,0 +1,90 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>📊 控制面板</h1>
+    <div class="header-actions">
+      <% var hasProviders = typeof stats !== 'undefined' && stats.activeProviders > 0; %>
+      <% if (hasProviders) { %>
+        <form method="POST" action="/admin/cold-start" style="display:inline"><button type="submit" class="btn btn-primary" onclick="return confirm('将调用 AI 生成初始内容，确认？')">🚀 冷启动</button></form>
+        <form method="POST" action="/admin/clear-content" style="display:inline"><button type="submit" class="btn btn-outline" onclick="return confirm('⚠️ 将清除所有文章、栏目，然后重新生成。确认？')">🗑️ 清除重新规划</button></form>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <% if (!hasProviders) { %>
+  <div class="alert alert-warning">⚠️ 还没有可用的 AI 提供商！请前往 <a href="/admin/providers">AI 提供商</a> 添加。</div>
+  <% } %>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-number"><%= stats.totalArticles %></div><div class="stat-label">已发布文章</div></div>
+    <div class="stat-card"><div class="stat-number"><%= stats.totalPlanned %></div><div class="stat-label">待生成计划</div></div>
+    <div class="stat-card"><div class="stat-number"><%= stats.totalCategories %></div><div class="stat-label">栏目数量</div></div>
+    <div class="stat-card"><div class="stat-number"><%= stats.totalPageviews %></div><div class="stat-label">总浏览量</div></div>
+    <div class="stat-card"><div class="stat-number"><%= stats.activeProviders %>/<%= stats.totalProviders %></div><div class="stat-label">AI 提供商</div></div>
+  </div>
+
+  <div class="admin-grid">
+    <div class="admin-panel">
+      <h2>📋 手动触发</h2>
+      <div class="trigger-buttons">
+        <form method="POST" action="/admin/trigger/news_collector"><button class="btn btn-outline">📡 采集资讯</button></form>
+        <form method="POST" action="/admin/trigger/plan_structure"><button class="btn btn-outline">🧠 规划结构</button></form>
+        <form method="POST" action="/admin/trigger/generate_content"><button class="btn btn-outline">✍️ 生成文章</button></form>
+        <form method="POST" action="/admin/trigger/seo_update"><button class="btn btn-outline">🔍 SEO 更新</button></form>
+        <form method="POST" action="/admin/trigger/seo_expert_audit"><button class="btn btn-outline">📊 SEO 审计</button></form>
+        <form method="POST" action="/admin/trigger/analyze"><button class="btn btn-outline">📈 数据分析</button></form>
+        <form method="POST" action="/admin/trigger/user_test"><button class="btn btn-outline">👤 用户测评</button></form>
+      </div>
+      <div style="margin-top:1rem">
+        <form method="POST" action="/admin/toggle-loop" style="display:inline">
+          <button type="submit" class="btn btn-lg <%= getConfig().ai_loop_enabled === '1' ? 'btn-success' : 'btn-warning' %>"><%= getConfig().ai_loop_enabled === '1' ? '🔄 自动循环：已开启' : '⏸ 自动循环：已关闭' %></button>
+        </form>
+      </div>
+    </div>
+
+    <div class="admin-panel">
+      <h2>🤖 Agent 状态</h2>
+      <% var roleNames = {site_manager:'🏢 站长',editor:'✏️ 编辑',reviewer:'🔍 审核',technician:'🔧 技术员',news_collector:'📡 新闻采集',writer:'✍️ 写手',planner:'🧠 规划师',polisher:'💎 润色师',seo_expert:'📊 SEO专家',analyzer:'📈 分析师',user_tester:'👤 测评员'}; %>
+      <% if (Object.keys(agentStatuses).length > 0) { %>
+        <div class="agent-status-list">
+          <% Object.entries(agentStatuses).forEach(function([role, s]) { %>
+          <div class="agent-status-item">
+            <span class="status-dot <%= s.status === 'working' ? 'dot-blue' : s.status === 'idle' ? 'dot-green' : 'dot-gray' %>"></span>
+            <span><%= roleNames[role] || role %></span>
+            <span class="agent-task-text"><%= s.current_task || '空闲' %></span>
+          </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-muted">暂无 Agent 运行记录，点击冷启动开始</p>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <h2>📜 最近 Agent 日志</h2>
+    <table class="admin-table">
+      <thead><tr><th>时间</th><th>角色</th><th>操作</th><th>状态</th><th>详情</th></tr></thead>
+      <tbody>
+        <% if (agentLogs.length > 0) { %>
+          <% agentLogs.slice(0, 15).forEach(function(log) { %>
+          <tr>
+            <td class="td-time"><%= log.created_at || '' %></td>
+            <td><span class="agent-badge"><%= roleNames[log.agent_role] || log.agent_role %></span></td>
+            <td><%= log.action %></td>
+            <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
+            <td class="td-detail"><%= (log.detail || '').slice(0, 60) %></td>
+          </tr>
+          <% }); %>
+        <% } else { %>
+          <tr><td colspan="5" style="text-align:center">暂无日志</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+    <% if (agentLogs.length > 15) { %><div style="text-align:right;margin-top:0.5rem"><a href="/admin/logs" class="btn btn-sm btn-outline">查看全部日志 →</a></div><% } %>
+  </div>
+</div>
+<%- include('layout-close') %>

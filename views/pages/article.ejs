@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('../partials/seo-head') %>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="main-content">
+
+    <article class="article-detail">
+      <header class="article-header">
+        <div class="container">
+          <% if (article.category_name) { %>
+            <a href="/category/<%= article.category_slug %>" class="article-category-badge"><%= article.category_name %></a>
+          <% } %>
+          <h1 class="article-title"><%= article.title %></h1>
+          <div class="article-meta">
+            <% if (article.published_at) { %>
+              <time>📅 发布于 <%= article.published_at.split(' ')[0] %></time>
+            <% } %>
+            <span>👁 <%= article.view_count || 0 %> 次阅读</span>
+            <span>🤖 AI 生成内容</span>
+          </div>
+          <% if (article.summary) { %>
+            <p class="article-summary"><%= article.summary %></p>
+          <% } %>
+        </div>
+      </header>
+
+      <div class="article-body">
+        <div class="container">
+          <div class="article-content">
+            <%- article.content_html || '<p>内容加载中...</p>' %>
+          </div>
+
+          <div class="article-footer">
+            <div class="article-tags">
+              <% if (article.seo_keywords) { %>
+                <% article.seo_keywords.split(',').forEach(function(tag) { %>
+                  <span class="tag"><%= tag.trim() %></span>
+                <% }); %>
+              <% } %>
+            </div>
+            <div class="article-notice">
+              <p>📌 本文由 AI 自动生成，基于最新公开信息撰写。内容仅供参考，请以官方信息为准。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <script>
+    (function() {
+      var startTime = Date.now();
+      var maxScroll = 0;
+      var pageSlug = '<%= article.slug %>';
+
+      fetch('/api/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page_slug: pageSlug, event_type: 'pageview' })
+      }).catch(function(){});
+
+      window.addEventListener('scroll', function() {
+        var scrollPercent = Math.round((window.scrollY + window.innerHeight) / document.body.scrollHeight * 100);
+        if (scrollPercent > maxScroll) maxScroll = scrollPercent;
+      });
+
+      window.addEventListener('beforeunload', function() {
+        var duration = Math.round((Date.now() - startTime) / 1000);
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/analytics', JSON.stringify({
+            page_slug: pageSlug, event_type: 'time_on_page', value: duration
+          }));
+          navigator.sendBeacon('/api/analytics', JSON.stringify({
+            page_slug: pageSlug, event_type: 'scroll_depth', value: maxScroll
+          }));
+        }
+      });
+    })();
+    </script>
+
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - AI 智能网站</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin-body login-page">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header"><span class="login-icon">🤖</span><h1>AI 智能网站</h1><p>管理后台登录</p></div>
+      <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+      <form method="POST" action="/admin/login">
+        <div class="form-group"><label>管理密码</label><input type="password" name="password" required autofocus placeholder="请输入管理密码"></div>
+        <button type="submit" class="btn btn-primary btn-lg btn-block">🔓 登录</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
