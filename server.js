@@ -22,6 +22,7 @@ app.use((req, res, next) => {
   res.locals.siteTitle = config.site_title || 'AI 智能网站';
   res.locals.siteDescription = config.site_description || '';
   res.locals.siteLanguage = config.site_language || 'zh-CN';
+  res.locals.siteUrl = config.site_url || 'http://localhost:3000';
   res.locals.currentPath = req.path;
   res.locals.categories = [];
   try { const { getCategories } = require('./db/database'); res.locals.categories = getCategories(); } catch {}
