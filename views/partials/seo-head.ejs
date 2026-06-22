@@ -10,6 +10,20 @@
 <meta property="og:type" content="<%= typeof article !== 'undefined' ? 'article' : 'website' %>">
 <meta property="og:site_name" content="<%= siteTitle %>">
 <link rel="canonical" href="<%= typeof currentPath !== 'undefined' ? currentPath : '' %>">
-<% if (typeof article !== 'undefined' && article && article.schema_json) { %>
+<% if (typeof article !== 'undefined' && article) { %>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "<%= article.seo_title || article.title %>",
+  "description": "<%= article.seo_description || article.summary || '' %>",
+  "datePublished": "<%= article.published_at || '' %>",
+  "dateModified": "<%= article.updated_at || '' %>",
+  "author": {"@type": "Organization", "name": "<%= siteTitle %>"},
+  "publisher": {"@type": "Organization", "name": "<%= siteTitle %>"},
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %>/article/<%= article.slug %>"}
+}
+</script>
+<% } else if (typeof article !== 'undefined' && article && article.schema_json) { %>
 <script type="application/ld+json"><%- article.schema_json %></script>
 <% } %>

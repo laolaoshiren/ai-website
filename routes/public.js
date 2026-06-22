@@ -38,9 +38,11 @@ router.get('/article/:slug', (req, res) => {
   if (!article || article.status !== 'published') {
     return res.status(404).render('pages/404', { title: '文章不存在' });
   }
+  const config = getConfig();
   res.render('pages/article', {
     title: article.seo_title || article.title,
     article,
+    siteUrl: config.site_url || 'http://localhost:3000',
     metaDescription: article.seo_description || article.summary,
     metaKeywords: article.seo_keywords,
   });
