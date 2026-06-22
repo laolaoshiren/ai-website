@@ -7,6 +7,16 @@ const crypto = require('crypto');
 
 async function populate() {
   await initDb();
+
+  // 清理旧数据
+  const db = require('./database').getDb();
+  db.categories = [];
+  db.pages = [];
+  db.analytics = [];
+  db._counters.categories = 0;
+  db._counters.pages = 0;
+  require('./database').saveDb();
+
   setAdminPassword(crypto.createHash('sha256').update('admin').digest('hex'));
 
   setSetting('site_title', 'AI 纪元');

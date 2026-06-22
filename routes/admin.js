@@ -167,8 +167,13 @@ router.get('/categories', (req, res) => {
 
 router.post('/categories/add', (req, res) => {
   const { name, slug, description, sort_order } = req.body;
-  if (!name) return res.redirect('/admin/categories?error=' + encodeURIComponent('请输入栏目名称'));
-  db.addCategory(name, slug || name.toLowerCase().replace(/[\s]+/g, '-').replace(/[^a-z0-9一-龥-]/g, ''), description, parseInt(sort_order) || 0);
+  if (!name || !name.trim()) return res.redirect('/admin/categories?error=' + encodeURIComponent('请输入栏目名称'));
+  const finalSlug = slug?.trim() || name.trim().toLowerCase().replace(/[\s]+/g, '-').replace(/[^a-z0-9一-龥-]/g, '');
+  if (!finalSlug) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识不能为空'));
+  // 检查重复
+  const existing = db.getCategoryBySlug(finalSlug);
+  if (existing) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识已存在: ' + finalSlug));
+  db.addCategory(name.trim(), finalSlug, description?.trim(), parseInt(sort_order) || 0);
   res.redirect('/admin/categories?success=1');
 });
 
@@ -204,9 +209,17 @@ router.get('/articles/:id/edit', (req, res) => {
 
 router.post('/articles/save', (req, res) => {
   const { id, title, slug, category_id, summary, content_md, status, seo_title, seo_description, seo_keywords, featured } = req.body;
+  if (!title || !title.trim()) return res.redirect('/admin/articles?error=' + encodeURIComponent('标题不能为空'));
+  const finalSlug = slug?.trim() || require('../ai/utils').slugify(title.trim());
+  if (!finalSlug) return res.redirect('/admin/articles?error=' + encodeURIComponent('URL标识不能为空'));
+  // 检查重复 slug（编辑时排除自身）
+  const existing = db.getPageBySlug(finalSlug);
+  if (existing && (!id || existing.id !== parseInt(id))) {
+    return res.redirect('/admin/articles?error=' + encodeURIComponent('URL标识已存在: ' + finalSlug));
+  }
   const { marked } = require('marked');
   const content_html = marked(content_md || '');
-  const pageData = { title, slug, category_id: category_id ? parseInt(category_id) : null, summary, content_md, content_html, status: status || 'draft', seo_title, seo_description, seo_keywords, featured: featured === 'on' ? 1 : 0, published_at: status === 'published' ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null };
+  const pageData = { title: title.trim(), slug: finalSlug, category_id: category_id ? parseInt(category_id) : null, summary: summary?.trim(), content_md: content_md || '', content_html, status: status || 'draft', seo_title: seo_title?.trim(), seo_description: seo_description?.trim(), seo_keywords: seo_keywords?.trim(), featured: featured === 'on' ? 1 : 0, published_at: status === 'published' ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null };
   if (id) { db.updatePage(parseInt(id), pageData); } else { db.insertPage(pageData); }
   res.redirect('/admin/articles?success=1');
 });
