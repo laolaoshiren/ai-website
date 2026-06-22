@@ -72,7 +72,7 @@ router.get('/sitemap.xml', (req, res) => {
 router.get('/robots.txt', (req, res) => {
   const config = getConfig();
   const siteUrl = config.site_url || 'http://localhost:3000';
-  const txt = `User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`;
+  const txt = `User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
   res.set('Content-Type', 'text/plain');
   res.send(txt);
 });
