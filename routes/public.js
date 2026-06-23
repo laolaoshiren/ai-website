@@ -6,6 +6,7 @@ const router = express.Router();
 const { getPublishedPages, getPageBySlug, getCategoryBySlug, getCategories } = require('../db/database');
 const { getConfig } = require('../config');
 const { buildArchivePagination, ARCHIVE_ARTICLES_PER_PAGE } = require('./archive-pagination');
+const { buildPagination } = require('./pagination');
 
 // 首页
 router.get('/', (req, res) => {
@@ -41,12 +42,18 @@ router.get('/category/:slug', (req, res) => {
   const slug = decodeURIComponent(req.params.slug);
   const category = getCategoryBySlug(slug);
   if (!category) return res.status(404).render('pages/404', { title: '栏目不存在' });
-  const page = parseInt(req.query.page) || 1;
   const limit = 12;
-  const articles = getPublishedPages(limit, (page - 1) * limit, category.id);
+  const allArticles = getPublishedPages(10000, 0, category.id);
+  const pagination = buildPagination({
+    totalItems: allArticles.length,
+    requestedPage: req.query.page,
+    perPage: limit,
+    basePath: `/category/${encodeSlug(category.slug)}`,
+  });
+  const articles = allArticles.slice(pagination.offset, pagination.offset + pagination.perPage);
   res.render('pages/category', {
     title: category.name,
-    category, articles, page, hasMore: articles.length === limit,
+    category, articles, pagination,
     metaDescription: category.description,
   });
 });
@@ -67,9 +74,15 @@ router.get('/search', (req, res) => {
     );
   }
   const total = results.length;
-  const totalPages = Math.ceil(total / limit);
-  const articles = results.slice((page - 1) * limit, page * limit);
-  res.render('pages/search', { title: q ? '搜索: ' + q : '搜索', q, articles, page, totalPages, total });
+  const pagination = buildPagination({
+    totalItems: total,
+    requestedPage: page,
+    perPage: limit,
+    basePath: '/search',
+    query: { q },
+  });
+  const articles = results.slice(pagination.offset, pagination.offset + pagination.perPage);
+  res.render('pages/search', { title: q ? '搜索: ' + q : '搜索', q, articles, pagination, total });
 });
 
 // 归档

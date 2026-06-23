@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=7">
+  <link rel="stylesheet" href="/css/style.css?v=8">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -17,7 +17,12 @@
           <button type="submit" class="btn btn-primary">搜索</button>
         </form>
         <% if (q) { %>
-          <p class="page-desc">共找到 <strong><%= total %></strong> 篇相关文章</p>
+          <p class="page-desc">
+            共找到 <strong><%= total %></strong> 篇相关文章
+            <% if (pagination.totalItems > 0) { %>
+              ，当前显示第 <%= pagination.startItem %>-<%= pagination.endItem %> 篇
+            <% } %>
+          </p>
         <% } %>
       </div>
     </section>
@@ -30,17 +35,7 @@
               <%- include('../partials/article-card', { article: article }) %>
             <% }); %>
           </div>
-          <% if (totalPages > 1) { %>
-            <div class="pagination">
-              <% if (page > 1) { %>
-                <a href="/search?q=<%= encodeURIComponent(q) %>&page=<%= page - 1 %>" class="btn btn-secondary">上一页</a>
-              <% } %>
-              <span class="page-current">第 <%= page %> / <%= totalPages %> 页</span>
-              <% if (page < totalPages) { %>
-                <a href="/search?q=<%= encodeURIComponent(q) %>&page=<%= page + 1 %>" class="btn btn-secondary">下一页</a>
-              <% } %>
-            </div>
-          <% } %>
+          <%- include('../partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '搜索结果分页' }) %>
         <% } else if (q) { %>
           <div class="empty-state">
             <p>没有找到与 "<strong><%= q %></strong>" 相关的文章</p>

@@ -124,8 +124,22 @@ a { color: var(--primary); text-decoration: none; }
 .text-muted { color: var(--text-light); font-size: 0.85rem; }
 
 /* Pagination */
-.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; padding: 1rem 0; }
-.page-info { font-size: 0.85rem; color: var(--text-light); }
+.pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; padding: 1rem 0; }
+.numbered-pagination { margin-top: 1.25rem; }
+.pagination-pages { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.4rem; }
+.pagination-button, .pagination-link, .pagination-ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; }
+.pagination-button, .pagination-link { border: 1px solid var(--border); background: #141420; color: var(--text); transition: all 0.15s; }
+.pagination-button { padding: 0 0.9rem; }
+.pagination-button:hover, .pagination-link:hover { border-color: var(--primary); background: #1a2744; color: var(--primary-dark); }
+.pagination-link.is-current { border-color: var(--primary); background: var(--primary); color: #fff; }
+.pagination-button.is-disabled { cursor: not-allowed; opacity: 0.42; }
+.pagination-ellipsis, .pagination-summary, .page-info { color: var(--text-light); }
+.pagination-summary { flex-basis: 100%; font-size: 0.82rem; text-align: center; }
+
+.list-filter-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.filter-input { flex: 1; min-width: 220px; padding: 0.45rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; background: #141420; color: var(--text); font-size: 0.85rem; }
+.filter-select { padding: 0.45rem 0.7rem; border: 1px solid var(--border); border-radius: 8px; background: #1a1a2e; color: var(--text); font-size: 0.85rem; }
+.filter-input:focus, .filter-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(96,165,250,0.12); }
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -137,6 +151,10 @@ a { color: var(--primary); text-decoration: none; }
   .trigger-buttons { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .providers-grid { grid-template-columns: 1fr; }
+  .pagination { align-items: stretch; }
+  .pagination-button { flex: 1 1 120px; }
+  .pagination-pages { order: 3; width: 100%; }
+  .pagination-summary { order: 4; }
 }
 
 /* Mode Switch */

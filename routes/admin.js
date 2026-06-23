@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const { getConfig, refreshConfig } = require('../config');
 const db = require('../db/database');
 const { testConnection } = require('../ai/client');
+const { buildPagination } = require('./pagination');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -340,7 +341,6 @@ router.get('/articles', (req, res) => {
   const q = (req.query.q || '').trim();
   const sort = req.query.sort || 'newest';
   const cat = req.query.cat || '';
-  const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = 20;
 
   let allPages = db.getAllPages(status);
@@ -371,10 +371,16 @@ router.get('/articles', (req, res) => {
   }
 
   const total = allPages.length;
-  const totalPages = Math.ceil(total / limit);
-  const pages = allPages.slice((page - 1) * limit, page * limit);
+  const pagination = buildPagination({
+    totalItems: total,
+    requestedPage: req.query.page,
+    perPage: limit,
+    basePath: '/admin/articles',
+    query: { q, status, sort, cat },
+  });
+  const pages = allPages.slice(pagination.offset, pagination.offset + pagination.perPage);
   const categories = db.getCategories();
-  res.render('admin/articles', { title: '文章管理', pages, status, q, sort, cat, page, totalPages, total, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  res.render('admin/articles', { title: '文章管理', pages, status, q, sort, cat, pagination, total, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/new', (req, res) => {
@@ -480,14 +486,18 @@ router.post('/schedules/:id/delete', requireCsrf, (req, res) => {
 
 // ============ Agent 日志 ============
 router.get('/logs', (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = 30;
   const allLogs = db.getAgentLogs(9999);
   const total = allLogs.length;
-  const totalPages = Math.ceil(total / limit);
-  const logs = allLogs.slice((page - 1) * limit, page * limit);
+  const pagination = buildPagination({
+    totalItems: total,
+    requestedPage: req.query.page,
+    perPage: limit,
+    basePath: '/admin/logs',
+  });
+  const logs = allLogs.slice(pagination.offset, pagination.offset + pagination.perPage);
   const agentStatuses = db.getAgentStatuses();
-  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, page, totalPages, total, csrfToken: req.session?.csrf || '' });
+  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, pagination, total, csrfToken: req.session?.csrf || '' });
 });
 
 // ============ 手动触发 ============

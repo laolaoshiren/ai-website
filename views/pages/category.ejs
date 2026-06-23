@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=7">
+  <link rel="stylesheet" href="/css/style.css?v=8">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -12,9 +12,12 @@
       <div class="container">
         <span class="page-kicker">Topic</span>
         <h1 class="page-title"><%= category.name %></h1>
-        <% if (category.description) { %>
-          <p class="page-desc"><%= category.description %></p>
-        <% } %>
+        <p class="page-desc">
+          <% if (category.description) { %><%= category.description %><% } else { %>该栏目下的全部文章<% } %>
+          <% if (pagination.totalItems > 0) { %>
+            · 当前显示第 <%= pagination.startItem %>-<%= pagination.endItem %> 篇，共 <%= pagination.totalItems %> 篇
+          <% } %>
+        </p>
       </div>
     </section>
 
@@ -26,15 +29,7 @@
               <%- include('../partials/article-card', { article: article }) %>
             <% }); %>
           </div>
-          <% if (typeof hasMore !== 'undefined' && hasMore) { %>
-            <div class="pagination">
-              <% if (page > 1) { %>
-                <a href="?page=<%= page - 1 %>" class="btn btn-secondary">上一页</a>
-              <% } %>
-              <span class="page-current">第 <%= page %> 页</span>
-              <a href="?page=<%= page + 1 %>" class="btn btn-secondary">下一页</a>
-            </div>
-          <% } %>
+          <%- include('../partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: category.name + '分页' }) %>
         <% } else { %>
           <div class="empty-state">
             <p>该栏目暂无文章</p>

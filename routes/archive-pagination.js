@@ -1,4 +1,5 @@
 const ARCHIVE_ARTICLES_PER_PAGE = 30;
+const { buildPagination } = require('./pagination');
 
 function toPositiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -27,20 +28,25 @@ function buildArchivePagination(articles, requestedPage, options = {}) {
   const perPage = toPositiveInteger(options.perPage, ARCHIVE_ARTICLES_PER_PAGE);
   const archiveArticles = Array.isArray(articles) ? articles.filter(getArchiveMonth) : [];
   const totalArticles = archiveArticles.length;
-  const totalPages = Math.max(1, Math.ceil(totalArticles / perPage));
-  const page = Math.min(toPositiveInteger(requestedPage, 1), totalPages);
-  const startIndex = totalArticles > 0 ? (page - 1) * perPage : 0;
-  const pageArticles = archiveArticles.slice(startIndex, startIndex + perPage);
+  const pagination = buildPagination({
+    totalItems: totalArticles,
+    requestedPage,
+    perPage,
+    basePath: options.basePath || '/archive',
+    query: options.query,
+  });
+  const pageArticles = archiveArticles.slice(pagination.offset, pagination.offset + pagination.perPage);
 
   return {
     archive: groupByMonth(pageArticles),
-    page,
-    perPage,
+    page: pagination.page,
+    perPage: pagination.perPage,
     totalArticles,
-    totalPages,
+    totalPages: pagination.totalPages,
     totalMonths: groupByMonth(archiveArticles).length,
-    startArticle: totalArticles > 0 ? startIndex + 1 : 0,
-    endArticle: totalArticles > 0 ? startIndex + pageArticles.length : 0,
+    startArticle: pagination.startItem,
+    endArticle: pagination.endItem,
+    pagination,
   };
 }
 
