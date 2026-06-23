@@ -304,6 +304,11 @@ router.post('/providers/:id/test', requireCsrf, async (req, res) => {
 // ============ 分类 CRUD ============
 router.get('/categories', (req, res) => {
   const categories = db.getCategories();
+  const allPages = db.getAllPages();
+  // 统计每个栏目的文章数
+  const countMap = {};
+  allPages.forEach(p => { if (p.category_id) countMap[p.category_id] = (countMap[p.category_id] || 0) + 1; });
+  categories.forEach(c => { c.article_count = countMap[c.id] || 0; });
   res.render('admin/categories', { title: '栏目管理', categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
@@ -334,10 +339,17 @@ router.get('/articles', (req, res) => {
   const status = req.query.status || null;
   const q = (req.query.q || '').trim();
   const sort = req.query.sort || 'newest';
+  const cat = req.query.cat || '';
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = 20;
 
   let allPages = db.getAllPages(status);
+
+  // 栏目筛选
+  if (cat) {
+    const catId = parseInt(cat);
+    if (catId) allPages = allPages.filter(p => p.category_id === catId);
+  }
 
   // 关键词搜索
   if (q) {
@@ -362,7 +374,7 @@ router.get('/articles', (req, res) => {
   const totalPages = Math.ceil(total / limit);
   const pages = allPages.slice((page - 1) * limit, page * limit);
   const categories = db.getCategories();
-  res.render('admin/articles', { title: '文章管理', pages, status, q, sort, page, totalPages, total, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  res.render('admin/articles', { title: '文章管理', pages, status, q, sort, cat, page, totalPages, total, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/new', (req, res) => {

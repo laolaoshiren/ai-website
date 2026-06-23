@@ -24,12 +24,18 @@
         <option value="oldest" <%= sort === 'oldest' ? 'selected' : '' %>>最早发布</option>
         <option value="views" <%= sort === 'views' ? 'selected' : '' %>>阅读量排序</option>
       </select>
+      <select name="cat" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:#1a1a2e;color:#e8e8ed;font-size:var(--text-sm)">
+        <option value="">全部栏目</option>
+        <% categories.forEach(function(c) { %>
+          <option value="<%= c.id %>" <%= cat == c.id ? 'selected' : '' %>><%= c.name %></option>
+        <% }); %>
+      </select>
       <button type="submit" class="btn btn-primary btn-sm">筛选</button>
-      <% if (q || status || sort !== 'newest') { %>
+      <% if (q || status || sort !== 'newest' || cat) { %>
         <a href="/admin/articles" class="btn btn-outline btn-sm">清除</a>
       <% } %>
     </form>
-    <% if (q || status) { %>
+    <% if (q || status || cat) { %>
       <p class="text-muted" style="margin-top:0.5rem">
         <% if (q) { %>搜索 "<strong><%= q %></strong>" · <% } %>
         <% if (status) { %><%= status === 'published' ? '已发布' : status === 'planned' ? '计划中' : '草稿' %> · <% } %>
