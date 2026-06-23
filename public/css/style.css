@@ -303,11 +303,11 @@ img { max-width: 100%; height: auto; }
 .back-to-top:hover { transform: translateY(-3px); box-shadow: var(--shadow-glow); }
 
 /* ---- Search ---- */
-.search-form { display: flex; align-items: center; margin-right: var(--space-2); }
-.search-input { padding: var(--space-2) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm) 0 0 var(--radius-sm); font-size: var(--text-sm); background: var(--bg-sunken); color: var(--text-primary); width: 180px; transition: all var(--duration-normal) var(--ease-out); }
-.search-input:focus { outline: none; border-color: var(--primary); width: 240px; box-shadow: 0 0 0 3px var(--primary-glow); }
-.search-btn { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--surface); cursor: pointer; transition: background var(--duration-fast); }
-.search-btn:hover { background: var(--primary-light); }
+.search-form { display: flex; align-items: center; margin-right: var(--space-3); position: relative; }
+.search-input { padding: 0.45rem 0.9rem 0.45rem 2.2rem; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-sm); background: var(--bg-sunken); color: var(--text-primary); width: 180px; transition: all var(--duration-normal) var(--ease-out); }
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-input:focus { outline: none; border-color: var(--primary); width: 240px; background: var(--surface); box-shadow: 0 0 0 3px var(--primary-glow); }
+.search-btn { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 0; opacity: 0.5; transition: opacity var(--duration-fast); pointer-events: none; }
 
 /* ---- Skeleton Loading ---- */
 .skeleton { background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--border-subtle) 50%, var(--bg-sunken) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; border-radius: var(--radius-sm); }
@@ -351,7 +351,7 @@ img { max-width: 100%; height: auto; }
   .footer-tagline { max-width: 100%; }
   .footer-logo { justify-content: center; }
   .footer-bottom { flex-direction: column; gap: var(--space-2); text-align: center; }
-  .search-input { width: 120px; }
-  .search-input:focus { width: 160px; }
+  .search-input { width: 140px; }
+  .search-input:focus { width: 180px; }
   .toc-sidebar { display: none !important; }
 }

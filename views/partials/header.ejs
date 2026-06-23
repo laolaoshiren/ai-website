@@ -6,8 +6,8 @@
         <span class="logo-text"><%= siteTitle %></span>
       </a>
       <form class="search-form" action="/search" method="GET">
+        <span class="search-btn">🔍</span>
         <input type="text" name="q" placeholder="搜索文章..." class="search-input">
-        <button type="submit" class="search-btn">🔍</button>
       </form>
       <nav class="main-nav" id="main-nav">
         <a href="/" class="nav-link<%= currentPath === '/' ? ' active' : '' %>">首页</a>
