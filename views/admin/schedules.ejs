@@ -32,10 +32,12 @@
           <td><span class="status-badge <%= s.enabled ? 'status-published' : 'status-archived' %>"><%= s.enabled ? '启用' : '禁用' %></span></td>
           <td><%= s.last_run || '未执行' %></td>
           <td class="td-actions">
-            <form method="POST" action="/admin/schedules/<%= s.id %>
-      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/toggle" style="display:inline"><button class="btn btn-sm btn-outline"><%= s.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
-            <form method="POST" action="/admin/schedules/<%= s.id %>
-      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+            <form method="POST" action="/admin/schedules/<%= s.id %>/toggle" style="display:inline">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-outline"><%= s.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
+            <form method="POST" action="/admin/schedules/<%= s.id %>/delete" style="display:inline">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+              <button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
           </td>
         </tr>
         <% }); %>

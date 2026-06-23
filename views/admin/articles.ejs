@@ -30,11 +30,13 @@
               <a href="/admin/articles/<%= p.id %>/edit" class="btn btn-sm btn-outline">✏️ 编辑</a>
               <% if (p.status === 'published') { %><a href="/article/<%= p.slug %>" target="_blank" class="btn btn-sm btn-outline">👁 查看</a><% } %>
               <% if (p.status === 'planned' || p.status === 'draft') { %>
-                <form method="POST" action="/admin/articles/<%= p.id %>
-      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/status" style="display:inline"><input type="hidden" name="status" value="published"><button class="btn btn-sm btn-success">▶️ 发布</button></form>
+                <form method="POST" action="/admin/articles/<%= p.id %>/status" style="display:inline">
+                  <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                  <input type="hidden" name="status" value="published"><button class="btn btn-sm btn-success">▶️ 发布</button></form>
               <% } %>
-              <form method="POST" action="/admin/articles/<%= p.id %>
-      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+              <form method="POST" action="/admin/articles/<%= p.id %>/delete" style="display:inline">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
             </td>
           </tr>
           <% }); %>

@@ -5,7 +5,7 @@ const { getActiveAIProvider, incrementProviderUsage, getAIProviders } = require(
 const { executeTool, getToolDefinitions } = require('./tools');
 
 /**
- * 调用 AI API（自动选择提供商、故障转移）
+ * 调用 AI API（自动选择提供商、故障转移、自动重试）
  */
 async function callAI(messages, options = {}) {
   const providers = getAIProviders().filter(p => p.enabled);
@@ -15,14 +15,27 @@ async function callAI(messages, options = {}) {
 
   let lastError = null;
   for (const provider of providers) {
-    try {
-      const result = await callProvider(provider, messages, options);
-      incrementProviderUsage(provider.id, true);
-      return result;
-    } catch (err) {
-      incrementProviderUsage(provider.id, false);
-      lastError = err;
-      console.log(`  ⚠️ 提供商 ${provider.name} 失败: ${err.message}，尝试下一个...`);
+    // 每个 provider 最多重试 2 次
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const result = await callProvider(provider, messages, options);
+        incrementProviderUsage(provider.id, true);
+        return result;
+      } catch (err) {
+        incrementProviderUsage(provider.id, false);
+        lastError = err;
+        const retryable = err.message.includes('ECONNRESET') || err.message.includes('ETIMEDOUT') ||
+          err.message.includes('fetch failed') || err.message.includes('503') || err.message.includes('429') ||
+          err.message.includes('502') || err.message.includes('500');
+        if (attempt === 0 && retryable) {
+          const delay = 1000 * (attempt + 1);
+          console.log(`  ⚠️ 提供商 ${provider.name} 失败: ${err.message}，${delay}ms 后重试...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        console.log(`  ⚠️ 提供商 ${provider.name} 失败: ${err.message}，跳过`);
+        break;
+      }
     }
   }
   throw new Error(`所有 AI 提供商均失败，最后错误: ${lastError?.message}`);

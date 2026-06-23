@@ -33,8 +33,9 @@
           <td><%= (cat.description || '').slice(0, 40) %></td>
           <td><%= cat.sort_order %></td>
           <td class="td-actions">
-            <form method="POST" action="/admin/categories/<%= cat.id %>
-      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('删除栏目后文章将变为未分类，确认？')">🗑️ 删除</button></form>
+            <form method="POST" action="/admin/categories/<%= cat.id %>/delete" style="display:inline">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('删除栏目后文章将变为未分类，确认？')">🗑️ 删除</button></form>
           </td>
         </tr>
         <% }); %>
