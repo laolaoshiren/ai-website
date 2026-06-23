@@ -30,7 +30,7 @@
   </form>
 
   <!-- 工作模式独立表单 -->
-  <form method="POST" action="/admin/work-mode" style="margin-top:1.5rem">
+  <form method="POST" action="/admin/work-mode" style="margin-top:1.5rem" id="workModeForm">
       <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
     <div class="admin-panel">
       <h2>⚡ 工作模式</h2>
@@ -72,12 +72,7 @@
       <div class="form-actions" style="margin-top:1rem">
         <button type="submit" class="btn btn-primary btn-lg">⚡ 应用模式</button>
         <% if (currentMode === 'rage') { %>
-          <form method="POST" action="/admin/work-mode" style="display:inline">
-            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-            <input type="hidden" name="work_mode" value="smart">
-            <input type="hidden" name="rage_level" value="3">
-            <button type="submit" class="btn btn-outline btn-lg" onclick="return confirm('切换回智能模式将停止狂暴循环，确认？')">🧠 切回智能模式</button>
-          </form>
+          <button type="button" class="btn btn-outline btn-lg" onclick="switchToSmart()">🧠 切回智能模式</button>
         <% } %>
       </div>
     </div>
@@ -102,5 +97,11 @@ function selectMode(mode) {
   document.querySelectorAll('.mode-card').forEach(function(c) { c.classList.remove('mode-active'); });
   event.currentTarget.classList.add('mode-active');
   document.getElementById('rage-settings').style.display = mode === 'rage' ? '' : 'none';
+}
+function switchToSmart() {
+  if (!confirm('切换回智能模式将停止狂暴循环，确认？')) return;
+  document.getElementById('work_mode').value = 'smart';
+  document.getElementById('rage_level').value = '3';
+  document.getElementById('workModeForm').submit();
 }
 </script>
