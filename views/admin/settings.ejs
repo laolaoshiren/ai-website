@@ -5,6 +5,7 @@
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error">❌ <%= error %></div><% } %>
 
   <form method="POST" action="/admin/settings">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
     <div class="admin-panel">
       <h2>🌐 网站设置</h2>
       <div class="form-grid">
@@ -29,6 +30,7 @@
   </form>
 
   <form method="POST" action="/admin/change-password" style="margin-top:1.5rem">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
     <div class="admin-panel">
       <h2>🔒 修改密码</h2>
       <div class="form-grid">

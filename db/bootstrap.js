@@ -17,25 +17,7 @@ async function bootstrap() {
     console.log('✅ 管理员密码已设置为: admin');
   }
 
-  // 尝试从旧服务器迁移
-  try {
-    const res = await fetch('http://localhost:3000/api/health', { signal: AbortSignal.timeout(3000) });
-    if (res.ok) {
-      console.log('✅ 检测到旧服务器，迁移设置...');
-      const settingsRes = await fetch('http://localhost:3000/admin/settings');
-      const html = await settingsRes.text();
-      const extract = (name) => {
-        const r = new RegExp(`name="${name}"[^>]*value="([^"]*)"`, 'i');
-        const m = html.match(r);
-        return m ? m[1] : null;
-      };
-      const siteTitle = extract('site_title');
-      const siteTheme = extract('site_theme');
-      if (siteTitle) setSetting('site_title', siteTitle);
-      if (siteTheme) setSetting('site_theme', siteTheme);
-      console.log('✅ 网站设置已迁移');
-    }
-  } catch {}
+  // 旧服务器迁移逻辑已移除（无用代码，原为 fetch localhost:3000）
 
   // 检查是否有 AI 提供商
   if (getAIProviders().length === 0) {

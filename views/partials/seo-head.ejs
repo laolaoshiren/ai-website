@@ -11,8 +11,11 @@
 <meta property="og:type" content="<%= typeof article !== 'undefined' ? 'article' : 'website' %>">
 <meta property="og:site_name" content="<%= siteTitle %>">
 <meta property="og:url" content="<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %><%= typeof currentPath !== 'undefined' ? currentPath : '' %>">
+<meta property="og:image" content="<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %>/favicon.svg">
 <link rel="canonical" href="<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %><%= typeof currentPath !== 'undefined' ? currentPath : '' %>">
-<% if (typeof article !== 'undefined' && article) { %>
+<% if (typeof article !== 'undefined' && article && article.schema_json) { %>
+<script type="application/ld+json"><%- article.schema_json %></script>
+<% } else if (typeof article !== 'undefined' && article) { %>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -26,6 +29,4 @@
   "mainEntityOfPage": {"@type": "WebPage", "@id": "<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %>/article/<%= article.slug %>"}
 }
 </script>
-<% } else if (typeof article !== 'undefined' && article && article.schema_json) { %>
-<script type="application/ld+json"><%- article.schema_json %></script>
 <% } %>

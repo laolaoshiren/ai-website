@@ -9,6 +9,12 @@ const { initDb } = require('./db/database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 安全头
+try {
+  const helmet = require('helmet');
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+} catch {}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -108,6 +114,17 @@ app.use((err, req, res, next) => { console.error('服务器错误:', err); res.s
         process.exit(1);
       }
     });
+
+    // 优雅关闭：SIGTERM / SIGINT
+    const gracefulShutdown = (signal) => {
+      console.log(`\n🛑 收到 ${signal}，正在优雅关闭...`);
+      try { const { stopScheduler } = require('./scheduler'); stopScheduler(); console.log('⏰ 调度器已停止'); } catch {}
+      try { const { saveDb } = require('./db/database'); saveDb(); console.log('💾 数据库已保存'); } catch {}
+      server.close(() => { console.log('🔌 服务器已关闭'); process.exit(0); });
+      setTimeout(() => { console.warn('⚠️  强制退出'); process.exit(1); }, 10000);
+    };
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
   };
 
   startServer(parseInt(PORT));

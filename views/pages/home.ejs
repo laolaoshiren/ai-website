@@ -78,6 +78,10 @@
     var currentPage = 1;
     var loading = false;
     window.loadMore = function() {
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
       if (loading) return;
       loading = true;
       var btn = document.getElementById('load-more-btn');
@@ -103,8 +107,8 @@
             var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + a.category_name + '</a>' : '';
             var html = '<article class="article-card"><div class="card-content">' +
               '<div class="card-meta">' + catHtml + (pubDate ? '<time class="card-date">' + timeLabel + '</time>' : '') + '</div>' +
-              '<h3 class="card-title"><a href="/article/' + a.slug + '">' + a.title + '</a></h3>' +
-              (a.summary ? '<p class="card-summary">' + a.summary.slice(0, 120) + '</p>' : '') +
+              '<h3 class="card-title"><a href="/article/' + a.slug + '">' + escapeHtml(a.title) + '</a></h3>' +
+              (a.summary ? '<p class="card-summary">' + escapeHtml(a.summary.slice(0, 120)) + '</p>' : '') +
               '<div class="card-stats"><span class="stat-views">👁 ' + (a.view_count || 0) + '</span><span class="stat-ai">🤖 AI 生成</span></div>' +
               '</div></article>';
             grid.insertAdjacentHTML('beforeend', html);

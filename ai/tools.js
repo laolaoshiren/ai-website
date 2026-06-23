@@ -49,6 +49,17 @@ registerTool('fetch_webpage', '获取指定URL的网页内容', {
   },
   required: ['url']
 }, async ({ url, max_length = 3000 }) => {
+  // SSRF 防护：禁止访问内网地址
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    const isPrivate = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+)$/i.test(hostname);
+    if (isPrivate) {
+      return { url, error: '禁止访问内网地址' };
+    }
+  } catch (e) {
+    return { url, error: '无效的 URL: ' + e.message };
+  }
   try {
     const html = await fetchUrl(url);
     const text = html.replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -112,7 +123,7 @@ registerTool('list_rss_feeds', '查看当前已添加的所有 RSS 源', {
   return { feeds: getManagedFeeds() };
 });
 
-// 5. 获取网站当前状态
+// 7. 获取网站当前状态
 registerTool('get_site_status', '获取网站当前状态和数据', {
   type: 'object',
   properties: {}

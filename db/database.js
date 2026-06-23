@@ -1,6 +1,14 @@
 /**
  * 数据库封装 - 纯 JSON 文件数据库 v2
  * 支持多 Agent 系统、多 AI 提供商、管理日志
+ *
+ * 优化:
+ *   - A) async mutex 并发写入保护
+ *   - B) saveDb() 异步写入 (fs.promises.writeFile)
+ *   - C) getCategories / getStats 缓存层 (TTL)
+ *   - D) getAnalyticsSummary Map 索引优化
+ *   - E) analytics 数据归档 (上限 10000, 保留最近 5000)
+ *   - F) event_type 白名单校验
  */
 const path = require('path');
 const fs = require('fs');
@@ -8,6 +16,51 @@ const fs = require('fs');
 const DB_PATH = path.join(__dirname, '..', 'data', 'db.json');
 let data = null;
 let saveTimer = null;
+
+// ============ A) 并发写入保护 (async mutex) ============
+let _writeLock = Promise.resolve();
+
+/**
+ * 获取写锁，返回 release 函数。
+ * 用法: const release = await acquireLock(); try { ... } finally { release(); }
+ */
+function acquireLock() {
+  let release;
+  const p = new Promise(resolve => { release = resolve; });
+  const prev = _writeLock;
+  _writeLock = p;
+  return prev.then(() => release);
+}
+
+/**
+ * 包装器：在写锁内执行异步函数 fn，完成后自动释放锁。
+ */
+async function withLock(fn) {
+  const release = await acquireLock();
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+// ============ C) 缓存层 ============
+const _cache = {
+  categories: { data: null, ts: 0 },
+  stats: { data: null, ts: 0 },
+};
+const CATEGORIES_TTL = 5000;  // 5 秒
+const STATS_TTL = 10000;      // 10 秒
+
+function _invalidateCache() {
+  _cache.categories.ts = 0;
+  _cache.stats.ts = 0;
+}
+
+// ============ E+F) Analytics 常量 ============
+const ANALYTICS_MAX = 10000;
+const ANALYTICS_KEEP = 5000;
+const ALLOWED_EVENT_TYPES = new Set(['pageview', 'time_on_page', 'scroll_depth']);
 
 const DEFAULT_DATA = {
   // 管理员账户
@@ -94,11 +147,27 @@ async function initDb() {
 
 function getDb() { if (!data) throw new Error('数据库未初始化'); return data; }
 
+// ============ B) saveDb 异步写入 ============
 function scheduleSave() {
   if (saveTimer) return;
-  saveTimer = setTimeout(() => { saveDb(); saveTimer = null; }, 1000);
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    _invalidateCache();  // C) 缓存失效
+    await saveDbAsync();
+  }, 1000);
 }
 
+/** 异步写入（常规路径） */
+async function saveDbAsync() {
+  if (!data) return;
+  try {
+    await fs.promises.writeFile(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('数据库保存失败:', err.message);
+  }
+}
+
+/** 同步写入（仅用于 process.on('exit')，exit handler 不能用 async） */
 function saveDb() {
   if (!data) return;
   try { fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8'); } catch (err) { console.error('数据库保存失败:', err.message); }
@@ -111,7 +180,9 @@ function now() {
 
 // ============ 管理员 ============
 function getAdmin() { return getDb().admin; }
-function setAdminPassword(password) { getDb().admin = { password, setup: true }; scheduleSave(); }
+function setAdminPassword(password) {
+  return withLock(() => { getDb().admin = { password, setup: true }; scheduleSave(); });
+}
 
 // ============ AI 提供商 ============
 function getAIProviders() { return getDb().ai_providers; }
@@ -123,18 +194,24 @@ function getActiveAIProvider() {
   return providers[0];
 }
 function addAIProvider(provider) {
-  const id = nextId('ai_providers');
-  getDb().ai_providers.push({ id, name: provider.name, base_url: provider.base_url, api_key: provider.api_key, model: provider.model, enabled: true, request_count: 0, error_count: 0, created_at: now() });
-  scheduleSave();
-  return id;
+  return withLock(() => {
+    const id = nextId('ai_providers');
+    getDb().ai_providers.push({ id, name: provider.name, base_url: provider.base_url, api_key: provider.api_key, model: provider.model, enabled: true, request_count: 0, error_count: 0, created_at: now() });
+    scheduleSave();
+    return id;
+  });
 }
 function updateAIProvider(id, updates) {
-  const p = getDb().ai_providers.find(p => p.id === id);
-  if (p) { Object.assign(p, updates); scheduleSave(); }
+  return withLock(() => {
+    const p = getDb().ai_providers.find(p => p.id === id);
+    if (p) { Object.assign(p, updates); scheduleSave(); }
+  });
 }
 function deleteAIProvider(id) {
-  getDb().ai_providers = getDb().ai_providers.filter(p => p.id !== id);
-  scheduleSave();
+  return withLock(() => {
+    getDb().ai_providers = getDb().ai_providers.filter(p => p.id !== id);
+    scheduleSave();
+  });
 }
 function incrementProviderUsage(id, success) {
   const p = getDb().ai_providers.find(p => p.id === id);
@@ -143,54 +220,76 @@ function incrementProviderUsage(id, success) {
 
 // ============ 设置 ============
 function getSetting(key) { return getDb().settings[key] ?? null; }
-function setSetting(key, value) { getDb().settings[key] = String(value); scheduleSave(); }
+function setSetting(key, value) {
+  return withLock(() => { getDb().settings[key] = String(value); scheduleSave(); });
+}
 function getAllSettings() { return { ...getDb().settings }; }
 
 // ============ Agent 日志 ============
 function logAgent(agentRole, action, status, detail, meta) {
-  const log = { id: nextId('agent_logs'), agent_role: agentRole, action, status, detail: detail || '', meta: meta || null, created_at: now() };
-  getDb().agent_logs.push(log);
-  // 保留最近 500 条
-  if (getDb().agent_logs.length > 500) getDb().agent_logs = getDb().agent_logs.slice(-500);
-  scheduleSave();
-  return log.id;
+  return withLock(() => {
+    const log = { id: nextId('agent_logs'), agent_role: agentRole, action, status, detail: detail || '', meta: meta || null, created_at: now() };
+    getDb().agent_logs.push(log);
+    // 保留最近 500 条
+    if (getDb().agent_logs.length > 500) getDb().agent_logs = getDb().agent_logs.slice(-500);
+    scheduleSave();
+    return log.id;
+  });
 }
 function updateAgentStatus(agentRole, status, currentTask) {
-  getDb().agent_status[agentRole] = { status, current_task: currentTask, updated_at: now() };
-  scheduleSave();
+  return withLock(() => {
+    getDb().agent_status[agentRole] = { status, current_task: currentTask, updated_at: now() };
+    scheduleSave();
+  });
 }
 function getAgentLogs(limit = 50) { return getDb().agent_logs.slice(-limit).reverse(); }
 function getAgentStatuses() { return getDb().agent_status; }
 
 // ============ 分类 ============
-function getCategories() { return getDb().categories.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); }
+function getCategories() {
+  const nowTs = Date.now();
+  if (_cache.categories.data && (nowTs - _cache.categories.ts) < CATEGORIES_TTL) {
+    return _cache.categories.data;
+  }
+  const result = getDb().categories.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  _cache.categories = { data: result, ts: nowTs };
+  return result;
+}
 function getCategoryBySlug(slug) { return getDb().categories.find(c => c.slug === slug) || null; }
 function getCategoryById(id) { return getDb().categories.find(c => c.id === id) || null; }
 function upsertCategory(slug, name, description, sortOrder, parentId) {
-  const db = getDb();
-  const existing = db.categories.find(c => c.slug === slug);
-  if (existing) {
-    existing.name = name; existing.description = description || ''; existing.sort_order = sortOrder || 0; existing.parent_id = parentId || null; existing.updated_at = now();
-  } else {
-    db.categories.push({ id: nextId('categories'), slug, name, description: description || '', sort_order: sortOrder || 0, parent_id: parentId || null, created_at: now(), updated_at: now() });
-  }
-  scheduleSave();
+  return withLock(() => {
+    const db = getDb();
+    const existing = db.categories.find(c => c.slug === slug);
+    if (existing) {
+      existing.name = name; existing.description = description || ''; existing.sort_order = sortOrder || 0; existing.parent_id = parentId || null; existing.updated_at = now();
+    } else {
+      db.categories.push({ id: nextId('categories'), slug, name, description: description || '', sort_order: sortOrder || 0, parent_id: parentId || null, created_at: now(), updated_at: now() });
+    }
+    scheduleSave();
+  });
 }
 function addCategory(name, slug, description, sortOrder) {
-  const id = nextId('categories');
-  getDb().categories.push({ id, slug: slug || name.toLowerCase().replace(/\s+/g, '-'), name, description: description || '', sort_order: sortOrder || 0, parent_id: null, created_at: now(), updated_at: now() });
-  scheduleSave();
-  return id;
+  return withLock(() => {
+    const id = nextId('categories');
+    getDb().categories.push({ id, slug: slug || name.toLowerCase().replace(/\s+/g, '-'), name, description: description || '', sort_order: sortOrder || 0, parent_id: null, created_at: now(), updated_at: now() });
+    scheduleSave();
+    return id;
+  });
 }
 function updateCategory(id, updates) {
-  const cat = getDb().categories.find(c => c.id === id);
-  if (cat) { Object.assign(cat, updates); cat.updated_at = now(); scheduleSave(); }
+  return withLock(() => {
+    const cat = getDb().categories.find(c => c.id === id);
+    if (cat) { Object.assign(cat, updates); cat.updated_at = now(); scheduleSave(); }
+  });
 }
 function deleteCategory(id) {
-  getDb().categories = getDb().categories.filter(c => c.id !== id);
-  // 将该分类下的文章设为未分类
-  getDb().pages.filter(p => p.category_id === id).forEach(p => p.category_id = null);
-  scheduleSave();
+  return withLock(() => {
+    getDb().categories = getDb().categories.filter(c => c.id !== id);
+    // 将该分类下的文章设为未分类
+    getDb().pages.filter(p => p.category_id === id).forEach(p => p.category_id = null);
+    scheduleSave();
+  });
 }
 
 // ============ 文章/页面 ============
@@ -220,36 +319,46 @@ function getAllPages(status) {
 function getPlannedPages(limit = 5) { return getDb().pages.filter(p => p.status === 'planned').sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).slice(0, limit); }
 
 function insertPage(page) {
-  const id = nextId('pages');
-  const nowStr = now();
-  getDb().pages.push({
-    id, slug: page.slug, title: page.title, category_id: page.category_id || null,
-    template: page.template || 'article', summary: page.summary || '',
-    content_md: page.content_md || '', content_html: page.content_html || '',
-    cover_image: page.cover_image || null, status: page.status || 'draft',
-    featured: page.featured || 0, view_count: 0,
-    seo_title: page.seo_title || null, seo_description: page.seo_description || null,
-    seo_keywords: page.seo_keywords || null, schema_json: page.schema_json || null,
-    published_at: page.published_at || null, created_at: nowStr, updated_at: nowStr,
+  return withLock(() => {
+    const id = nextId('pages');
+    const nowStr = now();
+    getDb().pages.push({
+      id, slug: page.slug, title: page.title, category_id: page.category_id || null,
+      template: page.template || 'article', summary: page.summary || '',
+      content_md: page.content_md || '', content_html: page.content_html || '',
+      cover_image: page.cover_image || null, status: page.status || 'draft',
+      featured: page.featured || 0, view_count: 0,
+      seo_title: page.seo_title || null, seo_description: page.seo_description || null,
+      seo_keywords: page.seo_keywords || null, schema_json: page.schema_json || null,
+      published_at: page.published_at || null, created_at: nowStr, updated_at: nowStr,
+    });
+    scheduleSave();
+    return id;
   });
-  scheduleSave();
-  return id;
 }
 
 function updatePage(id, updates) {
-  const page = getDb().pages.find(p => p.id === id);
-  if (page) { Object.assign(page, updates); page.updated_at = now(); scheduleSave(); }
+  return withLock(() => {
+    const page = getDb().pages.find(p => p.id === id);
+    if (page) { Object.assign(page, updates); page.updated_at = now(); scheduleSave(); }
+  });
 }
 
 function deletePage(id) {
-  getDb().pages = getDb().pages.filter(p => p.id !== id);
-  scheduleSave();
+  return withLock(() => {
+    getDb().pages = getDb().pages.filter(p => p.id !== id);
+    scheduleSave();
+  });
 }
 
 function getStats() {
+  const nowTs = Date.now();
+  if (_cache.stats.data && (nowTs - _cache.stats.ts) < STATS_TTL) {
+    return _cache.stats.data;
+  }
   const db = getDb();
   const nowStr = now().split(' ')[0];
-  return {
+  const result = {
     totalArticles: db.pages.filter(p => p.status === 'published').length,
     totalDrafts: db.pages.filter(p => p.status === 'draft').length,
     totalPlanned: db.pages.filter(p => p.status === 'planned').length,
@@ -261,21 +370,46 @@ function getStats() {
     totalAgentLogs: db.agent_logs.length,
     lastArticle: [...db.pages].reverse().find(p => p.status === 'published') || null,
   };
+  _cache.stats = { data: result, ts: nowTs };
+  return result;
 }
 
 // ============ 分析数据 ============
-function recordAnalytics(data) {
-  const db = getDb();
-  db.analytics.push({ id: nextId('analytics'), page_id: data.page_id || null, page_slug: data.page_slug, event_type: data.event_type, value: data.value || null, referrer: data.referrer || null, user_agent: data.user_agent || null, ip_hash: data.ip_hash || null, created_at: now() });
-  if (data.event_type === 'pageview' && data.page_id) { const page = db.pages.find(p => p.id === data.page_id); if (page) page.view_count = (page.view_count || 0) + 1; }
-  scheduleSave();
+function recordAnalytics(input) {
+  // F) event_type 白名单
+  if (!ALLOWED_EVENT_TYPES.has(input.event_type)) return;
+
+  return withLock(() => {
+    const db = getDb();
+
+    // E) 数据归档：超过上限时保留最近 N 条
+    if (db.analytics.length >= ANALYTICS_MAX) {
+      db.analytics = db.analytics.slice(-ANALYTICS_KEEP);
+    }
+
+    db.analytics.push({ id: nextId('analytics'), page_id: input.page_id || null, page_slug: input.page_slug, event_type: input.event_type, value: input.value || null, referrer: input.referrer || null, user_agent: input.user_agent || null, ip_hash: input.ip_hash || null, created_at: now() });
+    if (input.event_type === 'pageview' && input.page_id) { const page = db.pages.find(p => p.id === input.page_id); if (page) page.view_count = (page.view_count || 0) + 1; }
+    scheduleSave();
+  });
 }
 
+// D) getAnalyticsSummary — 用 Map 索引优化 O(N×M) → O(N+M)
 function getAnalyticsSummary(days = 30) {
   const db = getDb();
   const cutoff = new Date(Date.now() - days * 86400000).toISOString().replace('T', ' ').slice(0, 19);
+
+  // 一次性构建 page_id -> analytics[] 索引
+  const analyticsByPage = new Map();
+  for (const a of db.analytics) {
+    if (a.created_at > cutoff && a.page_id != null) {
+      let arr = analyticsByPage.get(a.page_id);
+      if (!arr) { arr = []; analyticsByPage.set(a.page_id, arr); }
+      arr.push(a);
+    }
+  }
+
   return db.pages.filter(p => p.status === 'published').map(page => {
-    const events = db.analytics.filter(a => a.page_id === page.id && a.created_at > cutoff);
+    const events = analyticsByPage.get(page.id) || [];
     const views = events.filter(a => a.event_type === 'pageview').length;
     const timeValues = events.filter(a => a.event_type === 'time_on_page' && a.value).map(a => a.value);
     const scrollValues = events.filter(a => a.event_type === 'scroll_depth' && a.value).map(a => a.value);
@@ -285,34 +419,55 @@ function getAnalyticsSummary(days = 30) {
 
 // ============ 调度 ============
 function getSchedules() { return getDb().schedule; }
-function updateScheduleLastRun(id) { const s = getDb().schedule.find(s => s.id === id); if (s) { s.last_run = now(); scheduleSave(); } }
+function updateScheduleLastRun(id) {
+  return withLock(() => {
+    const s = getDb().schedule.find(s => s.id === id);
+    if (s) { s.last_run = now(); scheduleSave(); }
+  });
+}
 function getScheduleByType(taskType) { return getDb().schedule.find(s => s.task_type === taskType) || null; }
 function addSchedule(taskType, cronExpr, description) {
-  const maxId = Math.max(0, ...getDb().schedule.map(s => s.id));
-  getDb().schedule.push({ id: maxId + 1, task_type: taskType, cron_expr: cronExpr, description, enabled: 1, last_run: null });
-  scheduleSave();
+  return withLock(() => {
+    const maxId = Math.max(0, ...getDb().schedule.map(s => s.id));
+    getDb().schedule.push({ id: maxId + 1, task_type: taskType, cron_expr: cronExpr, description, enabled: 1, last_run: null });
+    scheduleSave();
+  });
 }
 function updateSchedule(id, updates) {
-  const s = getDb().schedule.find(s => s.id === id);
-  if (s) { Object.assign(s, updates); scheduleSave(); }
+  return withLock(() => {
+    const s = getDb().schedule.find(s => s.id === id);
+    if (s) { Object.assign(s, updates); scheduleSave(); }
+  });
 }
 function deleteSchedule(id) {
-  getDb().schedule = getDb().schedule.filter(s => s.id !== id);
-  scheduleSave();
+  return withLock(() => {
+    getDb().schedule = getDb().schedule.filter(s => s.id !== id);
+    scheduleSave();
+  });
 }
 
 // ============ 模板历史 ============
-function saveTemplateHistory(filePath, content, changeNote) { getDb().template_history.push({ id: nextId('template_history'), file_path: filePath, content, change_note: changeNote, created_at: now() }); scheduleSave(); }
+function saveTemplateHistory(filePath, content, changeNote) {
+  return withLock(() => {
+    getDb().template_history.push({ id: nextId('template_history'), file_path: filePath, content, change_note: changeNote, created_at: now() });
+    scheduleSave();
+  });
+}
 function getLatestTemplateHistory(filePath) { const items = getDb().template_history.filter(h => h.file_path === filePath); return items.length > 0 ? items[items.length - 1] : null; }
 
 // ============ 清除数据 ============
 function clearAllContent() {
-  const db = getDb();
-  db.categories = []; db.pages = []; db.analytics = []; db.template_history = [];
-  db._counters.categories = 0; db._counters.pages = 0; db._counters.analytics = 0; db._counters.template_history = 0;
-  saveDb();
+  return withLock(() => {
+    const db = getDb();
+    db.categories = []; db.pages = []; db.analytics = []; db.template_history = [];
+    db._counters.categories = 0; db._counters.pages = 0; db._counters.analytics = 0; db._counters.template_history = 0;
+    _invalidateCache();
+    // 同步写入确保数据立即持久化
+    saveDb();
+  });
 }
 
+// exit handler 保持同步写入（exit handler 不能用 async）
 process.on('exit', () => { try { saveDb(); } catch {} });
 
 module.exports = {

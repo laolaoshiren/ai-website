@@ -5,8 +5,10 @@
     <div class="header-actions">
       <% var hasProviders = typeof stats !== 'undefined' && stats.activeProviders > 0; %>
       <% if (hasProviders) { %>
-        <form method="POST" action="/admin/cold-start" style="display:inline"><button type="submit" class="btn btn-primary" onclick="return confirm('将调用 AI 生成初始内容，确认？')">🚀 冷启动</button></form>
-        <form method="POST" action="/admin/clear-content" style="display:inline"><button type="submit" class="btn btn-outline" onclick="return confirm('⚠️ 将清除所有文章、栏目，然后重新生成。确认？')">🗑️ 清除重新规划</button></form>
+        <form method="POST" action="/admin/cold-start" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button type="submit" class="btn btn-primary" onclick="return confirm('将调用 AI 生成初始内容，确认？')">🚀 冷启动</button></form>
+        <form method="POST" action="/admin/clear-content" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button type="submit" class="btn btn-outline" onclick="return confirm('⚠️ 将清除所有文章、栏目，然后重新生成。确认？')">🗑️ 清除重新规划</button></form>
       <% } %>
     </div>
   </div>
@@ -30,16 +32,24 @@
     <div class="admin-panel">
       <h2>📋 手动触发</h2>
       <div class="trigger-buttons">
-        <form method="POST" action="/admin/trigger/news_collector"><button class="btn btn-outline">📡 采集资讯</button></form>
-        <form method="POST" action="/admin/trigger/plan_structure"><button class="btn btn-outline">🧠 规划结构</button></form>
-        <form method="POST" action="/admin/trigger/generate_content"><button class="btn btn-outline">✍️ 生成文章</button></form>
-        <form method="POST" action="/admin/trigger/seo_update"><button class="btn btn-outline">🔍 SEO 更新</button></form>
-        <form method="POST" action="/admin/trigger/seo_expert_audit"><button class="btn btn-outline">📊 SEO 审计</button></form>
-        <form method="POST" action="/admin/trigger/analyze"><button class="btn btn-outline">📈 数据分析</button></form>
-        <form method="POST" action="/admin/trigger/user_test"><button class="btn btn-outline">👤 用户测评</button></form>
+        <form method="POST" action="/admin/trigger/news_collector">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">📡 采集资讯</button></form>
+        <form method="POST" action="/admin/trigger/plan_structure">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">🧠 规划结构</button></form>
+        <form method="POST" action="/admin/trigger/generate_content">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">✍️ 生成文章</button></form>
+        <form method="POST" action="/admin/trigger/seo_update">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">🔍 SEO 更新</button></form>
+        <form method="POST" action="/admin/trigger/seo_expert_audit">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">📊 SEO 审计</button></form>
+        <form method="POST" action="/admin/trigger/analyze">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">📈 数据分析</button></form>
+        <form method="POST" action="/admin/trigger/user_test">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-outline">👤 用户测评</button></form>
       </div>
       <div style="margin-top:1rem">
         <form method="POST" action="/admin/toggle-loop" style="display:inline">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
           <button type="submit" class="btn btn-lg <%= getConfig().ai_loop_enabled === '1' ? 'btn-success' : 'btn-warning' %>"><%= getConfig().ai_loop_enabled === '1' ? '🔄 自动循环：已开启' : '⏸ 自动循环：已关闭' %></button>
         </form>
       </div>

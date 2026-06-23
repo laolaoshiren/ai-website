@@ -2,6 +2,14 @@
  * AI 工具函数
  */
 
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
 function slugify(text) {
   if (!text) return '';
   // 中文标题生成简单的英文 slug
@@ -12,11 +20,9 @@ function slugify(text) {
     .replace(/[\s]+/g, '-')
     .slice(0, 80);
 
-  // 如果全是中文，用时间戳 + 简短哈希
+  // 如果没有生成有效 slug（全是中文或特殊字符），用确定性 hash
   if (/^[一-龥-]+$/.test(pinyin) || !pinyin) {
-    const hash = require('crypto').createHash('md5').update(text).digest('hex').slice(0, 8);
-    const ts = Date.now().toString(36);
-    return `p-${ts}-${hash}`;
+    return 'p-' + hashStr(text);
   }
   return pinyin;
 }

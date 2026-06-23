@@ -9,6 +9,7 @@
   <div id="addTask" class="admin-panel" style="display:none">
     <h2>新增定时任务</h2>
     <form method="POST" action="/admin/schedules/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
       <div class="form-grid">
         <div class="form-group"><label>任务类型</label>
           <select name="task_type"><option value="news_collector">📡 资讯采集</option><option value="plan_structure">🧠 结构规划</option><option value="generate_content">✍️ 内容生成</option><option value="seo_update">🔍 SEO更新</option><option value="seo_expert_audit">📊 SEO深度审计</option><option value="analyze">📈 数据分析</option><option value="user_test">👤 用户体验测评</option><option value="template_review">🔧 模板审查</option></select>
@@ -31,8 +32,10 @@
           <td><span class="status-badge <%= s.enabled ? 'status-published' : 'status-archived' %>"><%= s.enabled ? '启用' : '禁用' %></span></td>
           <td><%= s.last_run || '未执行' %></td>
           <td class="td-actions">
-            <form method="POST" action="/admin/schedules/<%= s.id %>/toggle" style="display:inline"><button class="btn btn-sm btn-outline"><%= s.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
-            <form method="POST" action="/admin/schedules/<%= s.id %>/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+            <form method="POST" action="/admin/schedules/<%= s.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/toggle" style="display:inline"><button class="btn btn-sm btn-outline"><%= s.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
+            <form method="POST" action="/admin/schedules/<%= s.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
           </td>
         </tr>
         <% }); %>

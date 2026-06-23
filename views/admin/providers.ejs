@@ -10,6 +10,7 @@
   <div id="addProvider" class="admin-panel" style="display:none">
     <h2>添加新提供商</h2>
     <form method="POST" action="/admin/providers/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
       <div class="form-grid">
         <div class="form-group"><label>名称</label><input type="text" name="name" placeholder="如: DeepSeek" required></div>
         <div class="form-group"><label>API 地址</label><input type="url" name="base_url" placeholder="https://api.deepseek.com/v1" required></div>
@@ -38,9 +39,12 @@
         <p><strong>调用次数:</strong> <%= p.request_count || 0 %> | <strong>错误:</strong> <%= p.error_count || 0 %></p>
       </div>
       <div class="provider-actions">
-        <form method="POST" action="/admin/providers/<%= p.id %>/test" style="display:inline"><button type="submit" class="btn btn-sm btn-outline">🔌 测试</button></form>
-        <form method="POST" action="/admin/providers/<%= p.id %>/toggle" style="display:inline"><button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
-        <form method="POST" action="/admin/providers/<%= p.id %>/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️ 删除</button></form>
+        <form method="POST" action="/admin/providers/<%= p.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/test" style="display:inline"><button type="submit" class="btn btn-sm btn-outline">🔌 测试</button></form>
+        <form method="POST" action="/admin/providers/<%= p.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/toggle" style="display:inline"><button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
+        <form method="POST" action="/admin/providers/<%= p.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️ 删除</button></form>
       </div>
     </div>
     <% }); %>

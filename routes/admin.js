@@ -1,15 +1,42 @@
 /**
- * 后台管理路由 v2
- * 登录认证、CRUD 管理、多提供商、Agent 日志
+ * 后台管理路由 v3 — 安全加固版
+ * 随机 Session + bcrypt + CSRF + 登录限流 + 安全 Cookie
  */
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { getConfig, refreshConfig } = require('../config');
 const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 
-// ============ Cookie 解析（必须在最前面）============
+// ============ 会话管理 ============
+const sessions = new Map(); // sessionId -> { created, ip, admin, csrf }
+const loginAttempts = new Map(); // ip -> { count, lastAttempt }
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const LOGIN_LIMIT = 5;
+const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 minutes
+
+// 定期清理过期会话和登录记录
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, s] of sessions) { if (now - s.created > SESSION_TTL) sessions.delete(id); }
+  for (const [ip, a] of loginAttempts) { if (now - a.lastAttempt > LOGIN_LOCKOUT) loginAttempts.delete(ip); }
+}, 60 * 60 * 1000); // 每小时清理一次
+
+function createSession(ip) {
+  const id = crypto.randomBytes(32).toString('hex');
+  const csrf = crypto.randomBytes(32).toString('hex');
+  const session = { created: Date.now(), ip, admin: true, csrf };
+  sessions.set(id, session);
+  return { id, csrf };
+}
+
+function getSecureFlag(req) {
+  return (req.secure || req.headers['x-forwarded-proto'] === 'https') ? '; Secure' : '';
+}
+
+// ============ Cookie 解析 ============
 router.use((req, res, next) => {
   req.cookies = {};
   const cookieHeader = req.headers.cookie;
@@ -24,20 +51,36 @@ router.use((req, res, next) => {
 
 // ============ 会话中间件 ============
 router.use((req, res, next) => {
-  req.session = req.session || {};
-  const sessionCookie = req.cookies?.admin_session;
-  if (sessionCookie === 'authenticated') {
-    req.session.admin = true;
-  }
+  const sid = req.cookies?.admin_session;
+  req.session = sid ? sessions.get(sid) : null;
+  req.sessionId = sid || null;
   next();
 });
 
 // ============ 登录认证中间件 ============
 function requireAuth(req, res, next) {
-  if (req.session && req.session.admin) return next();
   if (req.path === '/login' || req.path === '/setup') return next();
+  if (req.session && req.session.admin) return next();
   return res.redirect('/admin/login');
 }
+
+// ============ CSRF 验证中间件 ============
+function requireCsrf(req, res, next) {
+  const token = req.body?.csrf_token || req.headers['x-csrf-token'];
+  if (!token || !req.session || token !== req.session.csrf) {
+    return res.status(403).send('CSRF 令牌无效，请刷新页面重试');
+  }
+  next();
+}
+
+// 需要认证的路由
+router.use(requireAuth);
+
+// 注入 CSRF token 到所有模板
+router.use((req, res, next) => {
+  res.locals.csrfToken = req.session?.csrf || '';
+  next();
+});
 
 // ============ 登录页面 ============
 router.get('/login', (req, res) => {
@@ -56,30 +99,58 @@ router.post('/setup', (req, res) => {
   const { password, password2 } = req.body;
   if (!password || password.length < 4) return res.redirect('/admin/setup?error=' + encodeURIComponent('密码至少4位'));
   if (password !== password2) return res.redirect('/admin/setup?error=' + encodeURIComponent('两次密码不一致'));
-  db.setAdminPassword(crypto.createHash('sha256').update(password).digest('hex'));
-  res.setHeader('Set-Cookie', 'admin_session=authenticated; Path=/admin; HttpOnly; Max-Age=86400');
+  const hash = bcrypt.hashSync(password, 12);
+  db.setAdminPassword(hash);
+  const sess = createSession(req.ip);
+  res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
   res.redirect('/admin');
 });
 
+// ============ 登录（限流 + bcrypt 兼容 SHA-256）============
 router.post('/login', (req, res) => {
+  const ip = req.ip;
+  const attempt = loginAttempts.get(ip);
+  if (attempt && attempt.count >= LOGIN_LIMIT && Date.now() - attempt.lastAttempt < LOGIN_LOCKOUT) {
+    return res.redirect('/admin/login?error=' + encodeURIComponent('登录尝试过多，请 15 分钟后重试'));
+  }
+
   const { password } = req.body;
   const admin = db.getAdmin();
-  const hash = crypto.createHash('sha256').update(password || '').digest('hex');
-  if (hash === admin.password) {
-    res.setHeader('Set-Cookie', 'admin_session=authenticated; Path=/admin; HttpOnly; Max-Age=86400');
+  let authenticated = false;
+
+  // 先尝试 bcrypt
+  if (admin.password && admin.password.startsWith('$2')) {
+    try { authenticated = bcrypt.compareSync(password || '', admin.password); } catch {}
+  }
+
+  // 兼容旧的 SHA-256
+  if (!authenticated) {
+    const sha256 = crypto.createHash('sha256').update(password || '').digest('hex');
+    if (sha256 === admin.password) {
+      authenticated = true;
+      // 自动升级为 bcrypt
+      try { db.setAdminPassword(bcrypt.hashSync(password, 12)); } catch {}
+    }
+  }
+
+  if (authenticated) {
+    loginAttempts.delete(ip);
+    const sess = createSession(req.ip);
+    res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
     res.redirect('/admin');
   } else {
+    const a = loginAttempts.get(ip) || { count: 0 };
+    loginAttempts.set(ip, { count: a.count + 1, lastAttempt: Date.now() });
     res.redirect('/admin/login?error=' + encodeURIComponent('密码错误'));
   }
 });
 
+// ============ 登出 ============
 router.get('/logout', (req, res) => {
-  res.setHeader('Set-Cookie', 'admin_session=; Path=/admin; HttpOnly; Max-Age=0');
+  if (req.sessionId) sessions.delete(req.sessionId);
+  res.setHeader('Set-Cookie', `admin_session=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${getSecureFlag(req)}`);
   res.redirect('/admin/login');
 });
-
-// 需要认证的路由
-router.use(requireAuth);
 
 // ============ 仪表盘 ============
 router.get('/', (req, res) => {
@@ -87,16 +158,16 @@ router.get('/', (req, res) => {
   const agentLogs = db.getAgentLogs(30);
   const agentStatuses = db.getAgentStatuses();
   const schedules = db.getSchedules();
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, getConfig, success: req.query.success, error: req.query.error });
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============
 router.get('/settings', (req, res) => {
   const config = getConfig();
-  res.render('admin/settings', { title: '系统设置', config, success: req.query.success, error: req.query.error });
+  res.render('admin/settings', { title: '系统设置', config, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
-router.post('/settings', (req, res) => {
+router.post('/settings', requireCsrf, (req, res) => {
   try {
     const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key'];
     for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, req.body[field]); }
@@ -106,18 +177,25 @@ router.post('/settings', (req, res) => {
 });
 
 // 修改密码
-router.post('/change-password', (req, res) => {
+router.post('/change-password', requireCsrf, (req, res) => {
   const { old_password, new_password } = req.body;
   const admin = db.getAdmin();
-  const oldHash = crypto.createHash('sha256').update(old_password || '').digest('hex');
-  if (oldHash !== admin.password) return res.redirect('/admin/settings?error=' + encodeURIComponent('原密码错误'));
+  let oldOk = false;
+  if (admin.password && admin.password.startsWith('$2')) {
+    try { oldOk = bcrypt.compareSync(old_password || '', admin.password); } catch {}
+  }
+  if (!oldOk) {
+    const sha256 = crypto.createHash('sha256').update(old_password || '').digest('hex');
+    oldOk = sha256 === admin.password;
+  }
+  if (!oldOk) return res.redirect('/admin/settings?error=' + encodeURIComponent('原密码错误'));
   if (!new_password || new_password.length < 4) return res.redirect('/admin/settings?error=' + encodeURIComponent('新密码至少4位'));
-  db.setAdminPassword(crypto.createHash('sha256').update(new_password).digest('hex'));
+  db.setAdminPassword(bcrypt.hashSync(new_password, 12));
   res.redirect('/admin/settings?success=' + encodeURIComponent('密码已修改'));
 });
 
 // 切换自动循环
-router.post('/toggle-loop', (req, res) => {
+router.post('/toggle-loop', requireCsrf, (req, res) => {
   const config = getConfig();
   const newState = config.ai_loop_enabled === '1' ? '0' : '1';
   db.setSetting('ai_loop_enabled', newState);
@@ -129,10 +207,10 @@ router.post('/toggle-loop', (req, res) => {
 // ============ AI 提供商管理 ============
 router.get('/providers', (req, res) => {
   const providers = db.getAIProviders();
-  res.render('admin/providers', { title: 'AI 提供商', providers, success: req.query.success, error: req.query.error });
+  res.render('admin/providers', { title: 'AI 提供商', providers, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
-router.post('/providers/add', async (req, res) => {
+router.post('/providers/add', requireCsrf, async (req, res) => {
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整信息'));
   db.addAIProvider({ name, base_url, api_key, model });
@@ -140,19 +218,19 @@ router.post('/providers/add', async (req, res) => {
   res.redirect('/admin/providers?success=' + encodeURIComponent(`提供商 "${name}" 已添加`));
 });
 
-router.post('/providers/:id/toggle', (req, res) => {
+router.post('/providers/:id/toggle', requireCsrf, (req, res) => {
   const id = parseInt(req.params.id);
   const provider = db.getAIProviders().find(p => p.id === id);
   if (provider) db.updateAIProvider(id, { enabled: !provider.enabled });
   res.redirect('/admin/providers');
 });
 
-router.post('/providers/:id/delete', (req, res) => {
+router.post('/providers/:id/delete', requireCsrf, (req, res) => {
   db.deleteAIProvider(parseInt(req.params.id));
   res.redirect('/admin/providers?success=1');
 });
 
-router.post('/providers/:id/test', async (req, res) => {
+router.post('/providers/:id/test', requireCsrf, async (req, res) => {
   const provider = db.getAIProviders().find(p => p.id === parseInt(req.params.id));
   if (!provider) return res.json({ success: false, error: '提供商不存在' });
   const result = await testConnection(provider);
@@ -162,28 +240,27 @@ router.post('/providers/:id/test', async (req, res) => {
 // ============ 分类 CRUD ============
 router.get('/categories', (req, res) => {
   const categories = db.getCategories();
-  res.render('admin/categories', { title: '栏目管理', categories, success: req.query.success, error: req.query.error });
+  res.render('admin/categories', { title: '栏目管理', categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
-router.post('/categories/add', (req, res) => {
+router.post('/categories/add', requireCsrf, (req, res) => {
   const { name, slug, description, sort_order } = req.body;
   if (!name || !name.trim()) return res.redirect('/admin/categories?error=' + encodeURIComponent('请输入栏目名称'));
   const finalSlug = slug?.trim() || name.trim().toLowerCase().replace(/[\s]+/g, '-').replace(/[^a-z0-9一-龥-]/g, '');
   if (!finalSlug) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识不能为空'));
-  // 检查重复
   const existing = db.getCategoryBySlug(finalSlug);
   if (existing) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识已存在: ' + finalSlug));
   db.addCategory(name.trim(), finalSlug, description?.trim(), parseInt(sort_order) || 0);
   res.redirect('/admin/categories?success=1');
 });
 
-router.post('/categories/:id/edit', (req, res) => {
+router.post('/categories/:id/edit', requireCsrf, (req, res) => {
   const { name, slug, description, sort_order } = req.body;
   db.updateCategory(parseInt(req.params.id), { name, slug, description, sort_order: parseInt(sort_order) || 0 });
   res.redirect('/admin/categories?success=1');
 });
 
-router.post('/categories/:id/delete', (req, res) => {
+router.post('/categories/:id/delete', requireCsrf, (req, res) => {
   db.deleteCategory(parseInt(req.params.id));
   res.redirect('/admin/categories?success=1');
 });
@@ -197,45 +274,56 @@ router.get('/articles', (req, res) => {
   const total = allPages.length;
   const totalPages = Math.ceil(total / limit);
   const pages = allPages.slice((page - 1) * limit, page * limit);
-  res.render('admin/articles', { title: '文章管理', pages, status, page, totalPages, total, success: req.query.success, error: req.query.error });
+  res.render('admin/articles', { title: '文章管理', pages, status, page, totalPages, total, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/new', (req, res) => {
   const categories = db.getCategories();
-  res.render('admin/article-edit', { title: '新建文章', article: null, categories, success: req.query.success, error: req.query.error });
+  res.render('admin/article-edit', { title: '新建文章', article: null, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/:id/edit', (req, res) => {
   const article = db.getPageById(parseInt(req.params.id));
   if (!article) return res.redirect('/admin/articles?error=' + encodeURIComponent('文章不存在'));
   const categories = db.getCategories();
-  res.render('admin/article-edit', { title: '编辑文章', article, categories, success: req.query.success, error: req.query.error });
+  res.render('admin/article-edit', { title: '编辑文章', article, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
-router.post('/articles/save', (req, res) => {
+router.post('/articles/save', requireCsrf, (req, res) => {
   const { id, title, slug, category_id, summary, content_md, status, seo_title, seo_description, seo_keywords, featured } = req.body;
   if (!title || !title.trim()) return res.redirect('/admin/articles?error=' + encodeURIComponent('标题不能为空'));
   const finalSlug = slug?.trim() || require('../ai/utils').slugify(title.trim());
   if (!finalSlug) return res.redirect('/admin/articles?error=' + encodeURIComponent('URL标识不能为空'));
-  // 检查重复 slug（编辑时排除自身）
   const existing = db.getPageBySlug(finalSlug);
   if (existing && (!id || existing.id !== parseInt(id))) {
     return res.redirect('/admin/articles?error=' + encodeURIComponent('URL标识已存在: ' + finalSlug));
   }
   const { marked } = require('marked');
-  const content_html = marked(content_md || '');
+  const raw_html = marked(content_md || '');
+  const { createDOMPurify } = require('../ai/utils');
+  const DOMPurify = createDOMPurify();
+  const content_html = DOMPurify.sanitize(raw_html);
   const now = () => new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
-  const pageData = { title: title.trim(), slug: finalSlug, category_id: category_id ? parseInt(category_id) : null, summary: summary?.trim(), content_md: content_md || '', content_html, status: status || 'draft', seo_title: seo_title?.trim(), seo_description: seo_description?.trim(), seo_keywords: seo_keywords?.trim(), featured: featured === 'on' ? 1 : 0, published_at: status === 'published' ? now() : null };
+  let published_at = null;
+  if (status === 'published') {
+    if (id) {
+      const existingArticle = db.getPageById(parseInt(id));
+      published_at = (existingArticle && existingArticle.published_at) ? existingArticle.published_at : now();
+    } else {
+      published_at = now();
+    }
+  }
+  const pageData = { title: title.trim(), slug: finalSlug, category_id: category_id ? parseInt(category_id) : null, summary: summary?.trim(), content_md: content_md || '', content_html, status: status || 'draft', seo_title: seo_title?.trim(), seo_description: seo_description?.trim(), seo_keywords: seo_keywords?.trim(), featured: featured === 'on' ? 1 : 0, published_at };
   if (id) { db.updatePage(parseInt(id), pageData); } else { db.insertPage(pageData); }
   res.redirect('/admin/articles?success=1');
 });
 
-router.post('/articles/:id/delete', (req, res) => {
+router.post('/articles/:id/delete', requireCsrf, (req, res) => {
   db.deletePage(parseInt(req.params.id));
   res.redirect('/admin/articles?success=1');
 });
 
-router.post('/articles/:id/status', (req, res) => {
+router.post('/articles/:id/status', requireCsrf, (req, res) => {
   const { status } = req.body;
   const updates = { status };
   if (status === 'published') updates.published_at = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
@@ -244,7 +332,7 @@ router.post('/articles/:id/status', (req, res) => {
 });
 
 // AI 润色文章
-router.post('/articles/:id/polish', async (req, res) => {
+router.post('/articles/:id/polish', requireCsrf, async (req, res) => {
   try {
     const article = db.getPageById(parseInt(req.params.id));
     if (!article) return res.redirect('/admin/articles?error=' + encodeURIComponent('文章不存在'));
@@ -255,7 +343,9 @@ router.post('/articles/:id/polish', async (req, res) => {
       { role: 'user', content: `请润色以下文章（当前日期：${new Date().toLocaleDateString('zh-CN')}）：\n\n标题：${article.title}\n\n${article.content_md}\n\n返回 JSON: {"title":"润色后标题","summary":"润色后摘要","content_md":"润色后全文","seo_title":"SEO标题","seo_description":"SEO描述"}` }
     ], { maxTokens: 8192 });
     const { marked } = require('marked');
-    db.updatePage(article.id, { title: data.title || article.title, summary: data.summary || article.summary, content_md: data.content_md || article.content_md, content_html: marked(data.content_md || article.content_md), seo_title: data.seo_title || article.seo_title, seo_description: data.seo_description || article.seo_description });
+    const { createDOMPurify } = require('../ai/utils');
+    const DOMPurify = createDOMPurify();
+    db.updatePage(article.id, { title: data.title || article.title, summary: data.summary || article.summary, content_md: data.content_md || article.content_md, content_html: DOMPurify.sanitize(marked(data.content_md || article.content_md)), seo_title: data.seo_title || article.seo_title, seo_description: data.seo_description || article.seo_description });
     db.logAgent('editor', '润色文章', 'success', `完成: ${article.title}`);
     res.redirect('/admin/articles/' + article.id + '/edit?success=' + encodeURIComponent('润色完成'));
   } catch (err) {
@@ -267,23 +357,23 @@ router.post('/articles/:id/polish', async (req, res) => {
 // ============ 定时任务管理 ============
 router.get('/schedules', (req, res) => {
   const schedules = db.getSchedules();
-  res.render('admin/schedules', { title: '定时任务', schedules, success: req.query.success, error: req.query.error });
+  res.render('admin/schedules', { title: '定时任务', schedules, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
-router.post('/schedules/:id/toggle', (req, res) => {
+router.post('/schedules/:id/toggle', requireCsrf, (req, res) => {
   const schedule = db.getSchedules().find(s => s.id === parseInt(req.params.id));
   if (schedule) db.updateSchedule(schedule.id, { enabled: schedule.enabled ? 0 : 1 });
   res.redirect('/admin/schedules');
 });
 
-router.post('/schedules/add', (req, res) => {
+router.post('/schedules/add', requireCsrf, (req, res) => {
   const { task_type, cron_expr, description } = req.body;
   if (!task_type || !cron_expr) return res.redirect('/admin/schedules?error=' + encodeURIComponent('请填写完整'));
   db.addSchedule(task_type, cron_expr, description || task_type);
   res.redirect('/admin/schedules?success=1');
 });
 
-router.post('/schedules/:id/delete', (req, res) => {
+router.post('/schedules/:id/delete', requireCsrf, (req, res) => {
   db.deleteSchedule(parseInt(req.params.id));
   res.redirect('/admin/schedules?success=1');
 });
@@ -297,11 +387,11 @@ router.get('/logs', (req, res) => {
   const totalPages = Math.ceil(total / limit);
   const logs = allLogs.slice((page - 1) * limit, page * limit);
   const agentStatuses = db.getAgentStatuses();
-  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, page, totalPages, total });
+  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, page, totalPages, total, csrfToken: req.session?.csrf || '' });
 });
 
 // ============ 手动触发 ============
-router.post('/trigger/:taskType', async (req, res) => {
+router.post('/trigger/:taskType', requireCsrf, async (req, res) => {
   const { taskType } = req.params;
   try {
     if (db.getAIProviders().filter(p => p.enabled).length === 0) return res.redirect('/admin?error=' + encodeURIComponent('请先添加 AI 提供商'));
@@ -312,12 +402,12 @@ router.post('/trigger/:taskType', async (req, res) => {
 });
 
 // ============ 冷启动 / 清除 ============
-router.post('/cold-start', async (req, res) => {
+router.post('/cold-start', requireCsrf, async (req, res) => {
   if (db.getAIProviders().filter(p => p.enabled).length === 0) return res.redirect('/admin?error=' + encodeURIComponent('请先添加 AI 提供商'));
   try { const { coldStart } = require('../scheduler'); coldStart().catch(err => console.error('冷启动失败:', err)); res.redirect('/admin?success=' + encodeURIComponent('冷启动已触发，正在生成初始内容...')); } catch (err) { res.redirect('/admin?error=' + encodeURIComponent(err.message)); }
 });
 
-router.post('/clear-content', async (req, res) => {
+router.post('/clear-content', requireCsrf, async (req, res) => {
   try {
     db.clearAllContent();
     refreshConfig();

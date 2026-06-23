@@ -138,6 +138,10 @@ async function executeTask(taskType) {
 }
 
 function startScheduler() {
+  if (cronJobs.length > 0) {
+    console.log('调度器已运行，重启中...');
+    stopScheduler();
+  }
   const schedules = getSchedules();
   console.log(`\n⏰ 启动调度器 (${schedules.filter(s => s.enabled).length} 个任务)\n`);
 

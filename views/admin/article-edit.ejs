@@ -8,6 +8,7 @@
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
   <form method="POST" action="/admin/articles/save">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
     <% if (article) { %><input type="hidden" name="id" value="<%= article.id %>"><% } %>
 
     <div class="admin-panel">

@@ -8,9 +8,11 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dompurify": "^3.2.0",
     "ejs": "^3.1.10",
     "express": "^4.21.0",
+    "helmet": "^8.2.0",
     "jsdom": "^25.0.0",
     "marked": "^15.0.0",
     "node-cron": "^3.0.3"

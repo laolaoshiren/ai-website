@@ -10,6 +10,7 @@
   <div id="addCat" class="admin-panel" style="display:none">
     <h2>新增栏目</h2>
     <form method="POST" action="/admin/categories/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
       <div class="form-grid">
         <div class="form-group"><label>栏目名称</label><input type="text" name="name" required></div>
         <div class="form-group"><label>URL 标识</label><input type="text" name="slug" placeholder="自动生成（可修改）"></div>
@@ -32,7 +33,8 @@
           <td><%= (cat.description || '').slice(0, 40) %></td>
           <td><%= cat.sort_order %></td>
           <td class="td-actions">
-            <form method="POST" action="/admin/categories/<%= cat.id %>/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('删除栏目后文章将变为未分类，确认？')">🗑️ 删除</button></form>
+            <form method="POST" action="/admin/categories/<%= cat.id %>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">/delete" style="display:inline"><button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('删除栏目后文章将变为未分类，确认？')">🗑️ 删除</button></form>
           </td>
         </tr>
         <% }); %>

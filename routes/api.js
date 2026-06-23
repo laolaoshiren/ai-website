@@ -6,8 +6,19 @@ const router = express.Router();
 const crypto = require('crypto');
 const { recordAnalytics, getPageBySlug, getStats } = require('../db/database');
 
+// 简单限流：每 IP 每分钟最多 30 次
+const rateLimitMap = new Map();
+setInterval(() => rateLimitMap.clear(), 60000);
+function rateLimit(req, res, next) {
+  const ip = req.ip;
+  const count = rateLimitMap.get(ip) || 0;
+  if (count >= 30) return res.status(429).json({ error: '请求过于频繁' });
+  rateLimitMap.set(ip, count + 1);
+  next();
+}
+
 // 接收分析数据
-router.post('/analytics', (req, res) => {
+router.post('/analytics', rateLimit, (req, res) => {
   try {
     const { page_slug, event_type, value, referrer } = req.body;
     if (!page_slug || !event_type) {

@@ -7,6 +7,7 @@
 <body>
   <%- include('../partials/header') %>
   <main class="main-content">
+    <nav class="breadcrumb" aria-label="面包屑导航"><div class="container"><a href="/">首页</a> &gt; <% if (article.category_name) { %><a href="/category/<%= article.category_slug %>"><%= article.category_name %></a> &gt; <% } %><span><%= article.title %></span></div></nav>
 
     <article class="article-detail">
       <header class="article-header">
