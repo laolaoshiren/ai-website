@@ -303,11 +303,11 @@ img { max-width: 100%; height: auto; }
 .back-to-top:hover { transform: translateY(-3px); box-shadow: var(--shadow-glow); }
 
 /* ---- Search ---- */
-.search-form { display: flex; align-items: center; margin-right: var(--space-3); position: relative; }
-.search-input { padding: 0.45rem 0.9rem 0.45rem 2.2rem; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-sm); background: var(--bg-sunken); color: var(--text-primary); width: 180px; transition: all var(--duration-normal) var(--ease-out); }
+.search-form { display: flex; align-items: center; margin-right: var(--space-3); }
+.search-input { padding: 0.5rem 0.9rem 0.5rem 2.2rem; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: var(--text-sm); background: var(--bg-sunken); color: var(--text-primary); width: 200px; transition: all var(--duration-normal) var(--ease-out); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 0.7rem center; }
 .search-input::placeholder { color: var(--text-tertiary); }
-.search-input:focus { outline: none; border-color: var(--primary); width: 240px; background: var(--surface); box-shadow: 0 0 0 3px var(--primary-glow); }
-.search-btn { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 0; opacity: 0.5; transition: opacity var(--duration-fast); pointer-events: none; }
+.search-input:focus { outline: none; border-color: var(--primary); width: 260px; background-color: var(--surface); box-shadow: 0 0 0 3px var(--primary-glow); }
+.search-btn { display: none; }
 
 /* ---- Skeleton Loading ---- */
 .skeleton { background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--border-subtle) 50%, var(--bg-sunken) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s infinite; border-radius: var(--radius-sm); }
