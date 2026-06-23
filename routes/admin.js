@@ -306,13 +306,37 @@ router.post('/categories/:id/delete', requireCsrf, (req, res) => {
 // ============ 文章 CRUD ============
 router.get('/articles', (req, res) => {
   const status = req.query.status || null;
+  const q = (req.query.q || '').trim();
+  const sort = req.query.sort || 'newest';
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = 20;
-  const allPages = db.getAllPages(status);
+
+  let allPages = db.getAllPages(status);
+
+  // 关键词搜索
+  if (q) {
+    const qLower = q.toLowerCase();
+    allPages = allPages.filter(p =>
+      (p.title || '').toLowerCase().includes(qLower) ||
+      (p.summary || '').toLowerCase().includes(qLower) ||
+      (p.seo_keywords || '').toLowerCase().includes(qLower)
+    );
+  }
+
+  // 排序
+  if (sort === 'views') {
+    allPages.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+  } else if (sort === 'oldest') {
+    allPages.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+  } else {
+    allPages.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  }
+
   const total = allPages.length;
   const totalPages = Math.ceil(total / limit);
   const pages = allPages.slice((page - 1) * limit, page * limit);
-  res.render('admin/articles', { title: '文章管理', pages, status, page, totalPages, total, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  const categories = db.getCategories();
+  res.render('admin/articles', { title: '文章管理', pages, status, q, sort, page, totalPages, total, categories, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/new', (req, res) => {

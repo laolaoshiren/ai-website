@@ -4,14 +4,39 @@
     <h1>📝 文章管理</h1>
     <div class="header-actions">
       <a href="/admin/articles/new" class="btn btn-primary">➕ 新建文章</a>
-      <a href="/admin/articles" class="btn btn-sm <%= !status ? 'btn-primary' : 'btn-outline' %>">全部</a>
-      <a href="/admin/articles?status=published" class="btn btn-sm <%= status === 'published' ? 'btn-primary' : 'btn-outline' %>">已发布</a>
-      <a href="/admin/articles?status=planned" class="btn btn-sm <%= status === 'planned' ? 'btn-primary' : 'btn-outline' %>">计划中</a>
-      <a href="/admin/articles?status=draft" class="btn btn-sm <%= status === 'draft' ? 'btn-primary' : 'btn-outline' %>">草稿</a>
     </div>
   </div>
   <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <!-- 搜索/筛选栏 -->
+  <div class="admin-panel" style="padding:1rem 1.5rem">
+    <form method="GET" action="/admin/articles" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+      <input type="text" name="q" value="<%= q || '' %>" placeholder="🔍 搜索标题/摘要/关键词..." style="flex:1;min-width:200px;padding:0.45rem 0.9rem;border:1px solid var(--border);border-radius:var(--radius-full);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
+      <select name="status" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
+        <option value="">全部状态</option>
+        <option value="published" <%= status === 'published' ? 'selected' : '' %>>已发布</option>
+        <option value="planned" <%= status === 'planned' ? 'selected' : '' %>>计划中</option>
+        <option value="draft" <%= status === 'draft' ? 'selected' : '' %>>草稿</option>
+      </select>
+      <select name="sort" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
+        <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>>最新发布</option>
+        <option value="oldest" <%= sort === 'oldest' ? 'selected' : '' %>>最早发布</option>
+        <option value="views" <%= sort === 'views' ? 'selected' : '' %>>阅读量排序</option>
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+      <% if (q || status || sort !== 'newest') { %>
+        <a href="/admin/articles" class="btn btn-outline btn-sm">清除</a>
+      <% } %>
+    </form>
+    <% if (q || status) { %>
+      <p class="text-muted" style="margin-top:0.5rem">
+        <% if (q) { %>搜索 "<strong><%= q %></strong>" · <% } %>
+        <% if (status) { %><%= status === 'published' ? '已发布' : status === 'planned' ? '计划中' : '草稿' %> · <% } %>
+        共 <%= total %> 篇结果
+      </p>
+    <% } %>
+  </div>
 
   <div class="admin-panel">
     <table class="admin-table">
@@ -41,7 +66,7 @@
           </tr>
           <% }); %>
         <% } else { %>
-          <tr><td colspan="6" style="text-align:center">暂无文章</td></tr>
+          <tr><td colspan="6" style="text-align:center">暂无文章<% if (q) { %> — 未找到 "<%= q %>" 相关结果<% } %></td></tr>
         <% } %>
       </tbody>
     </table>
@@ -49,9 +74,10 @@
 
   <% if (totalPages > 1) { %>
   <div class="pagination">
-    <% if (page > 1) { %><a href="?page=<%= page - 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-sm btn-outline">← 上一页</a><% } %>
+    <% var qs = ''; if (q) qs += '&q=' + encodeURIComponent(q); if (status) qs += '&status=' + status; if (sort) qs += '&sort=' + sort; %>
+    <% if (page > 1) { %><a href="?page=<%= page - 1 %><%= qs %>" class="btn btn-sm btn-outline">← 上一页</a><% } %>
     <span class="page-info">第 <%= page %> / <%= totalPages %> 页（共 <%= total %> 篇）</span>
-    <% if (page < totalPages) { %><a href="?page=<%= page + 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-sm btn-outline">下一页 →</a><% } %>
+    <% if (page < totalPages) { %><a href="?page=<%= page + 1 %><%= qs %>" class="btn btn-sm btn-outline">下一页 →</a><% } %>
   </div>
   <% } %>
 </div>
