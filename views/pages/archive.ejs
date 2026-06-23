@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=6">
+  <link rel="stylesheet" href="/css/style.css?v=7">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -12,7 +12,12 @@
       <div class="container">
         <span class="page-kicker">Archive</span>
         <h1 class="page-title">文章归档</h1>
-        <p class="page-desc">所有已发布的文章按时间归档（共 <%= totalMonths %> 个月）</p>
+        <p class="page-desc">
+          共 <%= totalArticles %> 篇文章，覆盖 <%= totalMonths %> 个月
+          <% if (totalArticles > 0) { %>
+            ，当前显示第 <%= startArticle %>-<%= endArticle %> 篇
+          <% } %>
+        </p>
       </div>
     </section>
 
@@ -24,7 +29,7 @@
               <% var ym = group[0]; var articles = group[1]; %>
               <div class="archive-group">
                 <h2 class="archive-month">
-                  <%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7)) %> 月
+                  <%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7), 10) %> 月
                   <small class="archive-count">(<%= articles.length %> 篇)</small>
                 </h2>
                 <ul class="archive-list">
@@ -48,11 +53,41 @@
         <% } %>
 
         <% if (totalPages > 1) { %>
-        <div class="pagination">
-          <% if (page > 1) { %><a href="?page=<%= page - 1 %>" class="btn btn-sm btn-outline">← 上几月</a><% } %>
-          <span class="page-info">第 <%= page %> / <%= totalPages %> 页</span>
-          <% if (page < totalPages) { %><a href="?page=<%= page + 1 %>" class="btn btn-sm btn-outline">下几月 →</a><% } %>
-        </div>
+          <% var windowStart = Math.max(1, page - 2); %>
+          <% var windowEnd = Math.min(totalPages, page + 2); %>
+          <nav class="pagination archive-pagination" aria-label="归档分页">
+            <% if (page > 1) { %>
+              <a href="/archive?page=<%= page - 1 %>" class="pagination-button">上一页</a>
+            <% } else { %>
+              <span class="pagination-button is-disabled">上一页</span>
+            <% } %>
+
+            <div class="pagination-pages">
+              <% if (windowStart > 1) { %>
+                <a href="/archive?page=1" class="pagination-link">1</a>
+                <% if (windowStart > 2) { %><span class="pagination-ellipsis">...</span><% } %>
+              <% } %>
+
+              <% for (var i = windowStart; i <= windowEnd; i++) { %>
+                <% if (i === page) { %>
+                  <span class="pagination-link is-current" aria-current="page"><%= i %></span>
+                <% } else { %>
+                  <a href="/archive?page=<%= i %>" class="pagination-link"><%= i %></a>
+                <% } %>
+              <% } %>
+
+              <% if (windowEnd < totalPages) { %>
+                <% if (windowEnd < totalPages - 1) { %><span class="pagination-ellipsis">...</span><% } %>
+                <a href="/archive?page=<%= totalPages %>" class="pagination-link"><%= totalPages %></a>
+              <% } %>
+            </div>
+
+            <% if (page < totalPages) { %>
+              <a href="/archive?page=<%= page + 1 %>" class="pagination-button">下一页</a>
+            <% } else { %>
+              <span class="pagination-button is-disabled">下一页</span>
+            <% } %>
+          </nav>
         <% } %>
       </div>
     </section>
