@@ -18,6 +18,23 @@ router.get('/', (req, res) => {
   });
 });
 
+// 首页加载更多（AJAX JSON）
+router.get('/api/more-articles', (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page) || 2);
+  const limit = 12;
+  const articles = getPublishedPages(limit, (page - 1) * limit);
+  const hasMore = articles.length === limit;
+  res.json({
+    articles: articles.map(a => ({
+      id: a.id, title: a.title, slug: a.slug,
+      summary: a.summary || '', category_name: a.category_name || '',
+      category_slug: a.category_slug || '', view_count: a.view_count || 0,
+      published_at: a.published_at || '',
+    })),
+    hasMore, page,
+  });
+});
+
 // 分类页
 router.get('/category/:slug', (req, res) => {
   const slug = decodeURIComponent(req.params.slug);

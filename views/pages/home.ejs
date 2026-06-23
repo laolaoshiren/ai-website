@@ -34,10 +34,13 @@
       <div class="container">
         <h2 class="section-title">📝 最新文章</h2>
         <% if (typeof latest !== 'undefined' && latest.length > 0) { %>
-          <div class="articles-grid">
+          <div class="articles-grid" id="articles-grid">
             <% latest.forEach(function(article) { %>
               <%- include('../partials/article-card', { article: article }) %>
             <% }); %>
+          </div>
+          <div id="load-more-wrap" style="text-align:center;margin-top:2rem">
+            <button id="load-more-btn" class="btn btn-outline btn-lg" onclick="loadMore()">📄 加载更多文章</button>
           </div>
         <% } else { %>
           <div class="empty-state">
@@ -70,5 +73,57 @@
   </main>
   <%- include('../partials/footer') %>
   <script src="/js/analytics.js"></script>
+  <script>
+  (function() {
+    var currentPage = 1;
+    var loading = false;
+    window.loadMore = function() {
+      if (loading) return;
+      loading = true;
+      var btn = document.getElementById('load-more-btn');
+      btn.textContent = '加载中...';
+      btn.disabled = true;
+      currentPage++;
+      fetch('/api/more-articles?page=' + currentPage)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var grid = document.getElementById('articles-grid');
+          data.articles.forEach(function(a) {
+            var pubDate = (a.published_at || '').split(' ')[0];
+            var timeLabel = pubDate;
+            if (pubDate) {
+              var parts = pubDate.split('-');
+              var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+              var diff = Math.floor((Date.now() - d) / 86400000);
+              if (diff <= 0) timeLabel = '今天';
+              else if (diff === 1) timeLabel = '昨天';
+              else if (diff < 7) timeLabel = diff + '天前';
+              else if (diff < 30) timeLabel = Math.floor(diff / 7) + '周前';
+            }
+            var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + a.category_name + '</a>' : '';
+            var html = '<article class="article-card"><div class="card-content">' +
+              '<div class="card-meta">' + catHtml + (pubDate ? '<time class="card-date">' + timeLabel + '</time>' : '') + '</div>' +
+              '<h3 class="card-title"><a href="/article/' + a.slug + '">' + a.title + '</a></h3>' +
+              (a.summary ? '<p class="card-summary">' + a.summary.slice(0, 120) + '</p>' : '') +
+              '<div class="card-stats"><span class="stat-views">👁 ' + (a.view_count || 0) + '</span><span class="stat-ai">🤖 AI 生成</span></div>' +
+              '</div></article>';
+            grid.insertAdjacentHTML('beforeend', html);
+          });
+          if (!data.hasMore) {
+            document.getElementById('load-more-wrap').innerHTML = '<p class="text-muted">已显示全部文章</p>';
+          } else {
+            btn.textContent = '📄 加载更多文章';
+            btn.disabled = false;
+          }
+          loading = false;
+        })
+        .catch(function() {
+          btn.textContent = '加载失败，点击重试';
+          btn.disabled = false;
+          loading = false;
+        });
+    };
+  })();
+  </script>
 </body>
 </html>
