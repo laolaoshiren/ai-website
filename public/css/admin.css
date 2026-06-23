@@ -123,6 +123,10 @@ a { color: var(--primary); text-decoration: none; }
 .editor-textarea { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; min-height: 400px; resize: vertical; }
 .text-muted { color: var(--text-light); font-size: 0.85rem; }
 
+/* Pagination */
+.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; padding: 1rem 0; }
+.page-info { font-size: 0.85rem; color: var(--text-light); }
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-layout { flex-direction: column; }

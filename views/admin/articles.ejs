@@ -42,5 +42,13 @@
       </tbody>
     </table>
   </div>
+
+  <% if (totalPages > 1) { %>
+  <div class="pagination">
+    <% if (page > 1) { %><a href="?page=<%= page - 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-sm btn-outline">← 上一页</a><% } %>
+    <span class="page-info">第 <%= page %> / <%= totalPages %> 页（共 <%= total %> 篇）</span>
+    <% if (page < totalPages) { %><a href="?page=<%= page + 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-sm btn-outline">下一页 →</a><% } %>
+  </div>
+  <% } %>
 </div>
 <%- include('layout-close') %>

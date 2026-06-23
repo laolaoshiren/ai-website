@@ -191,8 +191,13 @@ router.post('/categories/:id/delete', (req, res) => {
 // ============ 文章 CRUD ============
 router.get('/articles', (req, res) => {
   const status = req.query.status || null;
-  const pages = db.getAllPages(status);
-  res.render('admin/articles', { title: '文章管理', pages, status, success: req.query.success, error: req.query.error });
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = 20;
+  const allPages = db.getAllPages(status);
+  const total = allPages.length;
+  const totalPages = Math.ceil(total / limit);
+  const pages = allPages.slice((page - 1) * limit, page * limit);
+  res.render('admin/articles', { title: '文章管理', pages, status, page, totalPages, total, success: req.query.success, error: req.query.error });
 });
 
 router.get('/articles/new', (req, res) => {
@@ -285,9 +290,14 @@ router.post('/schedules/:id/delete', (req, res) => {
 
 // ============ Agent 日志 ============
 router.get('/logs', (req, res) => {
-  const logs = db.getAgentLogs(100);
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = 30;
+  const allLogs = db.getAgentLogs(9999);
+  const total = allLogs.length;
+  const totalPages = Math.ceil(total / limit);
+  const logs = allLogs.slice((page - 1) * limit, page * limit);
   const agentStatuses = db.getAgentStatuses();
-  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses });
+  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, page, totalPages, total });
 });
 
 // ============ 手动触发 ============
