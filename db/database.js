@@ -113,8 +113,14 @@ const DEFAULT_DATA = {
   // 当前运行状态
   agent_status: {},
 
+  // 广告管理
+  ads: [],
+
+  // 友情链接
+  friend_links: [],
+
   // ID 计数器
-  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0 },
+  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, ads: 0, friend_links: 0 },
 };
 
 async function initDb() {
@@ -470,6 +476,46 @@ function clearAllContent() {
 // exit handler 保持同步写入（exit handler 不能用 async）
 process.on('exit', () => { try { saveDb(); } catch {} });
 
+// ============ 广告管理 ============
+function getAds() { return getDb().ads || []; }
+function getActiveAds(position) {
+  let ads = getAds().filter(a => a.enabled);
+  if (position) ads = ads.filter(a => a.position === position);
+  return ads.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+function addAd(ad) {
+  const id = nextId('ads');
+  getDb().ads.push({ id, title: ad.title || '', content: ad.content || '', image_url: ad.image_url || '', link_url: ad.link_url || '', position: ad.position || 'sidebar', enabled: true, sort_order: ad.sort_order || 0, created_at: now() });
+  scheduleSave();
+  return id;
+}
+function updateAd(id, updates) {
+  const ad = getDb().ads.find(a => a.id === id);
+  if (ad) { Object.assign(ad, updates); scheduleSave(); }
+}
+function deleteAd(id) {
+  getDb().ads = getDb().ads.filter(a => a.id !== id);
+  scheduleSave();
+}
+
+// ============ 友情链接 ============
+function getFriendLinks() { return getDb().friend_links || []; }
+function getActiveFriendLinks() { return getFriendLinks().filter(l => l.enabled).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); }
+function addFriendLink(link) {
+  const id = nextId('friend_links');
+  getDb().friend_links.push({ id, name: link.name || '', url: link.url || '', logo_url: link.logo_url || '', description: link.description || '', enabled: true, sort_order: link.sort_order || 0, created_at: now() });
+  scheduleSave();
+  return id;
+}
+function updateFriendLink(id, updates) {
+  const link = getDb().friend_links.find(l => l.id === id);
+  if (link) { Object.assign(link, updates); scheduleSave(); }
+}
+function deleteFriendLink(id) {
+  getDb().friend_links = getDb().friend_links.filter(l => l.id !== id);
+  scheduleSave();
+}
+
 module.exports = {
   initDb, getDb, saveDb,
   getAdmin, setAdminPassword,
@@ -481,5 +527,7 @@ module.exports = {
   enrichPage, getStats,
   recordAnalytics, getAnalyticsSummary,
   getSchedules, updateScheduleLastRun, getScheduleByType, addSchedule, updateSchedule, deleteSchedule,
-  saveTemplateHistory, getLatestTemplateHistory, clearAllContent
+  saveTemplateHistory, getLatestTemplateHistory, clearAllContent,
+  getAds, getActiveAds, addAd, updateAd, deleteAd,
+  getFriendLinks, getActiveFriendLinks, addFriendLink, updateFriendLink, deleteFriendLink
 };

@@ -455,4 +455,68 @@ router.post('/clear-content', requireCsrf, async (req, res) => {
   } catch (err) { res.redirect('/admin?error=' + encodeURIComponent(err.message)); }
 });
 
+// ============ 广告管理 ============
+router.get('/ads', (req, res) => {
+  const ads = db.getAds();
+  res.render('admin/ads', { title: '广告管理', ads, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+});
+
+router.post('/ads/add', requireCsrf, (req, res) => {
+  const { title, content, image_url, link_url, position, sort_order } = req.body;
+  if (!title) return res.redirect('/admin/ads?error=' + encodeURIComponent('请输入广告标题'));
+  db.addAd({ title, content, image_url, link_url, position, sort_order: parseInt(sort_order) || 0 });
+  res.redirect('/admin/ads?success=1');
+});
+
+router.post('/ads/:id/edit', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { title, content, image_url, link_url, position, sort_order, enabled } = req.body;
+  db.updateAd(id, { title, content, image_url, link_url, position, sort_order: parseInt(sort_order) || 0, enabled: enabled === 'on' });
+  res.redirect('/admin/ads?success=1');
+});
+
+router.post('/ads/:id/toggle', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const ad = db.getAds().find(a => a.id === id);
+  if (ad) db.updateAd(id, { enabled: !ad.enabled });
+  res.redirect('/admin/ads');
+});
+
+router.post('/ads/:id/delete', requireCsrf, (req, res) => {
+  db.deleteAd(parseInt(req.params.id));
+  res.redirect('/admin/ads?success=1');
+});
+
+// ============ 友情链接管理 ============
+router.get('/friend-links', (req, res) => {
+  const links = db.getFriendLinks();
+  res.render('admin/friend-links', { title: '友情链接', links, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+});
+
+router.post('/friend-links/add', requireCsrf, (req, res) => {
+  const { name, url, logo_url, description, sort_order } = req.body;
+  if (!name || !url) return res.redirect('/admin/friend-links?error=' + encodeURIComponent('请输入名称和链接'));
+  db.addFriendLink({ name, url, logo_url, description, sort_order: parseInt(sort_order) || 0 });
+  res.redirect('/admin/friend-links?success=1');
+});
+
+router.post('/friend-links/:id/edit', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, url, logo_url, description, sort_order, enabled } = req.body;
+  db.updateFriendLink(id, { name, url, logo_url, description, sort_order: parseInt(sort_order) || 0, enabled: enabled === 'on' });
+  res.redirect('/admin/friend-links?success=1');
+});
+
+router.post('/friend-links/:id/toggle', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const link = db.getFriendLinks().find(l => l.id === id);
+  if (link) db.updateFriendLink(id, { enabled: !link.enabled });
+  res.redirect('/admin/friend-links');
+});
+
+router.post('/friend-links/:id/delete', requireCsrf, (req, res) => {
+  db.deleteFriendLink(parseInt(req.params.id));
+  res.redirect('/admin/friend-links?success=1');
+});
+
 module.exports = router;

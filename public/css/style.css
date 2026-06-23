@@ -355,3 +355,10 @@ img { max-width: 100%; height: auto; }
   .search-input:focus { width: 180px; }
   .toc-sidebar { display: none !important; }
 }
+
+/* ---- Footer Friends ---- */
+.footer-friends { padding-top: var(--space-6); border-top: 1px solid var(--border); margin-bottom: var(--space-6); }
+.footer-friends-list { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.footer-friends-list a { color: var(--text-tertiary); font-size: var(--text-sm); transition: color var(--duration-fast); }
+.footer-friends-list a:hover { color: var(--primary); }
+

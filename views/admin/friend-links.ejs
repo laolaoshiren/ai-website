@@ -1,0 +1,50 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>🔗 友情链接</h1>
+    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addLink').style.display='block'">➕ 添加链接</button></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div id="addLink" class="admin-panel" style="display:none">
+    <h2>添加友情链接</h2>
+    <form method="POST" action="/admin/friend-links/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <div class="form-grid">
+        <div class="form-group"><label>网站名称</label><input type="text" name="name" required placeholder="如：张三的博客"></div>
+        <div class="form-group"><label>网站链接</label><input type="url" name="url" required placeholder="https://example.com"></div>
+        <div class="form-group"><label>Logo URL（可选）</label><input type="url" name="logo_url" placeholder="https://example.com/logo.png"></div>
+        <div class="form-group"><label>简介</label><input type="text" name="description" placeholder="一句话介绍"></div>
+        <div class="form-group"><label>排序</label><input type="number" name="sort_order" value="0" min="0"></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addLink').style.display='none'">取消</button></div>
+    </form>
+  </div>
+
+  <% if (links.length > 0) { %>
+  <div class="admin-panel">
+    <table class="admin-table">
+      <thead><tr><th>名称</th><th>链接</th><th>简介</th><th>状态</th><th>排序</th><th>操作</th></tr></thead>
+      <tbody>
+        <% links.forEach(function(link) { %>
+        <tr>
+          <td class="td-title"><%= link.name %></td>
+          <td><code style="font-size:0.78rem"><%= link.url %></code></td>
+          <td><%= (link.description || '').slice(0, 30) %></td>
+          <td><span class="status-badge <%= link.enabled ? 'status-published' : 'status-archived' %>"><%= link.enabled ? '启用' : '禁用' %></span></td>
+          <td><%= link.sort_order || 0 %></td>
+          <td class="td-actions">
+            <form method="POST" action="/admin/friend-links/<%= link.id %>/toggle" style="display:inline"><input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline"><%= link.enabled ? '⏸' : '▶️' %></button></form>
+            <form method="POST" action="/admin/friend-links/<%= link.id %>/delete" style="display:inline"><input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <div class="empty-state"><p>🔗 暂无友情链接</p></div>
+  <% } %>
+</div>
+<%- include('layout-close') %>

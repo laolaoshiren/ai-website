@@ -31,7 +31,8 @@ app.use((req, res, next) => {
   res.locals.siteUrl = config.site_url || 'http://localhost:3000';
   res.locals.currentPath = req.path;
   res.locals.categories = [];
-  try { const { getCategories } = require('./db/database'); res.locals.categories = getCategories(); } catch {}
+  res.locals.friendLinks = [];
+  try { const { getCategories, getActiveFriendLinks } = require('./db/database'); res.locals.categories = getCategories(); res.locals.friendLinks = getActiveFriendLinks(); } catch {}
   next();
 });
 

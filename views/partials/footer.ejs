@@ -43,6 +43,17 @@
       </div>
     </div>
 
+    <% if (typeof friendLinks !== 'undefined' && friendLinks.length > 0) { %>
+    <div class="footer-friends">
+      <h4 class="footer-heading">友情链接</h4>
+      <div class="footer-friends-list">
+        <% friendLinks.forEach(function(link) { %>
+          <a href="<%= link.url %>" target="_blank" rel="noopener"<% if (link.description) { %> title="<%= link.description %>"<% } %>><%= link.name %></a>
+        <% }); %>
+      </div>
+    </div>
+    <% } %>
+
     <div class="footer-bottom">
       <p class="footer-copy">&copy; <%= new Date().getFullYear() %> <%= siteTitle %> · 由 AI 驱动</p>
       <div class="footer-bottom-links">

@@ -1,0 +1,50 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>📢 广告管理</h1>
+    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addAd').style.display='block'">➕ 添加广告</button></div>
+  </div>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 操作成功</div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div id="addAd" class="admin-panel" style="display:none">
+    <h2>添加广告</h2>
+    <form method="POST" action="/admin/ads/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <div class="form-grid">
+        <div class="form-group"><label>广告标题</label><input type="text" name="title" required placeholder="如：赞助商广告"></div>
+        <div class="form-group"><label>展示位置</label><select name="position"><option value="sidebar">侧边栏</option><option value="header">页头</option><option value="footer">页尾</option><option value="article_top">文章顶部</option><option value="article_bottom">文章底部</option></select></div>
+        <div class="form-group"><label>广告图片 URL</label><input type="url" name="image_url" placeholder="https://example.com/banner.jpg"></div>
+        <div class="form-group"><label>跳转链接</label><input type="url" name="link_url" placeholder="https://example.com"></div>
+        <div class="form-group"><label>广告代码/文字（支持 HTML）</label><textarea name="content" rows="3" placeholder="支持 HTML 广告代码或纯文字描述"></textarea></div>
+        <div class="form-group"><label>排序</label><input type="number" name="sort_order" value="0" min="0"></div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addAd').style.display='none'">取消</button></div>
+    </form>
+  </div>
+
+  <% if (ads.length > 0) { %>
+  <div class="admin-panel">
+    <table class="admin-table">
+      <thead><tr><th>标题</th><th>位置</th><th>状态</th><th>排序</th><th>操作</th></tr></thead>
+      <tbody>
+        <% ads.forEach(function(ad) { %>
+        <tr>
+          <td class="td-title"><%= ad.title %></td>
+          <td><span class="status-badge status-published"><%= ad.position %></span></td>
+          <td><span class="status-badge <%= ad.enabled ? 'status-published' : 'status-archived' %>"><%= ad.enabled ? '启用' : '禁用' %></span></td>
+          <td><%= ad.sort_order || 0 %></td>
+          <td class="td-actions">
+            <form method="POST" action="/admin/ads/<%= ad.id %>/toggle" style="display:inline"><input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline"><%= ad.enabled ? '⏸' : '▶️' %></button></form>
+            <form method="POST" action="/admin/ads/<%= ad.id %>/delete" style="display:inline"><input type="hidden" name="csrf_token" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️</button></form>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <div class="empty-state"><p>📭 暂无广告</p></div>
+  <% } %>
+</div>
+<%- include('layout-close') %>
