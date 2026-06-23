@@ -22,11 +22,65 @@
       <h2>🔍 Tavily 搜索引擎</h2>
       <p class="text-muted" style="margin-bottom:1rem">Tavily 是专业搜索引擎 API，配置后搜索结果更精准。不配置也不影响正常运行——系统默认使用 DuckDuckGo + Bing 等免费搜索引擎。免费额度：每月 1000 次搜索。<a href="https://tavily.com" target="_blank">获取 Key →</a></p>
       <div class="form-grid">
-        <div class="form-group"><label>Tavily API Key</label><input type="password" name="tavily_api_key" value="<%= config.tavily_api_key || '' %>" placeholder="tvly-xxxxxxxxxx" autocomplete="off"></div>
+        <div class="form-group"><label>Tavily API Key</label><input type="password" name="tavily_api_key" value="<%= config.tavily_api_key || '' %>" placeholder="***" autocomplete="off"></div>
       </div>
     </div>
 
     <div class="form-actions"><button type="submit" class="btn btn-primary btn-lg">💾 保存设置</button></div>
+  </form>
+
+  <!-- 工作模式独立表单 -->
+  <form method="POST" action="/admin/work-mode" style="margin-top:1.5rem">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+    <div class="admin-panel">
+      <h2>⚡ 工作模式</h2>
+      <%
+        var currentMode = config.work_mode || 'smart';
+        var currentLevel = parseInt(config.rage_level) || 3;
+      %>
+      <div class="mode-switch">
+        <div class="mode-card <%= currentMode === 'smart' ? 'mode-active' : '' %>" onclick="selectMode('smart')">
+          <div class="mode-icon">🧠</div>
+          <div class="mode-name">智能模式</div>
+          <div class="mode-desc">按定时任务调度，每天固定时间工作，省资源</div>
+        </div>
+        <div class="mode-card <%= currentMode === 'rage' ? 'mode-active' : '' %>" onclick="selectMode('rage')">
+          <div class="mode-icon">🔥</div>
+          <div class="mode-name">狂暴模式</div>
+          <div class="mode-desc">AI 无休止持续工作，多线程并发生成内容</div>
+        </div>
+      </div>
+      <input type="hidden" name="work_mode" id="work_mode" value="<%= currentMode %>">
+
+      <div id="rage-settings" style="margin-top:1.5rem; <%= currentMode === 'rage' ? '' : 'display:none' %>">
+        <label style="font-weight:600;margin-bottom:0.75rem;display:block">🔥 狂暴档位：<span id="level-display" style="color:var(--primary)"><%= currentLevel %></span> / 10</label>
+        <input type="range" name="rage_level" id="rage_level" min="1" max="10" value="<%= currentLevel %>" oninput="document.getElementById('level-display').textContent=this.value" style="width:100%;accent-color:var(--primary)">
+        <div class="mode-level-desc" id="level-desc">
+          <% if (currentLevel <= 2) { %>
+            🟢 低速 — 1-2 个编辑并发，适合低频更新
+          <% } else if (currentLevel <= 5) { %>
+            🟡 中速 — 3-5 个编辑并发，持续高频产出
+          <% } else if (currentLevel <= 8) { %>
+            🟠 高速 — 6-8 个编辑并发，大量内容爆发
+          <% } else { %>
+            🔴 极速 — 9-10 个编辑并发，全速内容轰炸
+          <% } %>
+        </div>
+        <p class="text-muted" style="margin-top:0.5rem">档位越高，并发越多，AI 调用越频繁。建议根据 API 额度选择。</p>
+      </div>
+
+      <div class="form-actions" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary btn-lg">⚡ 应用模式</button>
+        <% if (currentMode === 'rage') { %>
+          <form method="POST" action="/admin/work-mode" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <input type="hidden" name="work_mode" value="smart">
+            <input type="hidden" name="rage_level" value="3">
+            <button type="submit" class="btn btn-outline btn-lg" onclick="return confirm('切换回智能模式将停止狂暴循环，确认？')">🧠 切回智能模式</button>
+          </form>
+        <% } %>
+      </div>
+    </div>
   </form>
 
   <form method="POST" action="/admin/change-password" style="margin-top:1.5rem">
@@ -42,3 +96,11 @@
   </form>
 </div>
 <%- include('layout-close') %>
+<script>
+function selectMode(mode) {
+  document.getElementById('work_mode').value = mode;
+  document.querySelectorAll('.mode-card').forEach(function(c) { c.classList.remove('mode-active'); });
+  event.currentTarget.classList.add('mode-active');
+  document.getElementById('rage-settings').style.display = mode === 'rage' ? '' : 'none';
+}
+</script>

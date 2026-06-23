@@ -138,3 +138,13 @@ a { color: var(--primary); text-decoration: none; }
   .form-grid { grid-template-columns: 1fr; }
   .providers-grid { grid-template-columns: 1fr; }
 }
+
+/* Mode Switch */
+.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.mode-card { background: var(--white); border: 2px solid var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+.mode-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.mode-active { border-color: var(--primary); background: rgba(96,165,250,0.08); box-shadow: 0 0 20px rgba(96,165,250,0.15); }
+.mode-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.mode-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+.mode-desc { font-size: 0.8rem; color: var(--text-light); line-height: 1.4; }
+.mode-level-desc { margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-light); padding: 0.5rem; background: rgba(96,165,250,0.06); border-radius: 6px; }

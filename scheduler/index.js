@@ -274,6 +274,89 @@ async function coldStart() {
 function stopScheduler() {
   for (const job of cronJobs) job.stop();
   cronJobs.length = 0;
+  // 停止狂暴模式
+  if (rageModeTimer) { clearInterval(rageModeTimer); rageModeTimer = null; }
+  rageModeActive = false;
+  console.log('⏰ 调度器已停止');
 }
 
-module.exports = { startScheduler, stopScheduler, executeTask, coldStart };
+// ============ 狂暴模式 ============
+let rageModeActive = false;
+let rageModeTimer = null;
+
+/**
+ * 启动狂暴模式：AI 无休止持续工作
+ * @param {number} level - 并发档位 1-10
+ */
+function startRageMode(level = 3) {
+  if (rageModeActive) { console.log('狂暴模式已在运行'); return; }
+  rageModeActive = true;
+  const concurrency = Math.max(1, Math.min(10, level));
+  const CYCLE_INTERVAL = 10000; // 每批次间隔 10 秒
+
+  console.log(`\n🔥 狂暴模式启动！档位 ${concurrency}，${concurrency} 路并发\n`);
+  logAgent('site_manager', '狂暴模式', 'running', `档位 ${concurrency}，${concurrency} 路并发`);
+
+  let cycleCount = 0;
+
+  rageModeTimer = setInterval(async () => {
+    if (!rageModeActive) return;
+
+    cycleCount++;
+    const { getPlannedPages } = require('../db/database');
+    let planned = getPlannedPages(concurrency);
+
+    // 如果计划不足，先规划
+    if (planned.length < concurrency) {
+      try {
+        const { planStructure } = require('../ai/planner');
+        logAgent('planner', '狂暴规划', 'running', `第 ${cycleCount} 轮：补充规划...`);
+        await planStructure();
+        planned = getPlannedPages(concurrency);
+      } catch (err) {
+        logAgent('planner', '狂暴规划', 'failed', err.message);
+      }
+    }
+
+    if (planned.length === 0) {
+      logAgent('site_manager', '狂暴模式', 'success', `第 ${cycleCount} 轮：无待写文章，等待...`);
+      return;
+    }
+
+    // 并发写文章
+    logAgent('site_manager', '狂暴模式', 'running', `第 ${cycleCount} 轮：${planned.length} 路并发写作`);
+    const { generateArticle } = require('../ai/writer');
+
+    const results = await Promise.allSettled(
+      planned.map(async (page) => {
+        const writerId = Math.floor(Math.random() * 100);
+        logAgent('writer', `写手#${writerId}`, 'running', `撰写: ${page.title.slice(0, 30)}`);
+        try {
+          const r = await generateArticle(page);
+          logAgent('writer', `写手#${writerId}`, 'success', `完成: ${r.title.slice(0, 30)}`);
+          logAgent('reviewer', '审核', 'success', `通过: ${r.title.slice(0, 30)}`);
+          return r;
+        } catch (err) {
+          logAgent('writer', `写手#${writerId}`, 'failed', err.message.slice(0, 60));
+          throw err;
+        }
+      })
+    );
+
+    const success = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    const stats = getStats();
+    console.log(`🔥 第 ${cycleCount} 轮完成: ${success} 成功, ${failed} 失败 | 总计 ${stats.totalArticles} 篇`);
+    logAgent('site_manager', '狂暴模式', 'success', `第 ${cycleCount} 轮: +${success} 篇 | 总计 ${stats.totalArticles} 篇`);
+
+  }, CYCLE_INTERVAL);
+}
+
+/**
+ * 获取狂暴模式状态
+ */
+function getRageModeStatus() {
+  return { active: rageModeActive, level: parseInt(require('../config').getSetting('rage_level') || '3') };
+}
+
+module.exports = { startScheduler, stopScheduler, executeTask, coldStart, startRageMode, getRageModeStatus };

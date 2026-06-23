@@ -103,7 +103,14 @@ app.use((err, req, res, next) => { console.error('服务器错误:', err); res.s
       if (!admin.setup) {
         console.log('🔑 首次使用！请访问 /admin/setup 设置管理员密码');
       } else if (isAIConfigured() && config.ai_loop_enabled === '1') {
-        try { const { startScheduler } = require('./scheduler'); startScheduler(); console.log('⏰ 定时任务调度器已启动'); } catch (err) { console.error('调度器启动失败:', err.message); }
+        // 检查是否之前是狂暴模式
+        const workMode = config.work_mode || 'smart';
+        if (workMode === 'rage') {
+          const level = parseInt(config.rage_level) || 3;
+          try { const { startRageMode } = require('./scheduler'); startRageMode(level); console.log(`🔥 狂暴模式已恢复（档位 ${level}）`); } catch (err) { console.error('狂暴模式启动失败:', err.message); }
+        } else {
+          try { const { startScheduler } = require('./scheduler'); startScheduler(); console.log('⏰ 定时任务调度器已启动'); } catch (err) { console.error('调度器启动失败:', err.message); }
+        }
       } else {
         console.log('⏸  请访问 /admin 配置 AI 提供商后启用自动循环');
       }

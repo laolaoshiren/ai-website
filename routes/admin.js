@@ -160,7 +160,10 @@ router.get('/', (req, res) => {
   const schedules = db.getSchedules();
   let outage = { active: false };
   try { outage = require('../ai/client').getOutageStatus(); } catch {}
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, outage, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  let rageStatus = { active: false, level: 3 };
+  try { rageStatus = require('../scheduler').getRageModeStatus(); } catch {}
+  const workMode = getConfig().work_mode || 'smart';
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, outage, rageStatus, workMode, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============
@@ -204,6 +207,30 @@ router.post('/toggle-loop', requireCsrf, (req, res) => {
   refreshConfig();
   if (newState === '1') { try { const { startScheduler } = require('../scheduler'); startScheduler(); } catch {} }
   res.redirect('/admin?success=' + encodeURIComponent(newState === '1' ? '自动循环已开启' : '自动循环已关闭'));
+});
+
+// ============ 工作模式切换 ============
+router.post('/work-mode', requireCsrf, (req, res) => {
+  const mode = req.body.work_mode === 'rage' ? 'rage' : 'smart';
+  const level = Math.max(1, Math.min(10, parseInt(req.body.rage_level) || 3));
+  db.setSetting('work_mode', mode);
+  db.setSetting('rage_level', String(level));
+  refreshConfig();
+
+  // 重启调度器以应用新模式
+  try {
+    const { stopScheduler, startScheduler, startRageMode } = require('../scheduler');
+    stopScheduler();
+    if (mode === 'rage') {
+      startRageMode(level);
+      res.redirect('/admin/settings?success=' + encodeURIComponent(`🔥 狂暴模式已启动！档位 ${level}，${level} 路并发`));
+    } else {
+      startScheduler();
+      res.redirect('/admin/settings?success=' + encodeURIComponent('🧠 智能模式已恢复'));
+    }
+  } catch (err) {
+    res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
+  }
 });
 
 // ============ AI 提供商管理 ============

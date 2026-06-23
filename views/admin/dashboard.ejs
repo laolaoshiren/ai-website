@@ -20,6 +20,10 @@
   <div class="alert alert-warning">🚨 AI 提供商故障中 — 已持续 <%= outage.durationMinutes %> 分钟，每 3 分钟自动检测，恢复后自动补充内容。</div>
   <% } %>
 
+  <% if (typeof workMode !== 'undefined' && workMode === 'rage') { %>
+  <div class="alert" style="background:#3b1111;color:#fca5a5;border:1px solid #7f1d1d;">🔥 <strong>狂暴模式运行中</strong> — 档位 <%= (typeof rageStatus !== 'undefined' ? rageStatus.level : 3) %>，<%= (typeof rageStatus !== 'undefined' ? rageStatus.level : 3) %> 路并发持续生成内容 | <a href="/admin/settings" style="color:#fca5a5;text-decoration:underline">切换模式</a></div>
+  <% } %>
+
   <% if (!hasProviders) { %>
   <div class="alert alert-warning">⚠️ 还没有可用的 AI 提供商！请前往 <a href="/admin/providers">AI 提供商</a> 添加。</div>
   <% } %>
