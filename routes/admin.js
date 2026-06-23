@@ -219,7 +219,8 @@ router.post('/articles/save', (req, res) => {
   }
   const { marked } = require('marked');
   const content_html = marked(content_md || '');
-  const pageData = { title: title.trim(), slug: finalSlug, category_id: category_id ? parseInt(category_id) : null, summary: summary?.trim(), content_md: content_md || '', content_html, status: status || 'draft', seo_title: seo_title?.trim(), seo_description: seo_description?.trim(), seo_keywords: seo_keywords?.trim(), featured: featured === 'on' ? 1 : 0, published_at: status === 'published' ? new Date().toISOString().replace('T', ' ').slice(0, 19) : null };
+  const now = () => new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
+  const pageData = { title: title.trim(), slug: finalSlug, category_id: category_id ? parseInt(category_id) : null, summary: summary?.trim(), content_md: content_md || '', content_html, status: status || 'draft', seo_title: seo_title?.trim(), seo_description: seo_description?.trim(), seo_keywords: seo_keywords?.trim(), featured: featured === 'on' ? 1 : 0, published_at: status === 'published' ? now() : null };
   if (id) { db.updatePage(parseInt(id), pageData); } else { db.insertPage(pageData); }
   res.redirect('/admin/articles?success=1');
 });
@@ -232,7 +233,7 @@ router.post('/articles/:id/delete', (req, res) => {
 router.post('/articles/:id/status', (req, res) => {
   const { status } = req.body;
   const updates = { status };
-  if (status === 'published') updates.published_at = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  if (status === 'published') updates.published_at = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
   db.updatePage(parseInt(req.params.id), updates);
   res.redirect('/admin/articles?success=1');
 });

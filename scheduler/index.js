@@ -89,6 +89,30 @@ async function executeTask(taskType) {
         logAgent('technician', '模板审查', 'success', '模板审查暂未启用');
         result = { skipped: true };
         break;
+      case 'heartbeat': {
+        // 心跳任务：检查内容是否充足，不足则自动生成
+        const { getPlannedPages } = require('../db/database');
+        const planned = getPlannedPages(3);
+        const stats = getStats();
+        if (planned.length > 0) {
+          logAgent('site_manager', '心跳检查', 'running', `发现 ${planned.length} 篇待写文章，自动补充`);
+          const { generateArticle } = require('../ai/writer');
+          for (const page of planned.slice(0, 2)) {
+            try {
+              logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
+              const r = await generateArticle(page);
+              logAgent('writer', '撰写文章', 'success', `完成: ${r.title}`);
+              logAgent('reviewer', '审核文章', 'success', `通过: ${r.title}`);
+            } catch (err) {
+              logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
+            }
+          }
+        } else {
+          logAgent('site_manager', '心跳检查', 'success', `文章充足 (${stats.totalArticles}篇)，等待下次检查`);
+        }
+        result = { planned: planned.length, articles: stats.totalArticles };
+        break;
+      }
       case 'seo_expert_audit': {
         const { runSEOExpert } = require('../ai/seo-expert');
         result = await runSEOExpert();
@@ -125,7 +149,7 @@ function startScheduler() {
     }
 
     const job = cron.schedule(schedule.cron_expr, async () => {
-      console.log(`\n⏰ [${new Date().toLocaleString('zh-CN')}] 定时触发: ${schedule.task_type}`);
+      console.log(`\n⏰ [${new Date().toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'})}] 定时触发: ${schedule.task_type}`);
       try {
         await executeTask(schedule.task_type);
         updateScheduleLastRun(schedule.id);
@@ -136,6 +160,19 @@ function startScheduler() {
     cronJobs.push(job);
     console.log(`  ✅ ${schedule.task_type}: ${schedule.cron_expr} (${schedule.description})`);
   }
+
+  // 启动后立即执行一次内容生成（如果有待写文章）
+  setTimeout(async () => {
+    try {
+      const planned = getPlannedPages(3);
+      if (planned.length > 0) {
+        console.log('\n🚀 启动时自动补充内容...');
+        await executeTask('generate_content');
+      }
+    } catch (err) {
+      console.error('启动时内容生成失败:', err.message);
+    }
+  }, 5000);
 }
 
 async function coldStart() {

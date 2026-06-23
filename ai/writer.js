@@ -46,7 +46,7 @@ async function generateArticle(page) {
   const DOMPurify = createDOMPurify();
   const cleanHtml = DOMPurify.sanitize(rawHtml);
 
-  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
   updatePage(page.id, {
     title: data.title || page.title,
     summary: data.summary || page.summary,

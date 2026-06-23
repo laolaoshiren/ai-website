@@ -40,16 +40,15 @@ const DEFAULT_DATA = {
 
   // 定时任务
   schedule: [
-    { id: 1, task_type: 'news_collector', cron_expr: '0 7 * * *', description: '每天 7:00 采集最新资讯', enabled: 1, last_run: null },
+    { id: 1, task_type: 'news_collector', cron_expr: '0 7,12,18 * * *', description: '每天 7/12/18 点采集资讯', enabled: 1, last_run: null },
     { id: 2, task_type: 'plan_structure', cron_expr: '0 7 1,15 * *', description: '每月1/15日 7:00 结构规划', enabled: 1, last_run: null },
-    { id: 3, task_type: 'generate_content', cron_expr: '30 7 * * *', description: '每天 7:30 生成文章', enabled: 1, last_run: null },
-    { id: 4, task_type: 'generate_content', cron_expr: '0 13 * * *', description: '每天 13:00 生成文章', enabled: 1, last_run: null },
-    { id: 5, task_type: 'generate_content', cron_expr: '0 19 * * *', description: '每天 19:00 生成文章', enabled: 1, last_run: null },
-    { id: 6, task_type: 'seo_update', cron_expr: '0 10 * * 0', description: '每周日 10:00 SEO 更新', enabled: 1, last_run: null },
-    { id: 7, task_type: 'seo_expert_audit', cron_expr: '0 3 * * 1', description: '每周一 3:00 SEO 深度审计', enabled: 1, last_run: null },
-    { id: 8, task_type: 'analyze', cron_expr: '30 22 * * *', description: '每天 22:30 数据分析', enabled: 1, last_run: null },
-    { id: 9, task_type: 'user_test', cron_expr: '0 4 * * 3', description: '每周三 4:00 用户体验测评', enabled: 1, last_run: null },
-    { id: 10, task_type: 'template_review', cron_expr: '0 4 * * 0', description: '每周日 4:00 模板审查', enabled: 1, last_run: null },
+    { id: 3, task_type: 'generate_content', cron_expr: '0 8,11,14,17,20,23 * * *', description: '每天 8/11/14/17/20/23 点生成文章', enabled: 1, last_run: null },
+    { id: 4, task_type: 'heartbeat', cron_expr: '*/30 * * * *', description: '每30分钟检查补充内容', enabled: 1, last_run: null },
+    { id: 5, task_type: 'seo_update', cron_expr: '0 2 * * *', description: '每天 2:00 SEO 更新', enabled: 1, last_run: null },
+    { id: 6, task_type: 'seo_expert_audit', cron_expr: '0 3 * * 1', description: '每周一 3:00 SEO 深度审计', enabled: 1, last_run: null },
+    { id: 7, task_type: 'analyze', cron_expr: '30 22 * * *', description: '每天 22:30 数据分析', enabled: 1, last_run: null },
+    { id: 8, task_type: 'user_test', cron_expr: '0 4 * * 3', description: '每周三 4:00 用户体验测评', enabled: 1, last_run: null },
+    { id: 9, task_type: 'template_review', cron_expr: '0 4 * * 0', description: '每周日 4:00 模板审查', enabled: 1, last_run: null },
   ],
 
   // 分析数据
@@ -98,7 +97,9 @@ function saveDb() {
 }
 
 function nextId(counter) { data._counters[counter] = (data._counters[counter] || 0) + 1; return data._counters[counter]; }
-function now() { return new Date().toISOString().replace('T', ' ').slice(0, 19); }
+function now() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
+}
 
 // ============ 管理员 ============
 function getAdmin() { return getDb().admin; }

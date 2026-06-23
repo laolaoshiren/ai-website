@@ -109,7 +109,7 @@ async function populate() {
       status: 'published', featured: a.featured,
       seo_title: a.seo_title, seo_keywords: a.seo_keywords,
       seo_description: a.summary,
-      published_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      published_at: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' '),
     });
     console.log('已发布:', a.title);
   }
