@@ -38,31 +38,91 @@
 - Agent 详细日志
 - 定时任务管理
 
-## 🚀 快速开始
+---
+
+## 🚀 一键部署（Docker）
+
+### 前置要求
+- 一台 Linux 服务器（已安装 Docker + Docker Compose）
+- 域名已解析到服务器 IP
+- GitHub 账号（用于拉取镜像）
+
+### 方式一：一键脚本部署（推荐）
 
 ```bash
-# 1. 安装依赖
+# 1. 克隆仓库
+git clone https://github.com/laolaoshiren/ai-website.git
+cd ai-website
+
+# 2. 一条命令部署（替换 tx 为你的服务器 SSH 别名）
+GITHUB_TOKEN=ghp_你的token ./deploy.sh tx
+```
+
+脚本自动完成：推送代码 → GitHub Actions 构建镜像 → 上传配置到服务器 → 配置 Caddy 反向代理 → 启动容器 → 健康检查
+
+### 方式二：手动 Docker 部署
+
+```bash
+# 1. 在服务器上创建目录
+ssh your-server "mkdir -p /opt/ai-website/data /opt/ai-website/logs"
+
+# 2. 创建 .env 配置文件
+cat > .env << 'EOF'
+AI_API_KEY=你的AI密钥
+AI_BASE_URL=https://api.deepseek.com/v1
+AI_MODEL=deepseek-chat
+AI_NAME=DeepSeek
+SITE_URL=https://your-domain.com
+SITE_TITLE=AI 纪元
+SITE_DESCRIPTION=追踪人工智能最新进展，深度解读前沿技术
+EOF
+
+# 3. 上传配置
+scp .env docker-compose.yml your-server:/opt/ai-website/
+
+# 4. 启动
+ssh your-server "cd /opt/ai-website && docker compose pull && docker compose up -d"
+```
+
+### 方式三：本地开发
+
+```bash
 npm install
-
-# 2. 启动（端口冲突会自动切换）
 npm start
-
-# 3. 首次使用
-# 访问 http://localhost:3000/admin/setup 设置密码
-# 访问 http://localhost:3000/admin/providers 添加 AI 提供商
-# 点击"冷启动"开始自动生成内容
+# 访问 http://localhost:3000
 ```
 
-### 环境变量方式配置（可选）
-```bash
-AI_API_KEY=your-key AI_BASE_URL=https://api.deepseek.com/v1 AI_MODEL=deepseek-chat npm start
-```
+### 环境变量说明
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `AI_API_KEY` | AI API 密钥（必填） | — |
+| `AI_BASE_URL` | AI API 地址 | `https://api.openai.com/v1` |
+| `AI_MODEL` | 模型名称 | `gpt-4o` |
+| `AI_NAME` | 提供商名称 | `AI Provider` |
+| `SITE_URL` | 网站 URL | `http://localhost:3000` |
+| `SITE_TITLE` | 网站标题 | `AI 智能网站` |
+| `SITE_DESCRIPTION` | 网站描述 | `由 AI 全自动维护的高质量内容网站` |
+
+> 💡 环境变量仅在首次启动时生效，后续可通过管理后台修改。
+
+### 首次使用
+
+1. 访问 `https://your-domain.com/admin` 登录管理后台（默认密码: `admin`）
+2. 访问 `/admin/providers` 确认 AI 提供商已配置
+3. 点击「冷启动」开始自动生成内容
+4. AI 系统将自动运行：采集 → 规划 → 写作 → 发布 → 优化
+
+---
 
 ## 📁 项目结构
 
 ```
 ├── server.js              # 服务入口
 ├── config.js              # 配置管理
+├── Dockerfile             # Docker 构建文件
+├── docker-compose.yml     # Docker Compose 部署
+├── deploy.sh              # 一键部署脚本
 ├── ai/                    # AI Agent 系统
 │   ├── client.js          # 多提供商负载均衡客户端
 │   ├── planner.js         # 规划 Agent
@@ -101,6 +161,18 @@ AI_API_KEY=your-key AI_BASE_URL=https://api.deepseek.com/v1 AI_MODEL=deepseek-ch
 | 📊 SEO 审计 | 每周一 | 深度 SEO 评估 |
 | 📈 数据分析 | 每天 22:30 | 分析流量和优化策略 |
 | 👤 用户测评 | 每周三 | 从用户角度审查体验 |
+
+## 🐳 Docker 镜像
+
+Docker 镜像通过 GitHub Actions 自动构建，推送到 GitHub Container Registry：
+
+```bash
+# 拉取最新镜像
+docker pull ghcr.io/laolaoshiren/ai-website:latest
+
+# 查看构建状态
+# https://github.com/laolaoshiren/ai-website/actions
+```
 
 ## 📄 License
 

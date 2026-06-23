@@ -1,0 +1,21 @@
+services:
+  ai-website:
+    image: ghcr.io/laolaoshiren/ai-website:latest
+    container_name: ai-website
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - cliproxyapi_default
+
+networks:
+  cliproxyapi_default:
+    external: true
