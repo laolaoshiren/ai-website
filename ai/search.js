@@ -108,14 +108,28 @@ const RSS_FEEDS = {
   tech_cn: [
     'https://36kr.com/feed',                    // 36氪
     'https://www.ifanr.com/feed',               // 爱范儿
+    'https://www.pingwest.com/feed',            // 品玩
+    'https://www.tmtpost.com/rss.xml',          // 钛媒体
+    'https://www.ithome.com/rss/',              // IT之家
+    'https://sspai.com/feed',                   // 少数派
+    'https://www.jiqizhixin.com/rss',           // 机器之心
   ],
   tech_en: [
     'https://hnrss.org/newest?points=100',      // Hacker News 热门
     'https://www.theverge.com/rss/index.xml',   // The Verge
     'https://techcrunch.com/feed/',             // TechCrunch
+    'https://feeds.arstechnica.com/arstechnica/index', // Ars Technica
+    'https://www.wired.com/feed/rss',           // Wired
+    'https://www.technologyreview.com/feed/',   // MIT Tech Review
+    'https://www.engadget.com/rss.xml',         // Engadget
+    'https://www.zdnet.com/news/rss.xml',       // ZDNet
+    'https://github.blog/feed/',                // GitHub Blog
   ],
   ai: [
-    'https://hnrss.org/newest?q=AI+LLM&points=50',
+    'https://hnrss.org/newest?q=AI+LLM&points=50',     // HN AI
+    'https://hnrss.org/newest?q=AI+LLM+GPT&points=30', // HN AI 宽泛
+    'https://blog.google/technology/ai/rss/',           // Google AI Blog
+    'https://huggingface.co/blog/feed.xml',             // HuggingFace Blog
   ],
 };
 
