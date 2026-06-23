@@ -1,7 +1,7 @@
 <%- include('layout-open') %>
 <div class="admin-page">
   <div class="page-header-bar"><h1>⚙️ 系统设置</h1></div>
-  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ 设置已保存</div><% } %>
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ <%= success %></div><% } %>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error">❌ <%= error %></div><% } %>
 
   <form method="POST" action="/admin/settings">
