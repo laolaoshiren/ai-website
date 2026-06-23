@@ -34,16 +34,20 @@ async function planStructure() {
     maxTokens: 4096,
   });
 
-  // 更新分类
+  // 更新分类 — 只创建真正不存在的栏目
   if (data.categories && Array.isArray(data.categories)) {
+    const existingNames = new Set(existingCategories.map(c => c.name.toLowerCase()));
+    const existingSlugs = new Set(existingCategories.map(c => c.slug));
     for (const cat of data.categories) {
-      upsertCategory(
-        cat.slug || slugify(cat.name),
-        cat.name,
-        cat.description,
-        cat.sort_order || 0,
-        null
-      );
+      const slug = cat.slug || slugify(cat.name);
+      // 跳过：slug 或名称已存在
+      if (existingSlugs.has(slug)) continue;
+      if (existingNames.has(cat.name.toLowerCase())) continue;
+      // 限制：已有 10 个以上栏目不再新增
+      if (existingCategories.length >= 10) break;
+      upsertCategory(slug, cat.name, cat.description, cat.sort_order || 0, null);
+      existingNames.add(cat.name.toLowerCase());
+      existingSlugs.add(slug);
     }
   }
 
