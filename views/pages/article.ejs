@@ -48,7 +48,7 @@
             <div class="article-tags">
               <% if (article.seo_keywords) { %>
                 <% article.seo_keywords.split(',').forEach(function(tag) { %>
-                  <span class="tag"><%= tag.trim() %></span>
+                  <a href="/search?q=<%= encodeURIComponent(tag.trim()) %>" class="tag"><%= tag.trim() %></a>
                 <% }); %>
               <% } %>
             </div>
@@ -205,5 +205,18 @@
   </main>
   <%- include('../partials/footer') %>
   <script src="/js/analytics.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry, i) {
+        if (entry.isIntersecting) {
+          setTimeout(function() { entry.target.classList.add('visible'); }, i * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(function(el) { observer.observe(el); });
+  });
+  </script>
 </body>
 </html>
