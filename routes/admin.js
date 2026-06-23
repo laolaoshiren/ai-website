@@ -10,6 +10,13 @@ const { getConfig, refreshConfig } = require('../config');
 const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 
+// ============ 常量 ============
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
+const loginAttempts = new Map(); // ip -> { count, lastAttempt }
+const LOGIN_LIMIT = 5;
+const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 分钟
+
+// ============ 会话管理（持久化到数据库） ============
 function createSession(ip) {
   // 清理过期会话
   const now = Date.now();
