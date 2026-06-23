@@ -87,9 +87,14 @@ function requireAuth(req, res, next) {
 
 // ============ CSRF 验证中间件 ============
 function requireCsrf(req, res, next) {
+  // session 不存在或已过期 → 重新登录
+  if (!req.session || !req.session.csrf) {
+    return res.redirect('/admin/login');
+  }
   const token = req.body?.csrf_token || req.headers['x-csrf-token'];
-  if (!token || !req.session || token !== req.session.csrf) {
-    return res.status(403).send('CSRF 令牌无效，请刷新页面重试');
+  if (!token || token !== req.session.csrf) {
+    // CSRF 不匹配 → 可能是旧页面，重新登录
+    return res.redirect('/admin/login');
   }
   next();
 }
