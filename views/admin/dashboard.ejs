@@ -66,14 +66,16 @@
     <div class="admin-panel">
       <h2>🤖 Agent 状态</h2>
       <% var roleNames = {site_manager:'🏢 站长',editor:'✏️ 编辑',reviewer:'🔍 审核',technician:'🔧 技术员',news_collector:'📡 新闻采集',writer:'✍️ 写手',planner:'🧠 规划师',seo_expert:'📊 SEO专家',analyzer:'📈 分析师',user_tester:'👤 测评员'}; %>
-      <% var allRoles = ['site_manager','planner','news_collector','writer','reviewer','editor','seo_expert','user_tester','analyzer','technician']; %>
+      <% roleNames = typeof agentRoleNames !== 'undefined' ? agentRoleNames : roleNames; %>
+      <% var allRoles = typeof agentRoles !== 'undefined' ? agentRoles : ['site_manager','planner','news_collector','writer','reviewer','editor','seo_expert','user_tester','analyzer','technician']; %>
       <div class="agent-status-list">
         <% allRoles.forEach(function(role) { %>
-        <% var s = agentStatuses[role] || { status: 'idle', current_task: null }; %>
+        <% var s = agentStatuses[role] || { status: 'idle', dotClass: 'dot-gray', displayText: '空闲' }; %>
+        <% var statusText = s.displayText || (s.status === 'working' ? (s.current_task || '工作中') : s.status === 'error' ? '❌ ' + (s.current_task || '错误') : '空闲'); %>
         <div class="agent-status-item">
-          <span class="status-dot <%= s.status === 'working' ? 'dot-blue' : s.status === 'error' ? 'dot-red' : 'dot-green' %>"></span>
+          <span class="status-dot <%= s.dotClass || 'dot-gray' %>"></span>
           <span><%= roleNames[role] || role %></span>
-          <span class="agent-task-text"><%= s.status === 'working' ? (s.current_task || '工作中') : s.status === 'error' ? '❌ ' + (s.current_task || '错误') : '空闲' %></span>
+          <span class="agent-task-text"><%= statusText %></span>
         </div>
         <% }); %>
       </div>

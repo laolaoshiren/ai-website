@@ -7,14 +7,16 @@
   <div class="admin-panel">
     <h2>Agent 状态</h2>
     <% if (Object.keys(agentStatuses).length > 0) { %>
+      <% var statusRoles = typeof agentRoles !== 'undefined' ? agentRoles : Object.keys(agentStatuses); %>
       <div class="agent-status-grid">
-        <% Object.entries(agentStatuses).forEach(function(entry) { %>
-          <% var role = entry[0]; var s = entry[1]; %>
+        <% statusRoles.forEach(function(role) { %>
+          <% var s = agentStatuses[role] || { dotClass: 'dot-gray', displayText: '空闲' }; %>
+          <% var statusText = s.displayText || s.current_task || '空闲'; %>
           <% var roleNames = { site_manager: '站长', editor: '编辑', reviewer: '审核', technician: '技术员', news_collector: '新闻采集', writer: '写手', planner: '规划师', polisher: '润色师', seo_expert: 'SEO专家', analyzer: '分析师', user_tester: '测评员' }; %>
           <div class="agent-card">
-            <span class="status-dot <%= s.status === 'working' ? 'dot-blue' : s.status === 'idle' ? 'dot-green' : 'dot-gray' %>"></span>
-            <strong><%= roleNames[role] || role %></strong>
-            <span class="agent-task"><%= s.current_task || '空闲' %></span>
+            <span class="status-dot <%= s.dotClass || 'dot-gray' %>"></span>
+            <strong><%= (typeof agentRoleNames !== 'undefined' ? agentRoleNames[role] : roleNames[role]) || role %></strong>
+            <span class="agent-task"><%= statusText %></span>
           </div>
         <% }); %>
       </div>
