@@ -186,18 +186,31 @@ async function coldStart() {
   const planResult = await planStructure();
   logAgent('planner', '结构规划', 'success', `创建了 ${planResult.categories} 个栏目, ${planResult.articles} 篇计划`);
 
-  // 2. 生成前 3 篇
-  const planned = getPlannedPages(3);
+  // 2. 批量生成文章（8篇，并发3路加速）
+  const planned = getPlannedPages(8);
   const { generateArticle } = require('../ai/writer');
-  for (const page of planned) {
-    try {
-      logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
-      const result = await generateArticle(page);
-      logAgent('writer', '撰写文章', 'success', `完成: ${result.title}`);
-      logAgent('reviewer', '审核发布', 'success', `已发布: ${result.title}`);
-    } catch (err) {
-      logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
-    }
+  const CONCURRENCY = 3;
+  let generated = 0;
+  let failed = 0;
+
+  for (let i = 0; i < planned.length; i += CONCURRENCY) {
+    const batch = planned.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (page) => {
+        logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
+        try {
+          const result = await generateArticle(page);
+          logAgent('writer', '撰写文章', 'success', `完成: ${result.title}`);
+          logAgent('reviewer', '审核发布', 'success', `已发布: ${result.title}`);
+          return result;
+        } catch (err) {
+          logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
+          throw err;
+        }
+      })
+    );
+    generated += results.filter(r => r.status === 'fulfilled').length;
+    failed += results.filter(r => r.status === 'rejected').length;
   }
 
   // 3. SEO
@@ -207,7 +220,19 @@ async function coldStart() {
     logAgent('seo_expert', 'SEO初始化', 'success', 'Sitemap 和 SEO 文件已生成');
   } catch {}
 
-  logAgent('site_manager', '冷启动', 'success', '网站初始化完成');
+  // 4. 生成站标
+  try {
+    const { hasFavicon, generateFavicon } = require('../ai/favicon');
+    if (!hasFavicon()) {
+      logAgent('technician', '生成站标', 'running', 'AI 正在生成网站站标...');
+      await generateFavicon();
+      logAgent('technician', '生成站标', 'success', '站标已生成');
+    }
+  } catch (err) {
+    logAgent('technician', '生成站标', 'failed', err.message);
+  }
+
+  logAgent('site_manager', '冷启动', 'success', `初始化完成: ${generated} 篇成功, ${failed} 篇失败`);
   const stats = getStats();
   console.log(`\n🎉 冷启动完成！已发布 ${stats.totalArticles} 篇文章, ${stats.totalCategories} 个栏目`);
   return stats;

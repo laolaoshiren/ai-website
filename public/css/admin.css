@@ -82,6 +82,7 @@ a { color: var(--primary); text-decoration: none; }
 .dot-green { background: var(--success); }
 .dot-blue { background: var(--info); animation: pulse 1.5s infinite; }
 .dot-gray { background: #cbd5e1; }
+.dot-red { background: #ef4444; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* Providers */

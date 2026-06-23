@@ -81,6 +81,14 @@ async function initDb() {
   if (!data.ai_providers) data.ai_providers = [];
   if (!data.agent_logs) data.agent_logs = [];
   if (!data.agent_status) data.agent_status = {};
+  // 初始化所有 Agent 状态（确保面板显示完整）
+  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'seo_expert', 'user_tester', 'analyzer', 'technician'];
+  for (const role of ALL_AGENTS) {
+    if (!data.agent_status[role]) {
+      data.agent_status[role] = { status: 'idle', current_task: null, updated_at: null };
+    }
+  }
+
   return data;
 }
 

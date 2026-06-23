@@ -36,6 +36,17 @@ app.use('/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/', publicRoutes);
 
+// favicon fallback: generate on-demand if missing
+app.get('/favicon.svg', (req, res) => {
+  const faviconPath = path.join(__dirname, 'public', 'favicon.svg');
+  if (fs.existsSync(faviconPath)) {
+    return res.sendFile(faviconPath);
+  }
+  // Fallback: return a simple default SVG
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.send(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs><rect width="512" height="512" rx="96" fill="url(#bg)"/><text x="256" y="340" font-family="Arial,sans-serif" font-size="300" font-weight="bold" fill="white" text-anchor="middle">AI</text></svg>`);
+});
+
 app.use((req, res) => { res.status(404).render('pages/404', { title: '页面未找到' }); });
 app.use((err, req, res, next) => { console.error('服务器错误:', err); res.status(500).send('服务器内部错误'); });
 
@@ -50,6 +61,22 @@ app.use((err, req, res, next) => { console.error('服务器错误:', err); res.s
 
   const { isAIConfigured, getConfig } = require('./config');
   const config = getConfig();
+
+  // 🖼️ 自动检测并生成站标
+  try {
+    const { ensureFavicon } = require('./ai/favicon');
+    if (isAIConfigured()) {
+      await ensureFavicon();
+    } else {
+      const { hasFavicon, generateFavicon } = require('./ai/favicon');
+      if (!hasFavicon()) {
+        // 没有 AI 也生成一个 fallback
+        generateFavicon(config.site_title || 'AI');
+      }
+    }
+  } catch (err) {
+    console.log('⚠️ 站标生成跳过:', err.message);
+  }
 
   const startServer = (port) => {
     const server = app.listen(port, () => {
