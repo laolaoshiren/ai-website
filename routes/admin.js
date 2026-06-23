@@ -10,6 +10,7 @@ const { getConfig, refreshConfig } = require('../config');
 const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 const { buildPagination } = require('./pagination');
+const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('./agent-status');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -183,14 +184,14 @@ router.get('/logout', (req, res) => {
 router.get('/', (req, res) => {
   const stats = db.getStats();
   const agentLogs = db.getAgentLogs(30);
-  const agentStatuses = db.getAgentStatuses();
+  const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), db.getAgentLogs(200));
   const schedules = db.getSchedules();
   let outage = { active: false };
   try { outage = require('../ai/client').getOutageStatus(); } catch {}
   let rageStatus = { active: false, level: 3 };
   try { rageStatus = require('../scheduler').getRageModeStatus(); } catch {}
   const workMode = getConfig().work_mode || 'smart';
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, outage, rageStatus, workMode, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============
@@ -496,8 +497,8 @@ router.get('/logs', (req, res) => {
     basePath: '/admin/logs',
   });
   const logs = allLogs.slice(pagination.offset, pagination.offset + pagination.perPage);
-  const agentStatuses = db.getAgentStatuses();
-  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, pagination, total, csrfToken: req.session?.csrf || '' });
+  const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), allLogs);
+  res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, pagination, total, csrfToken: req.session?.csrf || '' });
 });
 
 // ============ 手动触发 ============
