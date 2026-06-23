@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
 # AI 智能网站 - 一键部署脚本
-# 用法: ./deploy.sh [服务器SSH别名]
+# 用法: ./deploy.sh [服务器SSH别名] [域名]
 #
 set -euo pipefail
 
 SERVER="${1:-tx}"
+DOMAIN="${2:-aiweb.bt199.com}"
 COMPOSE_DIR="/opt/ai-website"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -45,7 +46,7 @@ lines = [
     'AI_BASE_URL=' + p.get('base_url', 'https://api.openai.com/v1'),
     'AI_MODEL=' + p.get('model', 'gpt-4o'),
     'AI_NAME=' + p.get('name', 'AI Provider'),
-    'SITE_URL=https://aiweb.bt199.com',
+    'SITE_URL=https://${DOMAIN}',
     'SITE_TITLE=' + settings.get('site_title', 'AI 纪元'),
     'SITE_DESCRIPTION=' + settings.get('site_description', '追踪人工智能最新进展，深度解读前沿技术'),
 ]
@@ -72,9 +73,9 @@ caddyfile = \"/root/cliproxyapi/caddy/Caddyfile\"
 with open(caddyfile, \"r\") as f:
     content = f.read()
 
-if \"aiweb.bt199.com\" not in content:
+if \"${DOMAIN}\" not in content:
     new_block = \"\"\"# AI 智能网站
-aiweb.bt199.com {
+${DOMAIN} {
     encode gzip zstd
 
     reverse_proxy ai-website:3000 {
@@ -86,7 +87,7 @@ aiweb.bt199.com {
     }
 
     log {
-        output file /var/log/caddy/aiweb.log {
+        output file /var/log/caddy/${DOMAIN}.log {
             roll_size 20mb
             roll_keep 5
             roll_keep_for 720h
@@ -138,8 +139,8 @@ echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║       🎉 AI 智能网站 部署成功！                   ║${NC}"
 echo -e "${GREEN}╠═══════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║  🌐 网站: https://aiweb.bt199.com                ║${NC}"
-echo -e "${GREEN}║  ⚙️  后台: https://aiweb.bt199.com/admin          ║${NC}"
-echo -e "${GREEN}║  📊 API:  https://aiweb.bt199.com/api/health      ║${NC}"
+echo -e "${GREEN}║  🌐 网站: https://${DOMAIN}                ║${NC}"
+echo -e "${GREEN}║  ⚙️  后台: https://${DOMAIN}/admin          ║${NC}"
+echo -e "${GREEN}║  📊 API:  https://${DOMAIN}/api/health      ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════╝${NC}"
 echo ""
