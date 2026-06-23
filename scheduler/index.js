@@ -90,10 +90,24 @@ async function executeTask(taskType) {
         result = { skipped: true };
         break;
       case 'heartbeat': {
-        // 心跳任务：检查内容是否充足，不足则自动生成
+        // 心跳任务：检查内容是否充足，不足则自动规划+生成
         const { getPlannedPages } = require('../db/database');
-        const planned = getPlannedPages(3);
+        let planned = getPlannedPages(3);
         const stats = getStats();
+
+        // 如果没有待写文章，先触发规划器创建新计划
+        if (planned.length === 0) {
+          logAgent('site_manager', '心跳检查', 'running', '待写文章为 0，触发内容规划...');
+          try {
+            const { planStructure } = require('../ai/planner');
+            const planResult = await planStructure();
+            logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`);
+            planned = getPlannedPages(3);
+          } catch (err) {
+            logAgent('planner', '补充规划', 'failed', err.message);
+          }
+        }
+
         if (planned.length > 0) {
           logAgent('site_manager', '心跳检查', 'running', `发现 ${planned.length} 篇待写文章，自动补充`);
           const { generateArticle } = require('../ai/writer');
