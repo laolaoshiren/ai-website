@@ -50,6 +50,41 @@ router.get('/category/:slug', (req, res) => {
   });
 });
 
+// 搜索
+router.get('/search', (req, res) => {
+  const q = (req.query.q || '').trim();
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = 12;
+  let results = [];
+  if (q) {
+    const all = getPublishedPages(1000);
+    const qLower = q.toLowerCase();
+    results = all.filter(p =>
+      (p.title || '').toLowerCase().includes(qLower) ||
+      (p.summary || '').toLowerCase().includes(qLower) ||
+      (p.seo_keywords || '').toLowerCase().includes(qLower)
+    );
+  }
+  const total = results.length;
+  const totalPages = Math.ceil(total / limit);
+  const articles = results.slice((page - 1) * limit, page * limit);
+  res.render('pages/search', { title: q ? '搜索: ' + q : '搜索', q, articles, page, totalPages, total });
+});
+
+// 归档
+router.get('/archive', (req, res) => {
+  const all = getPublishedPages(1000);
+  const groups = {};
+  all.forEach(p => {
+    const ym = (p.published_at || '').slice(0, 7);
+    if (!ym) return;
+    if (!groups[ym]) groups[ym] = [];
+    groups[ym].push(p);
+  });
+  const archive = Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  res.render('pages/archive', { title: '文章归档', archive });
+});
+
 // 文章详情
 router.get('/article/:slug', (req, res) => {
   const slug = decodeURIComponent(req.params.slug);
@@ -58,12 +93,30 @@ router.get('/article/:slug', (req, res) => {
     return res.status(404).render('pages/404', { title: '文章不存在' });
   }
   const config = getConfig();
+
+  // 获取所有已发布文章，计算上下篇和相关推荐
+  const allArticles = getPublishedPages(1000);
+  const currentIndex = allArticles.findIndex(a => a.id === article.id);
+  const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
+  const nextArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
+
+  // 同栏目相关文章（排除自身，取前3篇）
+  const relatedArticles = allArticles
+    .filter(a => a.id !== article.id && a.category_id === article.category_id)
+    .slice(0, 3);
+
+  // 字数统计与阅读时间
+  const plainText = (article.content_html || article.content_md || '').replace(/<[^>]*>/g, '');
+  const wordCount = plainText.length;
+  const readTime = Math.max(1, Math.round(wordCount / 500));
+
   res.render('pages/article', {
     title: article.seo_title || article.title,
     article,
     siteUrl: config.site_url || 'http://localhost:3000',
     metaDescription: article.seo_description || article.summary,
     metaKeywords: article.seo_keywords,
+    prevArticle, nextArticle, relatedArticles, wordCount, readTime,
   });
 });
 

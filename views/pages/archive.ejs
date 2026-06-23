@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('../partials/seo-head') %>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="main-content">
+
+    <section class="page-header">
+      <div class="container">
+        <h1 class="page-title">文章归档</h1>
+        <p class="page-desc">所有已发布的文章按时间归档</p>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="container">
+        <% if (archive.length > 0) { %>
+          <div class="archive-timeline">
+            <% archive.forEach(function(group) { %>
+              <% var ym = group[0]; var articles = group[1]; %>
+              <div class="archive-group" style="margin-bottom:32px;">
+                <h2 class="archive-month" style="font-size:1.3rem;color:#667eea;border-left:4px solid #667eea;padding-left:12px;margin-bottom:16px;">
+                  <%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7)) %> 月
+                  <small style="color:#999;font-size:0.85rem;margin-left:8px;">(<%= articles.length %> 篇)</small>
+                </h2>
+                <ul class="archive-list" style="list-style:none;padding:0;margin:0;">
+                  <% articles.forEach(function(a) { %>
+                    <li class="archive-item" style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                      <span class="archive-date" style="color:#999;font-size:0.85rem;min-width:60px;">
+                        <%= (a.published_at || '').slice(8, 10) %>日
+                      </span>
+                      <a href="/article/<%= a.slug %>" class="archive-link" style="flex:1;color:#333;text-decoration:none;font-size:1rem;">
+                        <%= a.title %>
+                      </a>
+                      <% if (a.category_name) { %>
+                        <span class="archive-category" style="background:#f0f4ff;color:#667eea;padding:2px 8px;border-radius:4px;font-size:0.75rem;">
+                          <%= a.category_name %>
+                        </span>
+                      <% } %>
+                    </li>
+                  <% }); %>
+                </ul>
+              </div>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="empty-state">
+            <p>📭 暂无已发布的文章</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

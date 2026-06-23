@@ -6,6 +6,7 @@
         <p class="footer-desc"><%= siteDescription %></p>
       </div>
       <div class="footer-links">
+        <a href="/archive">文章归档</a>
         <a href="/rss.xml" target="_blank">RSS 订阅</a>
         <a href="/sitemap.xml" target="_blank">Sitemap</a>
         <a href="/admin">管理后台</a>
@@ -17,3 +18,10 @@
     </div>
   </div>
 </footer>
+<button class="back-to-top" id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到顶部">↑</button>
+<script>
+window.addEventListener('scroll', function() {
+  var btn = document.getElementById('back-to-top');
+  if (btn) btn.classList.toggle('visible', window.scrollY > 300);
+});
+</script>

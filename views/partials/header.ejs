@@ -5,13 +5,25 @@
         <span class="logo-icon">🤖</span>
         <span class="logo-text"><%= siteTitle %></span>
       </a>
-      <nav class="main-nav">
+      <form class="search-form" action="/search" method="GET">
+        <input type="text" name="q" placeholder="搜索文章..." class="search-input">
+        <button type="submit" class="search-btn">🔍</button>
+      </form>
+      <nav class="main-nav" id="main-nav">
         <a href="/" class="nav-link<%= currentPath === '/' ? ' active' : '' %>">首页</a>
         <% if (typeof categories !== 'undefined') { categories.forEach(function(cat) { %>
           <a href="/category/<%= cat.slug %>" class="nav-link<%= currentPath === '/category/' + cat.slug ? ' active' : '' %>"><%= cat.name %></a>
         <% }); } %>
+        <a href="/archive" class="nav-link<%= currentPath === '/archive' ? ' active' : '' %>">归档</a>
       </nav>
-      <button class="nav-toggle" onclick="document.querySelector('.main-nav').classList.toggle('open')" aria-label="菜单">☰</button>
+      <div class="header-right">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="切换主题">
+          <span class="theme-icon">🌙</span>
+        </button>
+        <button class="nav-toggle" onclick="toggleNav()" aria-label="菜单">☰</button>
+      </div>
     </div>
   </div>
+  <div class="nav-overlay" id="nav-overlay" onclick="toggleNav()"></div>
 </header>
+<script src="/js/theme.js"></script>

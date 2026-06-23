@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('../partials/seo-head') %>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <main class="main-content">
+
+    <section class="page-header">
+      <div class="container">
+        <h1 class="page-title">搜索<%= q ? ': ' + q : '' %></h1>
+        <form action="/search" method="get" class="search-form" style="max-width:560px;margin:0 auto;">
+          <input type="text" name="q" value="<%= q %>" placeholder="输入关键词搜索..." class="search-input" style="width:78%;padding:10px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:1rem;">
+          <button type="submit" class="btn btn-primary" style="padding:10px 20px;">搜索</button>
+        </form>
+        <% if (q) { %>
+          <p class="page-desc" style="margin-top:12px;">共找到 <strong><%= total %></strong> 篇相关文章</p>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="container">
+        <% if (articles.length > 0) { %>
+          <div class="articles-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('../partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <% if (totalPages > 1) { %>
+            <div class="pagination">
+              <% if (page > 1) { %>
+                <a href="/search?q=<%= encodeURIComponent(q) %>&page=<%= page - 1 %>" class="btn btn-secondary">上一页</a>
+              <% } %>
+              <span class="page-current">第 <%= page %> / <%= totalPages %> 页</span>
+              <% if (page < totalPages) { %>
+                <a href="/search?q=<%= encodeURIComponent(q) %>&page=<%= page + 1 %>" class="btn btn-secondary">下一页</a>
+              <% } %>
+            </div>
+          <% } %>
+        <% } else if (q) { %>
+          <div class="empty-state">
+            <p>🔍 没有找到与 "<strong><%= q %></strong>" 相关的文章</p>
+            <p>试试其他关键词吧</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+  </main>
+  <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

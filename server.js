@@ -53,7 +53,11 @@ app.get('/favicon.svg', (req, res) => {
   res.send(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs><rect width="512" height="512" rx="96" fill="url(#bg)"/><text x="256" y="340" font-family="Arial,sans-serif" font-size="300" font-weight="bold" fill="white" text-anchor="middle">AI</text></svg>`);
 });
 
-app.use((req, res) => { res.status(404).render('pages/404', { title: '页面未找到' }); });
+app.use((req, res) => {
+  const { getPublishedPages } = require('./db/database');
+  const latest = getPublishedPages(4);
+  res.status(404).render('pages/404', { title: '页面未找到', latest });
+});
 app.use((err, req, res, next) => { console.error('服务器错误:', err); res.status(500).send('服务器内部错误'); });
 
 ['data', 'logs', 'public/images'].forEach(dir => { const p = path.join(__dirname, dir); if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); });

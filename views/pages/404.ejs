@@ -19,7 +19,21 @@
       </div>
     </section>
 
+    <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
+    <section class="content-section">
+      <div class="container">
+        <h2 style="text-align:center;font-size:1.3rem;color:#333;margin-bottom:24px;">推荐阅读</h2>
+        <div class="articles-grid">
+          <% latest.forEach(function(article) { %>
+            <%- include('../partials/article-card', { article: article }) %>
+          <% }); %>
+        </div>
+      </div>
+    </section>
+    <% } %>
+
   </main>
   <%- include('../partials/footer') %>
+  <script src="/js/analytics.js"></script>
 </body>
 </html>
