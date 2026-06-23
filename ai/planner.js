@@ -60,13 +60,11 @@ async function planStructure() {
       if (prefix) existingTitlePrefixes.add(prefix);
     });
 
-    // 统计总文章数，限制上限
+    // 统计总文章数
     const totalArticles = existingArticles.length;
-    const maxNewArticles = Math.max(0, 150 - totalArticles); // 总上限 150 篇
     let created = 0;
 
     for (const plan of data.content_plan) {
-      if (created >= maxNewArticles) break;
       if (created >= 5) break; // 每次规划最多 5 篇
 
       const slug = slugify(plan.title);
