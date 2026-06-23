@@ -242,9 +242,18 @@ router.get('/providers', (req, res) => {
 router.post('/providers/add', requireCsrf, async (req, res) => {
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整信息'));
-  db.addAIProvider({ name, base_url, api_key, model });
+  db.addAIProvider({ name, base_url, api_key: api_key.trim(), model: model.trim() });
   refreshConfig();
   res.redirect('/admin/providers?success=' + encodeURIComponent(`提供商 "${name}" 已添加`));
+});
+
+router.post('/providers/:id/edit', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, base_url, api_key, model } = req.body;
+  if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整信息'));
+  db.updateAIProvider(id, { name, base_url, api_key: api_key.trim(), model: model.trim() });
+  refreshConfig();
+  res.redirect('/admin/providers?success=' + encodeURIComponent(`提供商 "${name}" 已更新`));
 });
 
 router.post('/providers/:id/toggle', requireCsrf, (req, res) => {

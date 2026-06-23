@@ -2,43 +2,61 @@
 <div class="admin-page">
   <div class="page-header-bar">
     <h1>🤖 AI 提供商管理</h1>
-    <div class="header-actions"><button class="btn btn-primary" onclick="document.getElementById('addProvider').style.display='block'">➕ 添加提供商</button></div>
+    <div class="header-actions"><button class="btn btn-primary" onclick="showAddForm()">➕ 添加提供商</button></div>
   </div>
   <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-  <div id="addProvider" class="admin-panel" style="display:none">
-    <h2>添加新提供商</h2>
-    <form method="POST" action="/admin/providers/add">
+  <!-- 添加/编辑表单 -->
+  <div id="providerForm" class="admin-panel" style="display:none">
+    <h2 id="formTitle">添加新提供商</h2>
+    <form method="POST" id="providerFormInner" action="/admin/providers/add">
       <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <input type="hidden" name="id" id="formId" value="">
       <div class="form-grid">
-        <div class="form-group"><label>名称</label><input type="text" name="name" placeholder="如: DeepSeek" required></div>
-        <div class="form-group"><label>API 地址</label><input type="url" name="base_url" placeholder="https://api.deepseek.com/v1" required></div>
-        <div class="form-group"><label>API 密钥</label><input type="password" name="api_key" placeholder="sk-..." required></div>
-        <div class="form-group"><label>模型名称</label><input type="text" name="model" placeholder="deepseek-chat" required></div>
+        <div class="form-group"><label>名称</label><input type="text" name="name" id="formName" placeholder="如: DeepSeek" required></div>
+        <div class="form-group"><label>API 地址</label><input type="url" name="base_url" id="formUrl" placeholder="https://api.deepseek.com/v1" required></div>
       </div>
-      <div class="form-actions"><button type="submit" class="btn btn-primary">💾 保存</button><button type="button" class="btn btn-outline" onclick="document.getElementById('addProvider').style.display='none'">取消</button></div>
+      <div class="form-grid" style="margin-top:1rem">
+        <div class="form-group">
+          <label>API 密钥 <span class="text-muted">（多个用英文逗号分隔，系统自动轮询负载均衡）</span></label>
+          <textarea name="api_key" id="formKey" rows="2" placeholder="sk-key1,sk-key2,sk-key3" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
+        </div>
+        <div class="form-group">
+          <label>模型名称 <span class="text-muted">（多个用英文逗号分隔，每次随机选一个）</span></label>
+          <textarea name="model" id="formModel" rows="2" placeholder="model-a,model-b" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">💾 保存</button>
+        <button type="button" class="btn btn-outline" onclick="hideForm()">取消</button>
+      </div>
     </form>
   </div>
 
   <div class="providers-hint">
-    <p>💡 支持多个提供商，系统会自动负载均衡和故障转移。建议添加 2-3 个不同提供商以提高可用性。</p>
+    <p>💡 支持多个提供商，系统自动负载均衡和故障转移。同一提供商可添加多个 API 密钥和模型，用<strong>英文逗号</strong>分隔，每次调用自动轮询。</p>
   </div>
 
   <% if (providers.length > 0) { %>
   <div class="providers-grid">
-    <% providers.forEach(function(p) { %>
+    <% providers.forEach(function(p) {
+      var keys = (p.api_key || '').split(',').filter(Boolean);
+      var models = (p.model || '').split(',').filter(Boolean);
+    %>
     <div class="provider-card <%= p.enabled ? '' : 'disabled' %>">
       <div class="provider-header">
         <h3><%= p.name %></h3>
         <span class="status-dot <%= p.enabled ? 'dot-green' : 'dot-gray' %>"></span>
       </div>
       <div class="provider-info">
-        <p><strong>模型:</strong> <%= p.model %></p>
+        <p><strong>模型:</strong> <%= models.length > 1 ? models.length + ' 个 (' + models[0].trim() + '...)' : p.model %></p>
+        <p><strong>密钥:</strong> <%= keys.length > 1 ? keys.length + ' 个密钥（轮询负载均衡）' : '1 个密钥' %></p>
         <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
-        <p><strong>调用次数:</strong> <%= p.request_count || 0 %> | <strong>错误:</strong> <%= p.error_count || 0 %></p>
+        <p><strong>调用:</strong> <%= p.request_count || 0 %> 次 | <strong>错误:</strong> <%= p.error_count || 0 %> 次</p>
       </div>
       <div class="provider-actions">
+        <button type="button" class="btn btn-sm btn-outline" onclick='editProvider(<%= JSON.stringify({id:p.id,name:p.name,base_url:p.base_url,api_key:p.api_key,model:p.model}) %>)'>✏️ 编辑</button>
         <form method="POST" action="/admin/providers/<%= p.id %>/test" style="display:inline">
           <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
           <button type="submit" class="btn btn-sm btn-outline">🔌 测试</button></form>
@@ -57,3 +75,30 @@
   <% } %>
 </div>
 <%- include('layout-close') %>
+<script>
+function showAddForm() {
+  document.getElementById('formTitle').textContent = '添加新提供商';
+  document.getElementById('providerFormInner').action = '/admin/providers/add';
+  document.getElementById('formId').value = '';
+  document.getElementById('formName').value = '';
+  document.getElementById('formUrl').value = '';
+  document.getElementById('formKey').value = '';
+  document.getElementById('formModel').value = '';
+  document.getElementById('providerForm').style.display = 'block';
+  document.getElementById('formName').focus();
+}
+function editProvider(p) {
+  document.getElementById('formTitle').textContent = '编辑提供商: ' + p.name;
+  document.getElementById('providerFormInner').action = '/admin/providers/' + p.id + '/edit';
+  document.getElementById('formId').value = p.id;
+  document.getElementById('formName').value = p.name;
+  document.getElementById('formUrl').value = p.base_url;
+  document.getElementById('formKey').value = p.api_key;
+  document.getElementById('formModel').value = p.model;
+  document.getElementById('providerForm').style.display = 'block';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function hideForm() {
+  document.getElementById('providerForm').style.display = 'none';
+}
+</script>

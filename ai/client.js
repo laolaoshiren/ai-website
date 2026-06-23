@@ -139,9 +139,15 @@ async function callAI(messages, options = {}) {
 }
 
 async function callProvider(provider, messages, options = {}) {
+  // 多密钥/多模型：逗号分隔，随机选择实现负载均衡
+  const keys = (provider.api_key || '').split(',').map(k => k.trim()).filter(Boolean);
+  const models = (provider.model || '').split(',').map(m => m.trim()).filter(Boolean);
+  const apiKey = keys[Math.floor(Math.random() * keys.length)] || provider.api_key;
+  const model = options.model || models[Math.floor(Math.random() * models.length)] || provider.model;
+
   const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
   const body = {
-    model: options.model || provider.model,
+    model,
     messages,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens ?? 4096,
@@ -151,7 +157,7 @@ async function callProvider(provider, messages, options = {}) {
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.api_key}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(body),
   });
 
@@ -250,11 +256,15 @@ function parseJSON(text) {
  */
 async function testConnection(provider) {
   try {
+    const keys = (provider.api_key || '').split(',').map(k => k.trim()).filter(Boolean);
+    const models = (provider.model || '').split(',').map(m => m.trim()).filter(Boolean);
+    const apiKey = keys[0] || provider.api_key;
+    const model = models[0] || provider.model;
     const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.api_key}` },
-      body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: '回复"连接成功"' }], max_tokens: 50 }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: '回复"连接成功"' }], max_tokens: 50 }),
     });
     if (!response.ok) { const t = await response.text(); return { success: false, error: `HTTP ${response.status}: ${t.slice(0, 200)}` }; }
     const data = await response.json();
