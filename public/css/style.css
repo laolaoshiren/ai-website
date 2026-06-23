@@ -36,7 +36,7 @@ img { max-width: 100%; height: auto; }
 .site-logo:hover { color: var(--primary); }
 .logo-icon { font-size: 1.5rem; }
 .main-nav { display: flex; gap: 0.25rem; }
-.nav-link { padding: 0.5rem 1rem; border-radius: var(--radius-sm); color: var(--text-light); font-size: 0.95rem; transition: all 0.2s; }
+.nav-link { padding: 0.5rem 1rem; border-radius: var(--radius-sm); color: var(--text-light); font-size: 0.95rem; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
 .nav-link:hover, .nav-link.active { background: var(--primary-light); color: var(--primary); }
 .nav-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; }
 
