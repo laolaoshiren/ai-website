@@ -27,7 +27,7 @@
   "dateModified": "<%= article.updated_at || '' %>",
   "author": {"@type": "Organization", "name": "<%= siteTitle %>"},
   "publisher": {"@type": "Organization", "name": "<%= siteTitle %>"},
-  "mainEntityOfPage": {"@type": "WebPage", "@id": "<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %>/article/<%= article.slug %>"}
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "<%= typeof siteUrl !== 'undefined' ? siteUrl : '' %>/article/<%= encodeURIComponent(article.slug) %>"}
 }
 </script>
 <% } %>

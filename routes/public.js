@@ -92,7 +92,8 @@ router.get('/archive', (req, res) => {
 
 // 文章详情
 router.get('/article/:slug', (req, res) => {
-  const slug = decodeURIComponent(req.params.slug);
+  let slug;
+  try { slug = decodeURIComponent(req.params.slug); } catch { return res.status(404).render('pages/404', { title: '页面未找到', latest: [] }); }
   const article = getPageBySlug(slug);
   if (!article || article.status !== 'published') {
     return res.status(404).render('pages/404', { title: '文章不存在' });
@@ -136,10 +137,10 @@ router.get('/sitemap.xml', (req, res) => {
   xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
   xml += `  <url><loc>${siteUrl}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
   for (const cat of categories) {
-    xml += `  <url><loc>${siteUrl}/category/${cat.slug}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
+    xml += `  <url><loc>${siteUrl}/category/${encodeSlug(cat.slug)}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
   }
   for (const page of pages) {
-    xml += `  <url><loc>${siteUrl}/article/${page.slug}</loc><lastmod>${(page.updated_at || '').split(' ')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
+    xml += `  <url><loc>${siteUrl}/article/${encodeSlug(page.slug)}</loc><lastmod>${(page.updated_at || '').split(' ')[0]}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
   }
   xml += '</urlset>';
 
@@ -171,7 +172,7 @@ router.get('/rss.xml', (req, res) => {
   for (const page of pages) {
     xml += '  <item>\n';
     xml += `    <title>${escapeXml(page.title)}</title>\n`;
-    xml += `    <link>${siteUrl}/article/${page.slug}</link>\n`;
+    xml += `    <link>${siteUrl}/article/${encodeSlug(page.slug)}</link>\n`;
     xml += `    <description>${escapeXml(page.summary || '')}</description>\n`;
     xml += `    <pubDate>${page.published_at ? new Date(page.published_at).toUTCString() : ''}</pubDate>\n`;
     xml += '  </item>\n';
@@ -184,6 +185,18 @@ router.get('/rss.xml', (req, res) => {
 
 function escapeXml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+/**
+ * 编码 URL 路径中的 slug 部分（保留 / 和 scheme://host）
+ */
+function encodeSlug(slug) {
+  // 对 slug 中的非 ASCII 字符做百分号编码
+  return String(slug).split('/').map(part => {
+    // 只编码包含非 ASCII 字符的部分
+    if (/[^\x00-\x7F]/.test(part)) return encodeURIComponent(part);
+    return part;
+  }).join('/');
 }
 
 module.exports = router;

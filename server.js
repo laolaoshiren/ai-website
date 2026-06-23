@@ -59,7 +59,16 @@ app.use((req, res) => {
   const latest = getPublishedPages(4);
   res.status(404).render('pages/404', { title: '页面未找到', latest });
 });
-app.use((err, req, res, next) => { console.error('服务器错误:', err); res.status(500).send('服务器内部错误'); });
+app.use((err, req, res, next) => {
+  console.error('服务器错误:', err.message);
+  // decodeURIComponent 错误（无效编码）→ 404
+  if (err instanceof URIError) {
+    return res.status(404).render('pages/404', { title: '页面未找到', latest: [] });
+  }
+  try {
+    res.status(500).render('pages/404', { title: '服务器错误', latest: [] });
+  } catch { res.status(500).send('服务器内部错误'); }
+});
 
 ['data', 'logs', 'public/images'].forEach(dir => { const p = path.join(__dirname, dir); if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); });
 
