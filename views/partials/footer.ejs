@@ -20,8 +20,16 @@
 </footer>
 <button class="back-to-top" id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到顶部">↑</button>
 <script>
-window.addEventListener('scroll', function() {
-  var btn = document.getElementById('back-to-top');
-  if (btn) btn.classList.toggle('visible', window.scrollY > 300);
-});
+/* Theme toggle */
+function toggleTheme(){
+  var h=document.documentElement,c=h.getAttribute('data-theme'),n=c==='dark'?'light':'dark';
+  h.setAttribute('data-theme',n);localStorage.setItem('theme',n);
+  var i=document.querySelector('.theme-icon');if(i)i.textContent=n==='dark'?'☀️':'🌙';
+}
+/* Init theme icon */
+(function(){var t=document.documentElement.getAttribute('data-theme'),i=document.querySelector('.theme-icon');if(i)i.textContent=t==='dark'?'☀️':'🌙';})();
+/* Back to top */
+window.addEventListener('scroll',function(){var b=document.getElementById('back-to-top');if(b)b.classList.toggle('visible',window.scrollY>300);});
+/* Mobile nav */
+function toggleNav(){var n=document.getElementById('main-nav'),o=document.getElementById('nav-overlay');if(!n||!o)return;n.classList.toggle('open');o.classList.toggle('active');document.body.style.overflow=o.classList.contains('active')?'hidden':'';}
 </script>
