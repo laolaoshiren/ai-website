@@ -1,18 +1,15 @@
 <footer class="site-footer">
-  <div class="footer-divider"></div>
   <div class="container">
     <div class="footer-grid">
-      <!-- 品牌区 -->
       <div class="footer-brand-section">
         <div class="footer-logo">
-          <span class="footer-logo-icon">🤖</span>
+          <span class="footer-logo-icon">AI</span>
           <span class="footer-logo-text"><%= siteTitle %></span>
         </div>
         <p class="footer-tagline"><%= siteDescription %></p>
-        <p class="footer-ai-badge">✨ 全部内容由 AI Agent 自动运营</p>
+        <p class="footer-ai-badge">AI Agent 自动运营的内容系统</p>
       </div>
 
-      <!-- 导航 -->
       <div class="footer-col">
         <h4 class="footer-heading">导航</h4>
         <ul class="footer-list">
@@ -22,7 +19,6 @@
         </ul>
       </div>
 
-      <!-- 资源 -->
       <div class="footer-col">
         <h4 class="footer-heading">资源</h4>
         <ul class="footer-list">
@@ -32,7 +28,6 @@
         </ul>
       </div>
 
-      <!-- 关于 -->
       <div class="footer-col">
         <h4 class="footer-heading">关于</h4>
         <ul class="footer-list">
@@ -57,15 +52,15 @@
     <div class="footer-bottom">
       <p class="footer-copy">&copy; <%= new Date().getFullYear() %> <%= siteTitle %> · 由 AI 驱动</p>
       <div class="footer-bottom-links">
-        <a href="https://github.com/laolaoshiren/ai-website" target="_blank">⭐ Star on GitHub</a>
+        <a href="https://github.com/laolaoshiren/ai-website" target="_blank">GitHub 项目</a>
       </div>
     </div>
   </div>
 </footer>
 <button class="back-to-top" id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到顶部">↑</button>
 <script>
-function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme'),n=c==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('theme',n);var i=document.querySelector('.theme-icon');if(i)i.textContent=n==='dark'?'☀️':'🌙';}
-(function(){var t=document.documentElement.getAttribute('data-theme'),i=document.querySelector('.theme-icon');if(i)i.textContent=t==='dark'?'☀️':'🌙';})();
+function toggleTheme(){var h=document.documentElement,c=h.getAttribute('data-theme'),n=c==='dark'?'light':'dark';h.setAttribute('data-theme',n);localStorage.setItem('theme',n);var i=document.querySelector('.theme-icon');if(i)i.textContent=n==='dark'?'☀':'◐';}
+(function(){var t=document.documentElement.getAttribute('data-theme'),i=document.querySelector('.theme-icon');if(i)i.textContent=t==='dark'?'☀':'◐';})();
 window.addEventListener('scroll',function(){var b=document.getElementById('back-to-top');if(b)b.classList.toggle('visible',window.scrollY>300);});
 function toggleNav(){var n=document.getElementById('main-nav'),o=document.getElementById('nav-overlay');if(!n||!o)return;n.classList.toggle('open');o.classList.toggle('active');document.body.style.overflow=o.classList.contains('active')?'hidden':'';}
 </script>

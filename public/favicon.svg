@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AI Era">
+  <defs>
+    <linearGradient id="g" x1="84" y1="72" x2="430" y2="438" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="0.54" stop-color="#0891b2"/>
+      <stop offset="1" stop-color="#e11d48"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <path d="M98 341 191 142h58l92 199h-61l-14-35h-96l-14 35H98Zm89-82h62l-31-76-31 76Zm181 82V142h58v199h-58Z" fill="url(#g)"/>
+  <path d="M83 391h346" stroke="#38bdf8" stroke-width="18" stroke-linecap="round" opacity=".72"/>
+</svg>

@@ -43,16 +43,16 @@
 - 管理后台实时显示故障状态和持续时间
 - 容器重启后自动恢复上次的工作模式
 
-### 🎨 前端 v3 — 现代化设计
+### 🎨 前端 v4 — 现代紧凑资讯站
 
-- **暗色/亮色主题**：一键切换，localStorage 持久化，零闪烁
-- **60+ CSS 变量设计系统**：色彩、阴影、圆角、间距、排版、动画全部系统化
-- **文章页增强**：阅读进度条、自动目录 TOC、代码块复制、字数统计、上下篇导航、相关推荐、社交分享
-- **站内搜索**：header 搜索框，全文搜索标题/摘要/关键词
-- **文章归档**：按月份分组的时间线布局
-- **滚动动画**：IntersectionObserver 驱动的入场动画
-- **移动端**：侧滑抽屉导航 + 遮罩层
-- **404 增强**：推荐最新文章，减少用户流失
+- **紧凑首页首屏**：聚焦站点定位、最新观察和关键入口，减少无效装饰面积
+- **现代文章卡片**：无封面文章使用轻量信息条，不再用大面积占位图挤压内容
+- **阅读优先文章页**：标题区压缩为信息栏，正文更早出现，减少阅读前的无效滚动
+- **安全目录布局**：文章 TOC 改为右侧 sticky 侧栏，小屏自动隐藏，不覆盖正文
+- **暗色/亮色主题**：一键切换，localStorage 持久化，首屏无闪烁
+- **统一设计系统**：CSS 变量管理色彩、阴影、圆角、间距、排版和响应式断点
+- **完整内容页面**：首页、分类、搜索、归档、文章页、404 均使用同一套前台视觉语言
+- **移动端适配**：抽屉导航、单列内容流、紧凑标题和无横向溢出布局
 
 ### 🔐 安全加固
 
@@ -95,6 +95,27 @@ GITHUB_TOKEN=ghp_你的token ./deploy.sh 服务器SSH别名 你的域名
 ```
 
 脚本自动完成：推送代码 → GitHub Actions 构建镜像 → 读取本地 AI 配置 → 上传到服务器 → 配置 Caddy 反向代理 → 启动容器 → 健康检查
+
+### 线上更新
+
+当前线上站点使用 `master` 分支构建 Docker 镜像，并通过 GHCR 镜像部署到服务器：
+
+```bash
+# 本地合并并推送 master 后，GitHub Actions 会构建 ghcr.io/laolaoshiren/ai-website:latest
+git switch master
+git pull origin master
+git merge <feature-branch>
+git push origin master
+
+# 服务器更新
+ssh tx "cd /opt/ai-website && docker compose pull && docker compose up -d --force-recreate"
+```
+
+生产访问地址：
+
+- 前台：https://aiweb.bt199.com
+- 后台：https://aiweb.bt199.com/admin
+- 健康检查：https://aiweb.bt199.com/api/health
 
 ### 方式二：手动 Docker 部署
 
@@ -186,7 +207,8 @@ npm start
 │   ├── partials/          # 组件（header/footer/article-card/seo-head）
 │   └── admin/             # 后台模板
 └── public/
-    ├── css/               # 样式（style.css 设计系统 + admin.css 暗色后台）
+    ├── favicon.svg        # 站点图标
+    ├── css/               # 样式（style.css 前台设计系统 + admin.css 暗色后台）
     └── js/                # JS（theme.js 主题切换 + analytics.js 分析）
 ```
 

@@ -2,25 +2,33 @@
   <div class="container">
     <div class="header-inner">
       <a href="/" class="site-logo">
-        <span class="logo-icon">🤖</span>
+        <span class="logo-mark">AI</span>
         <span class="logo-text"><%= siteTitle %></span>
       </a>
-      <form class="search-form" action="/search" method="GET">
-        <span class="search-btn">🔍</span>
-        <input type="text" name="q" placeholder="搜索文章..." class="search-input">
-      </form>
       <nav class="main-nav" id="main-nav">
         <a href="/" class="nav-link<%= currentPath === '/' ? ' active' : '' %>">首页</a>
+        <% var visibleNavCount = 0; %>
         <% if (typeof categories !== 'undefined') { categories.forEach(function(cat) { %>
-          <a href="/category/<%= cat.slug %>" class="nav-link<%= currentPath === '/category/' + cat.slug ? ' active' : '' %>"><%= cat.name %></a>
+          <%
+            var navLabel = cat.name || '';
+            var showInHeader = navLabel.length <= 24 && visibleNavCount < 5;
+            if (showInHeader) visibleNavCount++;
+          %>
+          <% if (showInHeader) { %>
+          <a href="/category/<%= cat.slug %>" title="<%= cat.name %>" class="nav-link<%= currentPath === '/category/' + cat.slug ? ' active' : '' %>"><%= navLabel %></a>
+          <% } %>
         <% }); } %>
         <a href="/archive" class="nav-link<%= currentPath === '/archive' ? ' active' : '' %>">归档</a>
       </nav>
+      <form class="search-form" action="/search" method="GET" role="search">
+        <input type="text" name="q" placeholder="搜索文章..." class="search-input" aria-label="搜索文章">
+        <button type="submit" class="search-submit" aria-label="搜索">⌕</button>
+      </form>
       <div class="header-right">
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="切换主题">
-          <span class="theme-icon">🌙</span>
+          <span class="theme-icon">◐</span>
         </button>
-        <button class="nav-toggle" onclick="toggleNav()" aria-label="菜单">☰</button>
+        <button class="nav-toggle" onclick="toggleNav()" aria-label="菜单"><span></span><span></span></button>
       </div>
     </div>
   </div>

@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -10,6 +10,7 @@
 
     <section class="page-header">
       <div class="container">
+        <span class="page-kicker">Topic</span>
         <h1 class="page-title"><%= category.name %></h1>
         <% if (category.description) { %>
           <p class="page-desc"><%= category.description %></p>
@@ -36,7 +37,7 @@
           <% } %>
         <% } else { %>
           <div class="empty-state">
-            <p>📭 该栏目暂无文章</p>
+            <p>该栏目暂无文章</p>
             <p>AI 正在为这个栏目准备内容</p>
           </div>
         <% } %>

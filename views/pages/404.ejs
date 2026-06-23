@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -22,7 +22,10 @@
     <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
     <section class="content-section">
       <div class="container">
-        <h2 style="text-align:center;font-size:1.3rem;color:#333;margin-bottom:24px;">推荐阅读</h2>
+        <div class="section-heading centered">
+          <span class="section-kicker">Keep Reading</span>
+          <h2 class="section-title">推荐阅读</h2>
+        </div>
         <div class="articles-grid">
           <% latest.forEach(function(article) { %>
             <%- include('../partials/article-card', { article: article }) %>

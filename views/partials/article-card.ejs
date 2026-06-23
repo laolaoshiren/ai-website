@@ -1,10 +1,21 @@
+<%
+  var visualLabel = article.category_name ? String(article.category_name).slice(0, 2) : 'AI';
+  var visualClass = article.category_slug ? ' visual-' + String(article.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
+%>
 <article class="article-card fade-in">
   <% if (article.cover_image) { %>
-    <div class="card-image">
-      <a href="/article/<%= article.slug %>">
+    <a href="/article/<%= article.slug %>" class="card-media">
         <img src="<%= article.cover_image %>" alt="<%= article.title %>" loading="lazy">
-      </a>
-    </div>
+    </a>
+  <% } else { %>
+    <a href="/article/<%= article.slug %>" class="card-media card-media-fallback" aria-label="<%= article.title %>">
+      <div class="card-visual<%= visualClass %>" aria-hidden="true">
+        <span class="visual-kicker">AI Insight</span>
+        <span class="visual-mark"><%= visualLabel %></span>
+        <span class="visual-line line-a"></span>
+        <span class="visual-line line-b"></span>
+      </div>
+    </a>
   <% } %>
   <div class="card-content">
     <div class="card-meta">
@@ -35,9 +46,12 @@
     <% if (article.summary) { %>
       <p class="card-summary"><%= article.summary %></p>
     <% } %>
-    <div class="card-stats">
-      <span class="stat-views">👁 <%= article.view_count || 0 %></span>
-      <span class="stat-ai">🤖 AI 生成</span>
+    <div class="card-footer">
+      <div class="card-stats">
+        <span class="stat-views"><%= article.view_count || 0 %> 阅读</span>
+        <span class="stat-ai">AI 生成</span>
+      </div>
+      <a href="/article/<%= article.slug %>" class="read-more" aria-label="阅读：<%= article.title %>">阅读</a>
     </div>
   </div>
 </article>

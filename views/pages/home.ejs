@@ -3,7 +3,7 @@
 <head>
   <%- include('../partials/seo-head') %>
   <link rel="alternate" type="application/rss+xml" title="<%= siteTitle %>" href="/rss.xml">
-  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -11,16 +11,58 @@
 
     <section class="hero-section">
       <div class="container">
-        <h1 class="hero-title"><%= siteTitle %></h1>
-        <p class="hero-subtitle"><%= siteDescription %></p>
-        <div class="hero-badge">🤖 由 AI 全自动维护 · 内容实时更新</div>
+        <div class="hero-layout">
+          <div class="hero-copy">
+            <p class="hero-eyebrow">AI Intelligence Dispatch</p>
+            <h1 class="hero-title"><%= siteTitle %></h1>
+            <p class="hero-subtitle"><%= siteDescription %></p>
+            <div class="hero-actions">
+              <a href="#latest" class="btn btn-primary">阅读最新</a>
+              <a href="/archive" class="btn btn-secondary">浏览归档</a>
+            </div>
+            <div class="hero-stats" aria-label="站点概览">
+              <div>
+                <strong><%= typeof categories !== 'undefined' ? categories.length : 0 %></strong>
+                <span>专题栏目</span>
+              </div>
+              <div>
+                <strong><%= typeof latest !== 'undefined' ? latest.length : 0 %></strong>
+                <span>最新收录</span>
+              </div>
+              <div>
+                <strong>24h</strong>
+                <span>自动更新</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-panel" aria-label="最新趋势">
+            <div class="hero-panel-top">
+              <span>今日观察</span>
+              <strong>Live</strong>
+            </div>
+            <% if (typeof latest !== 'undefined' && latest.length > 0) { %>
+              <div class="hero-trend-list">
+                <% latest.slice(0, 3).forEach(function(article, index) { %>
+                  <a href="/article/<%= article.slug %>" class="hero-trend">
+                    <span class="trend-index">0<%= index + 1 %></span>
+                    <span class="trend-title"><%= article.title %></span>
+                  </a>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+        </div>
       </div>
     </section>
 
     <% if (typeof featured !== 'undefined' && featured.length > 0) { %>
     <section class="featured-section">
       <div class="container">
-        <h2 class="section-title">📌 精选推荐</h2>
+        <div class="section-heading">
+          <span class="section-kicker">Editor's Pick</span>
+          <h2 class="section-title">精选推荐</h2>
+          <p>从技术突破、产业变化到未来趋势，优先呈现最值得追踪的 AI 议题。</p>
+        </div>
         <div class="articles-grid featured-grid">
           <% featured.forEach(function(article) { %>
             <%- include('../partials/article-card', { article: article }) %>
@@ -30,21 +72,25 @@
     </section>
     <% } %>
 
-    <section class="latest-section">
+    <section class="latest-section" id="latest">
       <div class="container">
-        <h2 class="section-title">📝 最新文章</h2>
+        <div class="section-heading">
+          <span class="section-kicker">Latest</span>
+          <h2 class="section-title">最新文章</h2>
+          <p>持续跟踪人工智能领域的新模型、新应用与新生态。</p>
+        </div>
         <% if (typeof latest !== 'undefined' && latest.length > 0) { %>
           <div class="articles-grid" id="articles-grid">
             <% latest.forEach(function(article) { %>
               <%- include('../partials/article-card', { article: article }) %>
             <% }); %>
           </div>
-          <div id="load-more-wrap" style="text-align:center;margin-top:2rem">
-            <button id="load-more-btn" class="btn btn-outline btn-lg" onclick="loadMore()">📄 加载更多文章</button>
+          <div id="load-more-wrap" class="load-more-wrap">
+            <button id="load-more-btn" class="btn btn-outline btn-lg" onclick="loadMore()">加载更多文章</button>
           </div>
         <% } else { %>
           <div class="empty-state">
-            <div class="empty-icon">🤖</div>
+            <div class="empty-icon">AI</div>
             <h3>AI 正在准备内容中...</h3>
             <p>首次启动需要几分钟来生成初始文章</p>
             <p>请前往后台配置 AI 后点击"冷启动"</p>
@@ -57,12 +103,18 @@
     <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
     <section class="categories-section">
       <div class="container">
-        <h2 class="section-title">📂 栏目导航</h2>
+        <div class="section-heading">
+          <span class="section-kicker">Topics</span>
+          <h2 class="section-title">栏目导航</h2>
+          <p>按主题进入 AI 前沿研究、产业动态、开发者生态与深度观察。</p>
+        </div>
         <div class="categories-grid">
-          <% categories.forEach(function(cat) { %>
+          <% categories.forEach(function(cat, index) { %>
             <a href="/category/<%= cat.slug %>" class="category-card">
+              <span class="category-index">0<%= index + 1 %></span>
               <h3><%= cat.name %></h3>
               <p><%= cat.description || '探索更多内容' %></p>
+              <span class="category-arrow">→</span>
             </a>
           <% }); %>
         </div>
@@ -104,19 +156,24 @@
               else if (diff < 7) timeLabel = diff + '天前';
               else if (diff < 30) timeLabel = Math.floor(diff / 7) + '周前';
             }
-            var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + a.category_name + '</a>' : '';
-            var html = '<article class="article-card"><div class="card-content">' +
+            var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + escapeHtml(a.category_name) + '</a>' : '';
+            var visualLabel = escapeHtml((a.category_name || 'AI').slice(0, 2));
+            var visualClass = a.category_slug ? ' visual-' + String(a.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
+            var html = '<article class="article-card fade-in visible">' +
+              '<a href="/article/' + a.slug + '" class="card-media card-media-fallback" aria-label="' + escapeHtml(a.title) + '">' +
+              '<div class="card-visual' + visualClass + '" aria-hidden="true"><span class="visual-kicker">AI Insight</span><span class="visual-mark">' + visualLabel + '</span><span class="visual-line line-a"></span><span class="visual-line line-b"></span></div></a>' +
+              '<div class="card-content">' +
               '<div class="card-meta">' + catHtml + (pubDate ? '<time class="card-date">' + timeLabel + '</time>' : '') + '</div>' +
               '<h3 class="card-title"><a href="/article/' + a.slug + '">' + escapeHtml(a.title) + '</a></h3>' +
               (a.summary ? '<p class="card-summary">' + escapeHtml(a.summary.slice(0, 120)) + '</p>' : '') +
-              '<div class="card-stats"><span class="stat-views">👁 ' + (a.view_count || 0) + '</span><span class="stat-ai">🤖 AI 生成</span></div>' +
+              '<div class="card-footer"><div class="card-stats"><span class="stat-views">' + (a.view_count || 0) + ' 阅读</span><span class="stat-ai">AI 生成</span></div><a href="/article/' + a.slug + '" class="read-more">阅读</a></div>' +
               '</div></article>';
             grid.insertAdjacentHTML('beforeend', html);
           });
           if (!data.hasMore) {
             document.getElementById('load-more-wrap').innerHTML = '<p class="text-muted">已显示全部文章</p>';
           } else {
-            btn.textContent = '📄 加载更多文章';
+            btn.textContent = '加载更多文章';
             btn.disabled = false;
           }
           loading = false;

@@ -2,7 +2,7 @@
 <html lang="<%= siteLanguage %>">
 <head>
   <%- include('../partials/seo-head') %>
-  <link rel="stylesheet" href="/css/style.css?v=3">
+  <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 <body>
   <%- include('../partials/header') %>
@@ -10,6 +10,7 @@
 
     <section class="page-header">
       <div class="container">
+        <span class="page-kicker">Archive</span>
         <h1 class="page-title">文章归档</h1>
         <p class="page-desc">所有已发布的文章按时间归档（共 <%= totalMonths %> 个月）</p>
       </div>
@@ -42,7 +43,7 @@
           </div>
         <% } else { %>
           <div class="empty-state">
-            <p>📭 暂无已发布的文章</p>
+            <p>暂无已发布的文章</p>
           </div>
         <% } %>
 
