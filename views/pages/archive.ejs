@@ -11,7 +11,7 @@
     <section class="page-header">
       <div class="container">
         <h1 class="page-title">文章归档</h1>
-        <p class="page-desc">所有已发布的文章按时间归档</p>
+        <p class="page-desc">所有已发布的文章按时间归档（共 <%= totalMonths %> 个月）</p>
       </div>
     </section>
 
@@ -21,24 +21,18 @@
           <div class="archive-timeline">
             <% archive.forEach(function(group) { %>
               <% var ym = group[0]; var articles = group[1]; %>
-              <div class="archive-group" style="margin-bottom:32px;">
-                <h2 class="archive-month" style="font-size:1.3rem;color:#667eea;border-left:4px solid #667eea;padding-left:12px;margin-bottom:16px;">
+              <div class="archive-group">
+                <h2 class="archive-month">
                   <%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7)) %> 月
-                  <small style="color:#999;font-size:0.85rem;margin-left:8px;">(<%= articles.length %> 篇)</small>
+                  <small class="archive-count">(<%= articles.length %> 篇)</small>
                 </h2>
-                <ul class="archive-list" style="list-style:none;padding:0;margin:0;">
+                <ul class="archive-list">
                   <% articles.forEach(function(a) { %>
-                    <li class="archive-item" style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-                      <span class="archive-date" style="color:#999;font-size:0.85rem;min-width:60px;">
-                        <%= (a.published_at || '').slice(8, 10) %>日
-                      </span>
-                      <a href="/article/<%= a.slug %>" class="archive-link" style="flex:1;color:#333;text-decoration:none;font-size:1rem;">
-                        <%= a.title %>
-                      </a>
+                    <li class="archive-item">
+                      <span class="archive-date"><%= (a.published_at || '').slice(8, 10) %>日</span>
+                      <a href="/article/<%= a.slug %>" class="archive-link"><%= a.title %></a>
                       <% if (a.category_name) { %>
-                        <span class="archive-category" style="background:#f0f4ff;color:#667eea;padding:2px 8px;border-radius:4px;font-size:0.75rem;">
-                          <%= a.category_name %>
-                        </span>
+                        <span class="archive-category"><%= a.category_name %></span>
                       <% } %>
                     </li>
                   <% }); %>
@@ -50,6 +44,14 @@
           <div class="empty-state">
             <p>📭 暂无已发布的文章</p>
           </div>
+        <% } %>
+
+        <% if (totalPages > 1) { %>
+        <div class="pagination">
+          <% if (page > 1) { %><a href="?page=<%= page - 1 %>" class="btn btn-sm btn-outline">← 上几月</a><% } %>
+          <span class="page-info">第 <%= page %> / <%= totalPages %> 页</span>
+          <% if (page < totalPages) { %><a href="?page=<%= page + 1 %>" class="btn btn-sm btn-outline">下几月 →</a><% } %>
+        </div>
         <% } %>
       </div>
     </section>

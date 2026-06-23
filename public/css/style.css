@@ -362,3 +362,14 @@ img { max-width: 100%; height: auto; }
 .footer-friends-list a { color: var(--text-tertiary); font-size: var(--text-sm); transition: color var(--duration-fast); }
 .footer-friends-list a:hover { color: var(--primary); }
 
+
+/* ---- Archive ---- */
+.archive-group { margin-bottom: var(--space-8); }
+.archive-month { font-size: var(--text-xl); color: var(--primary); border-left: 4px solid var(--primary); padding-left: var(--space-3); margin-bottom: var(--space-4); }
+.archive-count { color: var(--text-tertiary); font-size: var(--text-sm); margin-left: var(--space-2); }
+.archive-list { list-style: none; padding: 0; margin: 0; }
+.archive-item { display: flex; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border-subtle); gap: var(--space-3); }
+.archive-date { color: var(--text-tertiary); font-size: var(--text-sm); min-width: 50px; }
+.archive-link { flex: 1; color: var(--text-primary); font-size: var(--text-base); }
+.archive-link:hover { color: var(--primary); }
+.archive-category { background: var(--primary-light); color: var(--primary); padding: 2px 8px; border-radius: var(--radius-xs); font-size: var(--text-xs); white-space: nowrap; }

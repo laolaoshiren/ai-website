@@ -73,7 +73,9 @@ router.get('/search', (req, res) => {
 
 // 归档
 router.get('/archive', (req, res) => {
-  const all = getPublishedPages(1000);
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const monthsPerPage = 6;
+  const all = getPublishedPages(10000);
   const groups = {};
   all.forEach(p => {
     const ym = (p.published_at || '').slice(0, 7);
@@ -82,7 +84,10 @@ router.get('/archive', (req, res) => {
     groups[ym].push(p);
   });
   const archive = Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-  res.render('pages/archive', { title: '文章归档', archive });
+  const totalMonths = archive.length;
+  const totalPages = Math.ceil(totalMonths / monthsPerPage);
+  const paged = archive.slice((page - 1) * monthsPerPage, page * monthsPerPage);
+  res.render('pages/archive', { title: '文章归档', archive: paged, page, totalPages, totalMonths });
 });
 
 // 文章详情
