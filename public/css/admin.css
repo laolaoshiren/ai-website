@@ -148,3 +148,7 @@ a { color: var(--primary); text-decoration: none; }
 .mode-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
 .mode-desc { font-size: 0.8rem; color: var(--text-light); line-height: 1.4; }
 .mode-level-desc { margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-light); padding: 0.5rem; background: rgba(96,165,250,0.06); border-radius: 6px; }
+
+/* Fix select dropdown option text visibility in dark mode */
+select { color-scheme: dark; }
+select option { background: #1a1a2e; color: #e8e8ed; }

@@ -12,14 +12,14 @@
   <!-- 搜索/筛选栏 -->
   <div class="admin-panel" style="padding:1rem 1.5rem">
     <form method="GET" action="/admin/articles" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
-      <input type="text" name="q" value="<%= q || '' %>" placeholder="🔍 搜索标题/摘要/关键词..." style="flex:1;min-width:200px;padding:0.45rem 0.9rem;border:1px solid var(--border);border-radius:var(--radius-full);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
-      <select name="status" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
+      <input type="text" name="q" value="<%= q || '' %>" placeholder="🔍 搜索标题/摘要/关键词..." style="flex:1;min-width:200px;padding:0.45rem 0.9rem;border:1px solid #2a2a3e;border-radius:var(--radius-full);background:#141420;color:#e8e8ed;font-size:var(--text-sm)">
+      <select name="status" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:#1a1a2e;color:#e8e8ed;font-size:var(--text-sm)">
         <option value="">全部状态</option>
         <option value="published" <%= status === 'published' ? 'selected' : '' %>>已发布</option>
         <option value="planned" <%= status === 'planned' ? 'selected' : '' %>>计划中</option>
         <option value="draft" <%= status === 'draft' ? 'selected' : '' %>>草稿</option>
       </select>
-      <select name="sort" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-sunken);color:var(--text-primary);font-size:var(--text-sm)">
+      <select name="sort" style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:#1a1a2e;color:#e8e8ed;font-size:var(--text-sm)">
         <option value="newest" <%= sort === 'newest' ? 'selected' : '' %>>最新发布</option>
         <option value="oldest" <%= sort === 'oldest' ? 'selected' : '' %>>最早发布</option>
         <option value="views" <%= sort === 'views' ? 'selected' : '' %>>阅读量排序</option>
@@ -50,7 +50,7 @@
             <td><%= p.category_name || '-' %></td>
             <td><span class="status-badge status-<%= p.status %>"><%= statusMap[p.status] || p.status %></span></td>
             <td><%= p.view_count || 0 %></td>
-            <td class="td-time"><%= (p.created_at || '').split(' ')[0] %></td>
+            <td class="td-time"><%= p.created_at || '' %></td>
             <td class="td-actions">
               <a href="/admin/articles/<%= p.id %>/edit" class="btn btn-sm btn-outline">✏️ 编辑</a>
               <% if (p.status === 'published') { %><a href="/article/<%= p.slug %>" target="_blank" class="btn btn-sm btn-outline">👁 查看</a><% } %>
