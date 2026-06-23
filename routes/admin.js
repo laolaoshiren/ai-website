@@ -98,7 +98,7 @@ router.get('/settings', (req, res) => {
 
 router.post('/settings', (req, res) => {
   try {
-    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url'];
+    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key'];
     for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, req.body[field]); }
     refreshConfig();
     res.redirect('/admin/settings?success=1');

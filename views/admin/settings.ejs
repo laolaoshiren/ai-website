@@ -16,6 +16,15 @@
         <div class="form-group"><label>语言</label><select name="site_language"><option value="zh-CN" <%= config.site_language === 'zh-CN' ? 'selected' : '' %>>中文</option><option value="en" <%= config.site_language === 'en' ? 'selected' : '' %>>英文</option></select></div>
       </div>
     </div>
+
+    <div class="admin-panel" style="margin-top:1.5rem">
+      <h2>🔍 Tavily 搜索引擎</h2>
+      <p class="text-muted" style="margin-bottom:1rem">填入 Tavily API Key 后，AI 搜索资讯时会调用 Tavily 搜索引擎获取实时数据，提升内容质量和时效性。留空则使用 RSS 源。免费额度：每月 1000 次搜索。<a href="https://tavily.com" target="_blank">获取 Key →</a></p>
+      <div class="form-grid">
+        <div class="form-group"><label>Tavily API Key</label><input type="password" name="tavily_api_key" value="<%= config.tavily_api_key || '' %>" placeholder="tvly-xxxxxxxxxx" autocomplete="off"></div>
+      </div>
+    </div>
+
     <div class="form-actions"><button type="submit" class="btn btn-primary btn-lg">💾 保存设置</button></div>
   </form>
 

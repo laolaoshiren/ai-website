@@ -1,6 +1,6 @@
 /**
- * 联网搜索模块 - 通过 RSS 新闻源和 WebFetch 获取实时信息
- * 替代搜索引擎，直接从权威信息源获取最新内容
+ * 联网搜索模块 - Tavily 搜索引擎 + RSS 新闻源
+ * 优先使用 Tavily（如果配置了 API Key），不可用时 fallback 到 RSS
  */
 const https = require('https');
 const http = require('http');
@@ -29,6 +29,39 @@ function fetchUrl(url, timeout = 10000) {
     });
     req.on('error', reject);
     req.setTimeout(timeout, () => { req.destroy(); reject(new Error('请求超时')); });
+  });
+}
+
+/**
+ * POST 请求（用于 Tavily API）
+ */
+function postJSON(url, data, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(data);
+    const parsed = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      port: parsed.port || 443,
+      path: parsed.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let responseBody = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => responseBody += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(responseBody)); }
+        catch { reject(new Error('JSON 解析失败')); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeout, () => { req.destroy(); reject(new Error('请求超时')); });
+    req.write(body);
+    req.end();
   });
 }
 
@@ -87,12 +120,62 @@ const RSS_FEEDS = {
 };
 
 /**
- * 根据话题搜索最新新闻
+ * 获取 Tavily API Key（从数据库设置读取）
+ */
+function getTavilyKey() {
+  try {
+    const { getSetting } = require('../db/database');
+    return getSetting('tavily_api_key') || '';
+  } catch { return ''; }
+}
+
+/**
+ * 使用 Tavily 搜索引擎搜索
+ */
+async function searchTavily(query, maxResults = 5) {
+  const apiKey = getTavilyKey();
+  if (!apiKey) return null;
+
+  try {
+    const result = await postJSON('https://api.tavily.com/search', {
+      api_key: apiKey,
+      query: query,
+      max_results: maxResults,
+      search_depth: 'basic',
+      include_answer: false,
+    });
+
+    if (!result.results || !Array.isArray(result.results)) return null;
+
+    return result.results.map(r => ({
+      title: r.title || '',
+      url: r.url || '',
+      snippet: (r.content || '').slice(0, 300),
+      date: '',
+      source: 'tavily',
+    }));
+  } catch (err) {
+    console.error('Tavily 搜索失败:', err.message);
+    return null;
+  }
+}
+
+/**
+ * 根据话题搜索最新信息（优先 Tavily，fallback RSS）
  * @param {string} query - 搜索关键词
- * @param {string} category - 源类别: tech_cn, tech_en, ai
+ * @param {number} maxResults - 最大结果数
+ * @param {string} category - RSS 源类别: tech_cn, tech_en, ai
  * @returns {Array} 搜索结果
  */
 async function searchWeb(query, maxResults = 5, category = 'tech_cn') {
+  // 1. 优先尝试 Tavily
+  const tavilyResults = await searchTavily(query, maxResults);
+  if (tavilyResults && tavilyResults.length > 0) {
+    console.log(`  🔍 Tavily 搜索: "${query}" → ${tavilyResults.length} 条结果`);
+    return tavilyResults;
+  }
+
+  // 2. Fallback 到 RSS
   const feeds = RSS_FEEDS[category] || RSS_FEEDS.tech_cn;
   const allItems = [];
 
@@ -147,8 +230,30 @@ async function searchAndSummarize(query, maxResults = 3) {
 
 /**
  * 获取综合最新新闻（用于规划 Agent 了解当前热点）
+ * 优先 Tavily 搜索热点话题，fallback 到 RSS
  */
 async function getLatestNews(maxPerFeed = 5) {
+  const tavilyKey = getTavilyKey();
+
+  // 如果有 Tavily，搜索当前热点
+  if (tavilyKey) {
+    try {
+      const hotTopics = ['AI最新进展', '人工智能技术突破', 'AI行业动态'];
+      const allTavily = [];
+      for (const topic of hotTopics) {
+        const results = await searchTavily(topic, 5);
+        if (results) allTavily.push(...results);
+      }
+      if (allTavily.length > 0) {
+        console.log(`  🔍 Tavily 热点搜索: ${allTavily.length} 条结果`);
+        return allTavily.slice(0, 20);
+      }
+    } catch (err) {
+      console.error('Tavily 热点搜索失败:', err.message);
+    }
+  }
+
+  // Fallback 到 RSS
   const allFeeds = [...RSS_FEEDS.tech_cn, ...RSS_FEEDS.tech_en];
   const allItems = [];
 
