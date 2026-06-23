@@ -26,8 +26,8 @@ async function executeTool(name, args) {
 
 // ============ 内置工具 ============
 
-// 1. 网页搜索（通过多个搜索引擎）
-registerTool('web_search', '搜索互联网获取最新信息', {
+// 1. 网页搜索（通过多搜索引擎 + Tavily）
+registerTool('web_search', '搜索互联网获取最新信息，支持任意主题', {
   type: 'object',
   properties: {
     query: { type: 'string', description: '搜索关键词' },
@@ -35,35 +35,9 @@ registerTool('web_search', '搜索互联网获取最新信息', {
   },
   required: ['query']
 }, async ({ query, max_results = 5 }) => {
-  const results = [];
-
-  // 尝试 DuckDuckGo Instant Answer API
-  try {
-    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`;
-    const ddgRes = await fetchJson(ddgUrl);
-    if (ddgRes.Abstract) {
-      results.push({ title: ddgRes.Heading || query, snippet: ddgRes.Abstract, url: ddgRes.AbstractURL });
-    }
-    if (ddgRes.RelatedTopics) {
-      for (const topic of ddgRes.RelatedTopics.slice(0, max_results)) {
-        if (topic.Text) {
-          results.push({ title: topic.Text.slice(0, 80), snippet: topic.Text, url: topic.FirstURL });
-        }
-      }
-    }
-  } catch {}
-
-  // 尝试 Wikipedia API（中英文）
-  try {
-    const lang = /[一-鿿]/.test(query) ? 'zh' : 'en';
-    const wikiUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-    const wikiRes = await fetchJson(wikiUrl);
-    if (wikiRes.extract) {
-      results.unshift({ title: wikiRes.title || query, snippet: wikiRes.extract.slice(0, 300), url: wikiRes.content_urls?.desktop?.page || '' });
-    }
-  } catch {}
-
-  return { results: results.slice(0, max_results), query, source: 'web_search' };
+  const { searchWeb } = require('./search');
+  const results = await searchWeb(query, max_results);
+  return { results, query, count: results.length };
 });
 
 // 2. 读取网页内容
@@ -89,30 +63,20 @@ registerTool('fetch_webpage', '获取指定URL的网页内容', {
   }
 });
 
-// 3. 获取最新新闻
-registerTool('get_latest_news', '获取最新科技新闻', {
+// 3. 获取最新热点新闻（根据网站主题自动搜索）
+registerTool('get_latest_news', '获取与网站主题相关的最新热点新闻', {
   type: 'object',
   properties: {
-    category: { type: 'string', enum: ['tech_cn', 'tech_en', 'ai', 'all'], description: '新闻类别', default: 'all' },
-    max_per_feed: { type: 'number', description: '每个源最大条数', default: 5 }
+    max_results: { type: 'number', description: '最大结果数', default: 10 }
   }
-}, async ({ category = 'all', max_per_feed = 5 }) => {
-  const { getLatestNews, searchWeb } = require('./search');
-  try {
-    if (category === 'all') {
-      const news = await getLatestNews(max_per_feed);
-      return { news, count: news.length, source: 'rss_feeds' };
-    } else {
-      const results = await searchWeb('', max_per_feed, category);
-      return { news: results, count: results.length, source: 'rss_' + category };
-    }
-  } catch (e) {
-    return { error: e.message, news: [] };
-  }
+}, async ({ max_results = 10 }) => {
+  const { getLatestNews } = require('./search');
+  const news = await getLatestNews(max_results);
+  return { news, count: news.length };
 });
 
 // 4. 搜索特定话题新闻
-registerTool('search_topic_news', '搜索特定话题的最新新闻', {
+registerTool('search_topic_news', '搜索特定话题的最新新闻（自动结合网站主题）', {
   type: 'object',
   properties: {
     topic: { type: 'string', description: '搜索话题' },
@@ -121,18 +85,31 @@ registerTool('search_topic_news', '搜索特定话题的最新新闻', {
   required: ['topic']
 }, async ({ topic, max_results = 5 }) => {
   const { searchWeb } = require('./search');
-  try {
-    const cnResults = await searchWeb(topic, max_results, 'tech_cn');
-    const enResults = await searchWeb(topic, max_results, 'tech_en');
-    return {
-      results: [...cnResults, ...enResults].slice(0, max_results),
-      topic,
-      cn_count: cnResults.length,
-      en_count: enResults.length
-    };
-  } catch (e) {
-    return { error: e.message, results: [] };
-  }
+  const results = await searchWeb(topic, max_results);
+  return { results, topic, count: results.length };
+});
+
+// 5. 添加 RSS 源（AI 发现并保存跟网站主题相关的源）
+registerTool('add_rss_feed', '发现并添加一个与网站主题相关的 RSS 源，后续自动采信', {
+  type: 'object',
+  properties: {
+    url: { type: 'string', description: 'RSS 源的 URL' },
+    reason: { type: 'string', description: '为什么要添加这个源（如：该源覆盖XX领域，与网站主题匹配）' }
+  },
+  required: ['url', 'reason']
+}, async ({ url, reason }) => {
+  const { discoverFeed, getManagedFeeds } = require('./search');
+  await discoverFeed(url, reason);
+  const feeds = getManagedFeeds();
+  return { success: true, total_feeds: feeds.length, added: url, reason };
+});
+
+// 6. 查看已管理的 RSS 源
+registerTool('list_rss_feeds', '查看当前已添加的所有 RSS 源', {
+  type: 'object', properties: {}
+}, async () => {
+  const { getManagedFeeds } = require('./search');
+  return { feeds: getManagedFeeds() };
 });
 
 // 5. 获取网站当前状态

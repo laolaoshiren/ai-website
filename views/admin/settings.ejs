@@ -19,7 +19,7 @@
 
     <div class="admin-panel" style="margin-top:1.5rem">
       <h2>🔍 Tavily 搜索引擎</h2>
-      <p class="text-muted" style="margin-bottom:1rem">填入 Tavily API Key 后，AI 搜索资讯时会调用 Tavily 搜索引擎获取实时数据，提升内容质量和时效性。留空则使用 RSS 源。免费额度：每月 1000 次搜索。<a href="https://tavily.com" target="_blank">获取 Key →</a></p>
+      <p class="text-muted" style="margin-bottom:1rem">Tavily 是专业搜索引擎 API，配置后搜索结果更精准。不配置也不影响正常运行——系统默认使用 DuckDuckGo + Bing 等免费搜索引擎。免费额度：每月 1000 次搜索。<a href="https://tavily.com" target="_blank">获取 Key →</a></p>
       <div class="form-grid">
         <div class="form-group"><label>Tavily API Key</label><input type="password" name="tavily_api_key" value="<%= config.tavily_api_key || '' %>" placeholder="tvly-xxxxxxxxxx" autocomplete="off"></div>
       </div>

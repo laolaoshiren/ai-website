@@ -20,7 +20,7 @@ async function planStructure() {
     latestNews = await getLatestNews(5);
     // 如果有主题，额外搜索主题相关
     if (site.theme) {
-      const topicNews = await searchWeb(site.theme, 3, 'tech_cn');
+      const topicNews = await searchWeb(site.theme, 3);
       latestNews.push(...topicNews);
     }
     console.log(`  ✅ 获取到 ${latestNews.length} 条最新资讯`);
