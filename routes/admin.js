@@ -10,26 +10,40 @@ const { getConfig, refreshConfig } = require('../config');
 const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 
-// ============ 会话管理 ============
-const sessions = new Map(); // sessionId -> { created, ip, admin, csrf }
-const loginAttempts = new Map(); // ip -> { count, lastAttempt }
-const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const LOGIN_LIMIT = 5;
-const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 minutes
-
-// 定期清理过期会话和登录记录
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, s] of sessions) { if (now - s.created > SESSION_TTL) sessions.delete(id); }
-  for (const [ip, a] of loginAttempts) { if (now - a.lastAttempt > LOGIN_LOCKOUT) loginAttempts.delete(ip); }
-}, 60 * 60 * 1000); // 每小时清理一次
-
 function createSession(ip) {
+  // 清理过期会话
+  const now = Date.now();
+  const allSettings = db.getAllSettings();
+  const sessionsRaw = allSettings._sessions || '{}';
+  let sessions;
+  try { sessions = JSON.parse(sessionsRaw); } catch { sessions = {}; }
+  for (const [id, s] of Object.entries(sessions)) { if (now - s.created > SESSION_TTL) delete sessions[id]; }
+
   const id = crypto.randomBytes(32).toString('hex');
   const csrf = crypto.randomBytes(32).toString('hex');
-  const session = { created: Date.now(), ip, admin: true, csrf };
-  sessions.set(id, session);
+  sessions[id] = { created: now, ip, admin: true, csrf };
+  db.setSetting('_sessions', JSON.stringify(sessions));
   return { id, csrf };
+}
+
+function getSession(sid) {
+  if (!sid) return null;
+  const sessionsRaw = db.getSetting('_sessions') || '{}';
+  let sessions;
+  try { sessions = JSON.parse(sessionsRaw); } catch { return null; }
+  const s = sessions[sid];
+  if (!s) return null;
+  if (Date.now() - s.created > SESSION_TTL) { delete sessions[sid]; db.setSetting('_sessions', JSON.stringify(sessions)); return null; }
+  return s;
+}
+
+function deleteSession(sid) {
+  if (!sid) return;
+  const sessionsRaw = db.getSetting('_sessions') || '{}';
+  let sessions;
+  try { sessions = JSON.parse(sessionsRaw); } catch { return; }
+  delete sessions[sid];
+  db.setSetting('_sessions', JSON.stringify(sessions));
 }
 
 function getSecureFlag(req) {
@@ -52,7 +66,7 @@ router.use((req, res, next) => {
 // ============ 会话中间件 ============
 router.use((req, res, next) => {
   const sid = req.cookies?.admin_session;
-  req.session = sid ? sessions.get(sid) : null;
+  req.session = getSession(sid);
   req.sessionId = sid || null;
   next();
 });
@@ -147,7 +161,7 @@ router.post('/login', (req, res) => {
 
 // ============ 登出 ============
 router.get('/logout', (req, res) => {
-  if (req.sessionId) sessions.delete(req.sessionId);
+  deleteSession(req.sessionId);
   res.setHeader('Set-Cookie', `admin_session=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${getSecureFlag(req)}`);
   res.redirect('/admin/login');
 });
