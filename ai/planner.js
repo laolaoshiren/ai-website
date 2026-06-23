@@ -53,10 +53,29 @@ async function planStructure() {
 
   // 创建内容计划（存储为 planned 状态的文章）
   if (data.content_plan && Array.isArray(data.content_plan)) {
+    // 构建已有标题前缀索引（用于去重）
+    const existingTitlePrefixes = new Set();
+    existingArticles.forEach(a => {
+      const prefix = (a.title || '').replace(/[\s\-—：:，,。.!！?？]/g, '').slice(0, 12).toLowerCase();
+      if (prefix) existingTitlePrefixes.add(prefix);
+    });
+
+    // 统计总文章数，限制上限
+    const totalArticles = existingArticles.length;
+    const maxNewArticles = Math.max(0, 150 - totalArticles); // 总上限 150 篇
+    let created = 0;
+
     for (const plan of data.content_plan) {
+      if (created >= maxNewArticles) break;
+      if (created >= 5) break; // 每次规划最多 5 篇
+
       const slug = slugify(plan.title);
       const existing = getPageBySlug(slug);
       if (existing) continue;
+
+      // 标题相似度去重：检查前12字是否重复
+      const titlePrefix = (plan.title || '').replace(/[\s\-—：:，,。.!！?？]/g, '').slice(0, 12).toLowerCase();
+      if (existingTitlePrefixes.has(titlePrefix)) continue;
 
       let categoryId = null;
       if (plan.category_slug) {
@@ -74,6 +93,8 @@ async function planStructure() {
         status: 'planned',
         seo_keywords: (plan.keywords || []).join(', '),
       });
+      existingTitlePrefixes.add(titlePrefix);
+      created++;
     }
   }
 
