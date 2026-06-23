@@ -1,11 +1,106 @@
 /**
- * AI 通用客户端 v2 - 多提供商支持、负载均衡、工具调用
+ * AI 通用客户端 v3 - 多提供商、负载均衡、故障自动恢复
  */
 const { getActiveAIProvider, incrementProviderUsage, getAIProviders } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 
+// ============ 故障恢复系统 ============
+const outageState = {
+  active: false,        // 是否处于故障状态
+  startedAt: null,      // 故障开始时间
+  lastCheck: null,      // 上次检查时间
+  checkInterval: null,  // 定时器句柄
+  failCount: 0,         // 连续失败次数
+  onRecover: null,      // 恢复回调
+};
+
+const CHECK_INTERVAL = 3 * 60 * 1000; // 每 3 分钟检查一次
+
 /**
- * 调用 AI API（自动选择提供商、故障转移、自动重试）
+ * 启动故障恢复轮询
+ */
+function startRecovery() {
+  if (outageState.checkInterval) return; // 已经在轮询
+
+  outageState.active = true;
+  outageState.startedAt = outageState.startedAt || new Date().toISOString();
+  console.log(`🚨 AI 提供商全部故障，启动自动恢复轮询（每 ${CHECK_INTERVAL / 1000}s 检查一次）`);
+
+  outageState.checkInterval = setInterval(async () => {
+    outageState.lastCheck = new Date().toISOString();
+    try {
+      const providers = getAIProviders().filter(p => p.enabled);
+      if (providers.length === 0) return;
+
+      // 用最轻量的请求探测 provider 是否恢复
+      const provider = providers[0];
+      const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.api_key}` },
+        body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (response.ok) {
+        // 恢复了！
+        const duration = Math.round((Date.now() - new Date(outageState.startedAt).getTime()) / 60000);
+        console.log(`✅ AI 提供商已恢复！故障持续 ${duration} 分钟`);
+        stopRecovery();
+
+        // 触发补偿任务
+        if (outageState.onRecover) {
+          console.log('🔄 触发故障恢复补偿任务...');
+          try { await outageState.onRecover(); } catch (e) { console.error('补偿任务失败:', e.message); }
+        }
+      } else {
+        outageState.failCount++;
+        console.log(`⏳ AI 提供商仍不可用 (${response.status})，已检测 ${outageState.failCount} 次`);
+      }
+    } catch (err) {
+      outageState.failCount++;
+      console.log(`⏳ AI 提供商仍不可用 (${err.message})，已检测 ${outageState.failCount} 次`);
+    }
+  }, CHECK_INTERVAL);
+}
+
+/**
+ * 停止故障恢复轮询
+ */
+function stopRecovery() {
+  if (outageState.checkInterval) {
+    clearInterval(outageState.checkInterval);
+    outageState.checkInterval = null;
+  }
+  outageState.active = false;
+  outageState.failCount = 0;
+  outageState.startedAt = null;
+}
+
+/**
+ * 获取故障恢复状态
+ */
+function getOutageStatus() {
+  return {
+    active: outageState.active,
+    startedAt: outageState.startedAt,
+    lastCheck: outageState.lastCheck,
+    failCount: outageState.failCount,
+    durationMinutes: outageState.startedAt ? Math.round((Date.now() - new Date(outageState.startedAt).getTime()) / 60000) : 0,
+  };
+}
+
+/**
+ * 设置恢复回调（scheduler 注册）
+ */
+function setRecoveryCallback(fn) {
+  outageState.onRecover = fn;
+}
+
+// ============ 核心调用 ============
+
+/**
+ * 调用 AI API（自动选择提供商、故障转移、自动重试、故障恢复）
  */
 async function callAI(messages, options = {}) {
   const providers = getAIProviders().filter(p => p.enabled);
@@ -15,11 +110,12 @@ async function callAI(messages, options = {}) {
 
   let lastError = null;
   for (const provider of providers) {
-    // 每个 provider 最多重试 2 次
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const result = await callProvider(provider, messages, options);
         incrementProviderUsage(provider.id, true);
+        // 如果之前在故障状态，成功后停止恢复轮询
+        if (outageState.active) stopRecovery();
         return result;
       } catch (err) {
         incrementProviderUsage(provider.id, false);
@@ -28,16 +124,17 @@ async function callAI(messages, options = {}) {
           err.message.includes('fetch failed') || err.message.includes('503') || err.message.includes('429') ||
           err.message.includes('502') || err.message.includes('500');
         if (attempt === 0 && retryable) {
-          const delay = 1000 * (attempt + 1);
-          console.log(`  ⚠️ 提供商 ${provider.name} 失败: ${err.message}，${delay}ms 后重试...`);
-          await new Promise(r => setTimeout(r, delay));
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         }
-        console.log(`  ⚠️ 提供商 ${provider.name} 失败: ${err.message}，跳过`);
         break;
       }
     }
   }
+
+  // 所有 provider 都失败 → 启动故障恢复
+  if (!outageState.active) startRecovery();
+
   throw new Error(`所有 AI 提供商均失败，最后错误: ${lastError?.message}`);
 }
 
@@ -165,4 +262,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback };

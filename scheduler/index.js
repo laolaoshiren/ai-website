@@ -165,6 +165,21 @@ function startScheduler() {
     console.log(`  ✅ ${schedule.task_type}: ${schedule.cron_expr} (${schedule.description})`);
   }
 
+  // 注册故障恢复回调：API 恢复后自动补充内容
+  try {
+    const { setRecoveryCallback } = require('../ai/client');
+    setRecoveryCallback(async () => {
+      console.log('🔄 故障恢复：自动触发内容生成...');
+      logAgent('site_manager', '故障恢复', 'running', 'AI 提供商已恢复，自动补充内容');
+      try {
+        await executeTask('generate_content');
+        logAgent('site_manager', '故障恢复', 'success', '故障恢复补偿完成');
+      } catch (err) {
+        logAgent('site_manager', '故障恢复', 'failed', err.message);
+      }
+    });
+  } catch {}
+
   // 启动后立即执行一次内容生成（如果有待写文章）
   setTimeout(async () => {
     try {

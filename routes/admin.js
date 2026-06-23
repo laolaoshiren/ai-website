@@ -158,7 +158,9 @@ router.get('/', (req, res) => {
   const agentLogs = db.getAgentLogs(30);
   const agentStatuses = db.getAgentStatuses();
   const schedules = db.getSchedules();
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  let outage = { active: false };
+  try { outage = require('../ai/client').getOutageStatus(); } catch {}
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, schedules, outage, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============
