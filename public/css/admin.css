@@ -51,6 +51,7 @@ a { color: var(--primary); text-decoration: none; }
 .admin-grid .admin-panel { margin-bottom: 0; }
 
 /* Tables */
+.table-scroll { width: 100%; overflow-x: auto; }
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
 .admin-table th { font-weight: 600; color: var(--text-light); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -59,6 +60,12 @@ a { color: var(--primary); text-decoration: none; }
 .td-detail { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.82rem; color: var(--text-light); }
 .td-title { font-weight: 500; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-actions { white-space: nowrap; }
+.td-category-name { max-width: 260px; }
+.td-category-name strong, .td-category-slug code { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.td-category-slug { max-width: 240px; }
+.td-category-slug code { background: #1a1a2e; padding: 0.12rem 0.35rem; border-radius: 4px; color: #cbd5e1; }
+.category-edit-row td { background: #10101a; padding: 1rem; }
+.category-edit-form { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: #141420; }
 
 /* Status Badges */
 .status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }

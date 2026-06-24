@@ -11,6 +11,7 @@ const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 const { buildPagination } = require('./pagination');
 const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('./agent-status');
+const { validateCategoryInput } = require('../ai/category-policy');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -305,7 +306,7 @@ router.post('/providers/:id/test', requireCsrf, async (req, res) => {
 
 // ============ 分类 CRUD ============
 router.get('/categories', (req, res) => {
-  const categories = db.getCategories();
+  const categories = db.getCategories().map(c => ({ ...c }));
   const allPages = db.getAllPages();
   // 统计每个栏目的文章数
   const countMap = {};
@@ -315,20 +316,27 @@ router.get('/categories', (req, res) => {
 });
 
 router.post('/categories/add', requireCsrf, (req, res) => {
-  const { name, slug, description, sort_order } = req.body;
-  if (!name || !name.trim()) return res.redirect('/admin/categories?error=' + encodeURIComponent('请输入栏目名称'));
-  const finalSlug = slug?.trim() || name.trim().toLowerCase().replace(/[\s]+/g, '-').replace(/[^a-z0-9一-龥-]/g, '');
-  if (!finalSlug) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识不能为空'));
-  const existing = db.getCategoryBySlug(finalSlug);
-  if (existing) return res.redirect('/admin/categories?error=' + encodeURIComponent('URL标识已存在: ' + finalSlug));
-  db.addCategory(name.trim(), finalSlug, description?.trim(), parseInt(sort_order) || 0);
-  res.redirect('/admin/categories?success=1');
+  try {
+    const category = validateCategoryInput(req.body, { existingCategories: db.getCategories() });
+    db.addCategory(category.name, category.slug, category.description, category.sort_order);
+    res.redirect('/admin/categories?success=1');
+  } catch (err) {
+    res.redirect('/admin/categories?error=' + encodeURIComponent(err.message));
+  }
 });
 
 router.post('/categories/:id/edit', requireCsrf, (req, res) => {
-  const { name, slug, description, sort_order } = req.body;
-  db.updateCategory(parseInt(req.params.id), { name, slug, description, sort_order: parseInt(sort_order) || 0 });
-  res.redirect('/admin/categories?success=1');
+  const id = parseInt(req.params.id);
+  if (!db.getCategoryById(id)) {
+    return res.redirect('/admin/categories?error=' + encodeURIComponent('栏目不存在'));
+  }
+  try {
+    const category = validateCategoryInput(req.body, { existingCategories: db.getCategories(), currentId: id });
+    db.updateCategory(id, category);
+    res.redirect('/admin/categories?success=1');
+  } catch (err) {
+    res.redirect('/admin/categories?error=' + encodeURIComponent(err.message));
+  }
 });
 
 router.post('/categories/:id/delete', requireCsrf, (req, res) => {

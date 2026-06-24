@@ -94,15 +94,13 @@ ${JSON.stringify(analyticsSummary.slice(0, 10), null, 2)}` : '暂无流量数据
 ${newsContext}
 
 请分析当前状况，规划下一步的内容策略：
-1. 是否需要新增栏目？（严格限制：已有栏目足够时不要新增，新增前确认不重复）
+1. 已有栏目是稳定的网站结构，不要重命名、删除、合并或替换栏目；不要提出新增栏目，categories 必须返回 []
 2. 接下来应该写哪些文章？（选题必须多样化，避免与已有文章主题雷同，不要集中在单一话题）
 3. 有哪些现有文章需要更新或优化？（特别是内容已过时的文章）
 
 返回 JSON 格式：
 {
-  "categories": [
-    { "name": "栏目名称", "slug": "url-slug", "description": "栏目简介", "sort_order": 0 }
-  ],
+  "categories": [],
   "content_plan": [
     { "title": "文章标题", "category_slug": "栏目slug", "keywords": ["关键词"], "priority": 1, "summary": "内容规划说明" }
   ],
@@ -245,6 +243,8 @@ function getAnalyzerPrompt(analyticsSummary, categories, recentArticles) {
 3. SEO 机会 - 可以优化的关键词和话题
 4. 用户体验 - 根据停留时间和滚动深度判断内容质量
 
+栏目是网站建立后的稳定结构。你不得新增、重命名、合并或删除栏目；如果发现内容空白，请把新选题放入现有最匹配的 category_slug。
+
 你必须以 JSON 格式回复。`;
 
   const user = `${getBaseContext()}
@@ -268,9 +268,6 @@ ${recentArticles.slice(0, 10).map(a => `- 《${a.title}》 ${a.published_at} 阅
   ],
   "optimization_suggestions": [
     { "page_slug": "文章slug", "action": "update_title|update_content|add_internal_links|merge", "reason": "原因", "details": "具体建议" }
-  ],
-  "category_changes": [
-    { "action": "add|rename|merge", "details": "具体变更说明" }
   ],
   "overall_score": "对网站当前状态的总体评分(1-10)和简要说明"
 }`;

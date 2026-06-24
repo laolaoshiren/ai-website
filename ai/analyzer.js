@@ -3,7 +3,7 @@
  */
 const { callAIForJSON } = require('./client');
 const { getAnalyzerPrompt } = require('./prompts');
-const { getAnalyticsSummary, getCategories, getPublishedPages, insertPage, updatePage, upsertCategory } = require('../db/database');
+const { getAnalyticsSummary, getCategories, getPublishedPages, insertPage, updatePage } = require('../db/database');
 const { slugify } = require('./utils');
 
 async function analyzeAndAdapt() {
@@ -41,16 +41,6 @@ async function analyzeAndAdapt() {
         seo_keywords: (gap.keywords || []).join(', '),
       });
       actions.push(`添加新计划: ${gap.topic}`);
-    }
-  }
-
-  // 执行栏目变更
-  if (data.category_changes && Array.isArray(data.category_changes)) {
-    for (const change of data.category_changes) {
-      if (change.action === 'add' && change.details) {
-        upsertCategory(slugify(change.details), change.details, '', 0, null);
-        actions.push(`新增栏目: ${change.details}`);
-      }
     }
   }
 
