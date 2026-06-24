@@ -6,12 +6,14 @@ const { getPlannerPrompt } = require('./prompts');
 const { getCategories, getAllPages, upsertCategory, insertPage, getAnalyticsSummary, getSetting, getPageBySlug, getCategoryBySlug } = require('../db/database');
 const { slugify } = require('./utils');
 const { getLatestNews, searchWeb } = require('./search');
+const { selectCategoriesForPlanning } = require('./category-policy');
 
 async function planStructure() {
   const existingCategories = getCategories();
   const existingArticles = getAllPages('published');
   const analyticsSummary = getAnalyticsSummary(30);
   const site = require('../config').getSiteConfig();
+  const isColdStart = existingCategories.length === 0 && existingArticles.length === 0;
 
   // 🔍 获取最新热点新闻用于规划参考
   let latestNews = [];
@@ -34,21 +36,9 @@ async function planStructure() {
     maxTokens: 4096,
   });
 
-  // 更新分类 — 只创建真正不存在的栏目
-  if (data.categories && Array.isArray(data.categories)) {
-    const existingNames = new Set(existingCategories.map(c => c.name.toLowerCase()));
-    const existingSlugs = new Set(existingCategories.map(c => c.slug));
-    for (const cat of data.categories) {
-      const slug = cat.slug || slugify(cat.name);
-      // 跳过：slug 或名称已存在
-      if (existingSlugs.has(slug)) continue;
-      if (existingNames.has(cat.name.toLowerCase())) continue;
-      // 限制：已有 10 个以上栏目不再新增
-      if (existingCategories.length >= 10) break;
-      upsertCategory(slug, cat.name, cat.description, cat.sort_order || 0, null);
-      existingNames.add(cat.name.toLowerCase());
-      existingSlugs.add(slug);
-    }
+  const acceptedCategories = selectCategoriesForPlanning(existingCategories, data.categories, { isColdStart });
+  for (const cat of acceptedCategories) {
+    upsertCategory(cat.slug, cat.name, cat.description, cat.sort_order || 0, null);
   }
 
   // 创建内容计划（存储为 planned 状态的文章）
@@ -102,7 +92,7 @@ async function planStructure() {
     setSetting('last_strategy_notes', data.strategy_notes);
   }
 
-  return { categories: data.categories?.length || 0, articles: data.content_plan?.length || 0, model, tokensUsed };
+  return { categories: acceptedCategories.length, articles: data.content_plan?.length || 0, model, tokensUsed };
 }
 
 module.exports = { planStructure };
