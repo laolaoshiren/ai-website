@@ -2,8 +2,9 @@
  * 定时任务调度器 v2 - 多 Agent 协同
  */
 const cron = require('node-cron');
-const { getSchedules, updateScheduleLastRun, getPlannedPages, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
+const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
 const { isAIConfigured } = require('../config');
+const { logArticleOutcome } = require('./article-outcome');
 
 const cronJobs = [];
 
@@ -23,6 +24,7 @@ async function executeTask(taskType) {
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商');
 
   const agentRole = AGENT_ROLES[taskType] || 'technician';
+  const workerId = `${agentRole}-${taskType}-${Date.now()}`;
   const logId = logAgent(agentRole, taskType, 'running', `开始执行: ${taskType}`);
   updateAgentStatus(agentRole, 'working', taskType);
   const startTime = Date.now();
@@ -45,26 +47,27 @@ async function executeTask(taskType) {
         break;
       }
       case 'generate_content': {
-        const planned = getPlannedPages(2);
+        let pages = claimPlannedPages(2, workerId, 45);
+        const planned = pages;
         if (planned.length === 0) {
           const { planStructure } = require('../ai/planner');
           logAgent('planner', '补充规划', 'running', '待写文章不足，补充规划...');
           await planStructure();
-          const newPlanned = getPlannedPages(1);
+          pages = claimPlannedPages(2, workerId, 45);
+          const newPlanned = pages;
           if (newPlanned.length === 0) { result = { skipped: true }; break; }
         }
-        const pages = getPlannedPages(2);
         const { generateArticle } = require('../ai/writer');
         const results = [];
         for (const page of pages) {
           try {
             logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
             const r = await generateArticle(page);
-            logAgent('writer', '撰写文章', 'success', `完成: ${r.title} (${r.provider})`);
             logAgent('reviewer', '审核文章', 'running', `审核: ${r.title}`);
-            logAgent('reviewer', '审核文章', 'success', `通过: ${r.title}`);
+            logArticleOutcome(logAgent, page, r, { reviewerAction: '审核文章' });
             results.push(r);
           } catch (err) {
+            releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
             logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
           }
         }
@@ -91,8 +94,7 @@ async function executeTask(taskType) {
         break;
       case 'heartbeat': {
         // 心跳任务：检查内容是否充足，不足则自动规划+生成
-        const { getPlannedPages } = require('../db/database');
-        let planned = getPlannedPages(3);
+        let planned = claimPlannedPages(2, workerId, 45);
         const stats = getStats();
 
         // 如果没有待写文章，先触发规划器创建新计划
@@ -102,7 +104,7 @@ async function executeTask(taskType) {
             const { planStructure } = require('../ai/planner');
             const planResult = await planStructure();
             logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`);
-            planned = getPlannedPages(3);
+            planned = claimPlannedPages(2, workerId, 45);
           } catch (err) {
             logAgent('planner', '补充规划', 'failed', err.message);
           }
@@ -111,13 +113,13 @@ async function executeTask(taskType) {
         if (planned.length > 0) {
           logAgent('site_manager', '心跳检查', 'running', `发现 ${planned.length} 篇待写文章，自动补充`);
           const { generateArticle } = require('../ai/writer');
-          for (const page of planned.slice(0, 2)) {
+          for (const page of planned) {
             try {
               logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
               const r = await generateArticle(page);
-              logAgent('writer', '撰写文章', 'success', `完成: ${r.title}`);
-              logAgent('reviewer', '审核文章', 'success', `通过: ${r.title}`);
+              logArticleOutcome(logAgent, page, r, { reviewerAction: '审核文章' });
             } catch (err) {
+              releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
               logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
             }
           }
@@ -220,7 +222,7 @@ async function coldStart() {
   logAgent('planner', '结构规划', 'success', `创建了 ${planResult.categories} 个栏目, ${planResult.articles} 篇计划`);
 
   // 2. 批量生成文章（8篇，并发3路加速）
-  const planned = getPlannedPages(8);
+  const planned = claimPlannedPages(8, `cold-start-${Date.now()}`, 60);
   const { generateArticle } = require('../ai/writer');
   const CONCURRENCY = 3;
   let generated = 0;
@@ -233,16 +235,16 @@ async function coldStart() {
         logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
         try {
           const result = await generateArticle(page);
-          logAgent('writer', '撰写文章', 'success', `完成: ${result.title}`);
-          logAgent('reviewer', '审核发布', 'success', `已发布: ${result.title}`);
+          logArticleOutcome(logAgent, page, result, { reviewerAction: '审核发布' });
           return result;
         } catch (err) {
+          releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
           logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
           throw err;
         }
       })
     );
-    generated += results.filter(r => r.status === 'fulfilled').length;
+    generated += results.filter(r => r.status === 'fulfilled' && r.value?.published).length;
     failed += results.filter(r => r.status === 'rejected').length;
   }
 
@@ -303,8 +305,7 @@ function startRageMode(level = 3) {
     if (!rageModeActive) return;
 
     cycleCount++;
-    const { getPlannedPages } = require('../db/database');
-    let planned = getPlannedPages(concurrency);
+    let planned = claimPlannedPages(concurrency, `rage-${cycleCount}-${Date.now()}`, 45);
 
     // 如果计划不足，先规划
     if (planned.length < concurrency) {
@@ -312,7 +313,7 @@ function startRageMode(level = 3) {
         const { planStructure } = require('../ai/planner');
         logAgent('planner', '狂暴规划', 'running', `第 ${cycleCount} 轮：补充规划...`);
         await planStructure();
-        planned = getPlannedPages(concurrency);
+        planned = claimPlannedPages(concurrency, `rage-${cycleCount}-${Date.now()}`, 45);
       } catch (err) {
         logAgent('planner', '狂暴规划', 'failed', err.message);
       }
@@ -333,17 +334,17 @@ function startRageMode(level = 3) {
         logAgent('writer', `写手#${writerId}`, 'running', `撰写: ${page.title.slice(0, 30)}`);
         try {
           const r = await generateArticle(page);
-          logAgent('writer', `写手#${writerId}`, 'success', `完成: ${r.title.slice(0, 30)}`);
-          logAgent('reviewer', '审核', 'success', `通过: ${r.title.slice(0, 30)}`);
+          logArticleOutcome(logAgent, page, r, { reviewerAction: '审核' });
           return r;
         } catch (err) {
+          releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
           logAgent('writer', `写手#${writerId}`, 'failed', err.message.slice(0, 60));
           throw err;
         }
       })
     );
 
-    const success = results.filter(r => r.status === 'fulfilled').length;
+    const success = results.filter(r => r.status === 'fulfilled' && r.value?.published).length;
     const failed = results.filter(r => r.status === 'rejected').length;
     const stats = getStats();
     console.log(`🔥 第 ${cycleCount} 轮完成: ${success} 成功, ${failed} 失败 | 总计 ${stats.totalArticles} 篇`);

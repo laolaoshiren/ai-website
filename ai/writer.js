@@ -47,7 +47,7 @@ async function prepareArticleForPublication(data, context = {}) {
 }
 
 async function generateArticle(page) {
-  const { getPublishedPages, updatePage, getCategories, logAgent } = require('../db/database');
+  const { getPublishedPages, updatePage, getCategories, logAgent, retryTimeAfterAttempts } = require('../db/database');
 
   let category = null;
   if (page.category_id) {
@@ -73,7 +73,7 @@ async function generateArticle(page) {
 
   // 生成文章
   const messages = getWriterPrompt(page.title, category, keywords, page.summary, existingArticles, searchResults);
-  const { data, model, tokensUsed } = await callAIForJSON(messages, {
+  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
     taskType: 'generate_content',
     maxTokens: 8192,
     temperature: 0.75,
@@ -112,12 +112,18 @@ async function generateArticle(page) {
     schema_json: finalData.schema_json || null,
     status: prepared.publishable ? 'published' : 'planned',
     published_at: prepared.publishable ? now : null,
+    next_retry_at: prepared.publishable ? null : retryTimeAfterAttempts(page.attempt_count),
+    last_error: prepared.publishable ? null : 'style_check_failed',
+    claimed_by: null,
+    claimed_at: null,
+    lock_expires_at: null,
     ...prepared.meta,
   });
 
   return {
     title: finalData.title || page.title,
     model,
+    provider,
     tokensUsed,
     searchUsed: searchResults.length > 0,
     styleScore: prepared.meta.style_score,

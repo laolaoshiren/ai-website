@@ -4,6 +4,8 @@
 const { getActiveAIProvider, incrementProviderUsage, getAIProviders } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 
+const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
+
 // ============ 故障恢复系统 ============
 const outageState = {
   active: false,        // 是否处于故障状态
@@ -159,6 +161,7 @@ async function callProvider(provider, messages, options = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -272,4 +275,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS };
