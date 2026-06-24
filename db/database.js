@@ -18,30 +18,8 @@ let data = null;
 let saveTimer = null;
 
 // ============ A) 并发写入保护 (async mutex) ============
-let _writeLock = Promise.resolve();
-
-/**
- * 获取写锁，返回 release 函数。
- * 用法: const release = await acquireLock(); try { ... } finally { release(); }
- */
-function acquireLock() {
-  let release;
-  const p = new Promise(resolve => { release = resolve; });
-  const prev = _writeLock;
-  _writeLock = p;
-  return prev.then(() => release);
-}
-
-/**
- * 包装器：在写锁内执行异步函数 fn，完成后自动释放锁。
- */
-async function withLock(fn) {
-  const release = await acquireLock();
-  try {
-    return await fn();
-  } finally {
-    release();
-  }
+function withLock(fn) {
+  return fn();
 }
 
 // ============ C) 缓存层 ============
@@ -184,6 +162,15 @@ function now() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
 }
 
+function timeAfterMinutes(minutes) {
+  return new Date(Date.now() + minutes * 60000).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
+}
+
+function retryTimeAfterAttempts(attemptCount) {
+  const attempts = Math.max(1, parseInt(attemptCount, 10) || 1);
+  return timeAfterMinutes(Math.min(360, attempts * 15));
+}
+
 // ============ 管理员 ============
 function getAdmin() { return getDb().admin; }
 function setAdminPassword(password) {
@@ -323,6 +310,46 @@ function getAllPages(status) {
 }
 
 function getPlannedPages(limit = 5) { return getDb().pages.filter(p => p.status === 'planned').sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).slice(0, limit); }
+
+function claimPlannedPages(limit = 5, workerId = 'agent', lockMinutes = 30) {
+  return withLock(() => {
+    const nowStr = now();
+    const expiresAt = timeAfterMinutes(lockMinutes);
+    const candidates = getDb().pages
+      .filter(p =>
+        p.status === 'planned' ||
+        (p.status === 'writing' && p.lock_expires_at && p.lock_expires_at <= nowStr)
+      )
+      .filter(p => !p.next_retry_at || p.next_retry_at <= nowStr)
+      .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
+      .slice(0, limit);
+
+    for (const page of candidates) {
+      page.status = 'writing';
+      page.claimed_by = workerId;
+      page.claimed_at = nowStr;
+      page.lock_expires_at = expiresAt;
+      page.attempt_count = (parseInt(page.attempt_count, 10) || 0) + 1;
+      page.updated_at = nowStr;
+    }
+    if (candidates.length > 0) scheduleSave();
+    return candidates.map(enrichPage);
+  });
+}
+
+function releasePageClaim(id, updates = {}) {
+  return withLock(() => {
+    const page = getDb().pages.find(p => p.id === id);
+    if (!page) return null;
+    Object.assign(page, updates);
+    page.claimed_by = null;
+    page.claimed_at = null;
+    page.lock_expires_at = null;
+    page.updated_at = now();
+    scheduleSave();
+    return enrichPage(page);
+  });
+}
 
 function insertPage(page) {
   return withLock(() => {
@@ -523,7 +550,7 @@ module.exports = {
   getSetting, setSetting, getAllSettings,
   logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
-  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, insertPage, updatePage, deletePage,
+  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, insertPage, updatePage, deletePage,
   enrichPage, getStats,
   recordAnalytics, getAnalyticsSummary,
   getSchedules, updateScheduleLastRun, getScheduleByType, addSchedule, updateSchedule, deleteSchedule,
