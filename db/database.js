@@ -29,6 +29,12 @@ const _cache = {
 };
 const CATEGORIES_TTL = 5000;  // 5 秒
 const STATS_TTL = 10000;      // 10 秒
+const FALLBACK_CATEGORY = {
+  slug: 'general',
+  name: '综合',
+  description: '自动兜底栏目，确保文章始终归属到有效栏目。',
+  sort_order: 999,
+};
 
 function _invalidateCache() {
   _cache.categories.ts = 0;
@@ -126,6 +132,8 @@ async function initDb() {
     }
   }
 
+  if (repairExistingPageCategories() > 0) saveDb();
+
   return data;
 }
 
@@ -169,6 +177,57 @@ function timeAfterMinutes(minutes) {
 function retryTimeAfterAttempts(attemptCount) {
   const attempts = Math.max(1, parseInt(attemptCount, 10) || 1);
   return timeAfterMinutes(Math.min(360, attempts * 15));
+}
+
+function sortedCategories(excludeId = null) {
+  return getDb().categories
+    .filter(c => c.id !== excludeId)
+    .slice()
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || (a.id || 0) - (b.id || 0));
+}
+
+function ensureFallbackCategory(excludeId = null) {
+  const existing = sortedCategories(excludeId)[0];
+  if (existing) return existing.id;
+
+  const fallback = {
+    id: nextId('categories'),
+    slug: FALLBACK_CATEGORY.slug,
+    name: FALLBACK_CATEGORY.name,
+    description: FALLBACK_CATEGORY.description,
+    sort_order: FALLBACK_CATEGORY.sort_order,
+    parent_id: null,
+    created_at: now(),
+    updated_at: now(),
+  };
+  getDb().categories.push(fallback);
+  _invalidateCache();
+  return fallback.id;
+}
+
+function resolveRequiredCategoryId(categoryId, excludeId = null) {
+  const id = parseInt(categoryId, 10);
+  if (Number.isFinite(id) && getDb().categories.some(c => c.id === id && c.id !== excludeId)) return id;
+  return ensureFallbackCategory(excludeId);
+}
+
+function repairExistingPageCategories() {
+  return withLock(() => {
+    const validIds = new Set(getDb().categories.map(c => c.id));
+    let repaired = 0;
+
+    for (const page of getDb().pages) {
+      if (!page.category_id || !validIds.has(page.category_id)) {
+        page.category_id = resolveRequiredCategoryId(page.category_id);
+        validIds.add(page.category_id);
+        page.updated_at = now();
+        repaired++;
+      }
+    }
+
+    if (repaired > 0) scheduleSave();
+    return repaired;
+  });
 }
 
 // ============ 管理员 ============
@@ -279,8 +338,9 @@ function updateCategory(id, updates) {
 function deleteCategory(id) {
   return withLock(() => {
     getDb().categories = getDb().categories.filter(c => c.id !== id);
-    // 将该分类下的文章设为未分类
-    getDb().pages.filter(p => p.category_id === id).forEach(p => p.category_id = null);
+    // 栏目删除后，文章必须重新归属到仍然有效的栏目。
+    const fallbackId = ensureFallbackCategory(id);
+    getDb().pages.filter(p => p.category_id === id).forEach(p => { p.category_id = fallbackId; p.updated_at = now(); });
     scheduleSave();
   });
 }
@@ -355,8 +415,9 @@ function insertPage(page) {
   return withLock(() => {
     const id = nextId('pages');
     const nowStr = now();
+    const categoryId = resolveRequiredCategoryId(page.category_id);
     getDb().pages.push({
-      id, slug: page.slug, title: page.title, category_id: page.category_id || null,
+      id, slug: page.slug, title: page.title, category_id: categoryId,
       template: page.template || 'article', summary: page.summary || '',
       content_md: page.content_md || '', content_html: page.content_html || '',
       cover_image: page.cover_image || null, status: page.status || 'draft',
@@ -373,7 +434,12 @@ function insertPage(page) {
 function updatePage(id, updates) {
   return withLock(() => {
     const page = getDb().pages.find(p => p.id === id);
-    if (page) { Object.assign(page, updates); page.updated_at = now(); scheduleSave(); }
+    if (page) {
+      Object.assign(page, updates);
+      page.category_id = resolveRequiredCategoryId(page.category_id);
+      page.updated_at = now();
+      scheduleSave();
+    }
   });
 }
 
@@ -550,7 +616,7 @@ module.exports = {
   getSetting, setSetting, getAllSettings,
   logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
-  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, insertPage, updatePage, deletePage,
+  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, repairExistingPageCategories, insertPage, updatePage, deletePage,
   enrichPage, getStats,
   recordAnalytics, getAnalyticsSummary,
   getSchedules, updateScheduleLastRun, getScheduleByType, addSchedule, updateSchedule, deleteSchedule,
