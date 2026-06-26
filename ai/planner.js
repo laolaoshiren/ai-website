@@ -31,7 +31,7 @@ async function planStructure() {
   }
 
   const messages = getPlannerPrompt(existingCategories, existingArticles, analyticsSummary, latestNews);
-  const { data, model, tokensUsed } = await callAIForJSON(messages, {
+  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
     taskType: 'plan_structure',
     maxTokens: 4096,
   });
@@ -92,7 +92,7 @@ async function planStructure() {
     setSetting('last_strategy_notes', data.strategy_notes);
   }
 
-  return { categories: acceptedCategories.length, articles: data.content_plan?.length || 0, model, tokensUsed };
+  return { categories: acceptedCategories.length, articles: data.content_plan?.length || 0, model, tokensUsed, provider };
 }
 
 module.exports = { planStructure };

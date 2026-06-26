@@ -11,6 +11,7 @@ const db = require('../db/database');
 const { testConnection } = require('../ai/client');
 const { buildPagination } = require('./pagination');
 const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('./agent-status');
+const { enrichAgentLogsAI } = require('./agent-log-ai');
 const { validateCategoryInput } = require('../ai/category-policy');
 
 // ============ 常量 ============
@@ -184,7 +185,7 @@ router.get('/logout', (req, res) => {
 // ============ 仪表盘 ============
 router.get('/', (req, res) => {
   const stats = db.getStats();
-  const agentLogs = db.getAgentLogs(30);
+  const agentLogs = enrichAgentLogsAI(db.getAgentLogs(30));
   const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), db.getAgentLogs(200));
   const schedules = db.getSchedules();
   let outage = { active: false };
@@ -504,7 +505,7 @@ router.get('/logs', (req, res) => {
     perPage: limit,
     basePath: '/admin/logs',
   });
-  const logs = allLogs.slice(pagination.offset, pagination.offset + pagination.perPage);
+  const logs = enrichAgentLogsAI(allLogs.slice(pagination.offset, pagination.offset + pagination.perPage));
   const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), allLogs);
   res.render('admin/logs', { title: 'Agent 日志', logs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, pagination, total, csrfToken: req.session?.csrf || '' });
 });

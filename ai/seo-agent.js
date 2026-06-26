@@ -23,7 +23,7 @@ async function updateSEO() {
   if (pages.length > 5) {
     try {
       const messages = getSEOPrompt(pages, categories, siteUrl);
-      const { data } = await callAIForJSON(messages, {
+      const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
         taskType: 'seo_update',
         maxTokens: 4096,
       });
@@ -39,7 +39,7 @@ async function updateSEO() {
           }
         }
       }
-      return { pages: pages.length, model: 'seo', issues: data.seo_issues?.length || 0 };
+      return { pages: pages.length, model, tokensUsed, provider, issues: data.seo_issues?.length || 0 };
     } catch (err) {
       console.error('SEO Agent 分析失败（已跳过）:', err.message);
     }

@@ -21,10 +21,12 @@ async function runSEOExpert() {
     maxTokens: 8192,
     temperature: 0.4,
   });
+  const aiMeta = { provider, model };
 
   // 记录审计结果
   logAgent('seo_expert', 'SEO 审计', 'success',
-    `评分: ${data.overall_score}/100 | 技术问题: ${data.technical_issues?.length || 0} | 关键词机会: ${data.keyword_opportunities?.length || 0} (via ${provider})`);
+    `评分: ${data.overall_score}/100 | 技术问题: ${data.technical_issues?.length || 0} | 关键词机会: ${data.keyword_opportunities?.length || 0} (via ${provider})`,
+    aiMeta);
 
   // 自动修复：为缺少 SEO 信息的文章补充
   if (data.article_reviews) {
@@ -47,14 +49,14 @@ async function runSEOExpert() {
   // 记录关键词机会
   if (data.keyword_opportunities?.length > 0) {
     for (const kw of data.keyword_opportunities.slice(0, 5)) {
-      logAgent('seo_expert', '关键词机会', 'success', `"${kw.keyword}" - ${kw.suggestion}`);
+      logAgent('seo_expert', '关键词机会', 'success', `"${kw.keyword}" - ${kw.suggestion}`, aiMeta);
     }
   }
 
   // 记录需要更新的文章
   if (data.content_update_plan?.length > 0) {
     for (const item of data.content_update_plan) {
-      logAgent('seo_expert', '待更新内容', 'success', `[${item.priority}] ${item.page_slug}: ${item.reason}`);
+      logAgent('seo_expert', '待更新内容', 'success', `[${item.priority}] ${item.page_slug}: ${item.reason}`, aiMeta);
     }
   }
 
