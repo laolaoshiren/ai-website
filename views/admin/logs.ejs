@@ -12,10 +12,9 @@
         <% statusRoles.forEach(function(role) { %>
           <% var s = agentStatuses[role] || { dotClass: 'dot-gray', displayText: '空闲' }; %>
           <% var statusText = s.displayText || s.current_task || '空闲'; %>
-          <% var roleNames = { site_manager: '站长', editor: '编辑', reviewer: '审核', technician: '技术员', news_collector: '新闻采集', writer: '写手', planner: '规划师', polisher: '润色师', seo_expert: 'SEO专家', analyzer: '分析师', user_tester: '测评员' }; %>
           <div class="agent-card">
             <span class="status-dot <%= s.dotClass || 'dot-gray' %>"></span>
-            <strong><%= (typeof agentRoleNames !== 'undefined' ? agentRoleNames[role] : roleNames[role]) || role %></strong>
+            <strong><%= (typeof agentRoleNames !== 'undefined' ? agentRoleNames[role] : role) || role %></strong>
             <span class="agent-task"><%= statusText %></span>
           </div>
         <% }); %>
@@ -39,24 +38,27 @@
           <th>时间</th>
           <th>角色</th>
           <th>操作</th>
+          <th>AI 提供商</th>
+          <th>模型</th>
           <th>状态</th>
           <th>详情</th>
         </tr>
       </thead>
       <tbody>
         <% if (logs.length > 0) { %>
-          <% var roleNames = { site_manager: '站长', editor: '编辑', reviewer: '审核', technician: '技术员', news_collector: '新闻采集', writer: '写手', planner: '规划师', polisher: '润色师', seo_expert: 'SEO专家', analyzer: '分析师', user_tester: '测评员' }; %>
           <% logs.forEach(function(log) { %>
             <tr>
               <td class="td-time"><%= log.created_at || '' %></td>
-              <td><span class="agent-badge"><%= roleNames[log.agent_role] || log.agent_role %></span></td>
+              <td><span class="agent-badge"><%= (typeof agentRoleNames !== 'undefined' ? agentRoleNames[log.agent_role] : log.agent_role) || log.agent_role %></span></td>
               <td><%= log.action %></td>
+              <td><%= log.ai_provider || '-' %></td>
+              <td><code><%= log.ai_model || '-' %></code></td>
               <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
               <td class="td-detail"><%= (log.detail || '').slice(0, 80) %></td>
             </tr>
           <% }); %>
         <% } else { %>
-          <tr><td colspan="5" style="text-align:center">暂无日志</td></tr>
+          <tr><td colspan="7" style="text-align:center">暂无日志</td></tr>
         <% } %>
       </tbody>
     </table>

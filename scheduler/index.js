@@ -8,6 +8,10 @@ const { logArticleOutcome } = require('./article-outcome');
 
 const cronJobs = [];
 
+function aiMeta(result = {}) {
+  return { provider: result.provider || '', model: result.model || '' };
+}
+
 const AGENT_ROLES = {
   news_collector: 'news_collector',
   plan_structure: 'planner',
@@ -43,7 +47,7 @@ async function executeTask(taskType) {
       case 'plan_structure': {
         const { planStructure } = require('../ai/planner');
         result = await planStructure();
-        logAgent('planner', '结构规划', 'success', `完成: ${result.categories} 个栏目, ${result.articles} 篇计划`);
+        logAgent('planner', '结构规划', 'success', `完成: ${result.categories} 个栏目, ${result.articles} 篇计划`, aiMeta(result));
         break;
       }
       case 'generate_content': {
@@ -78,14 +82,14 @@ async function executeTask(taskType) {
         const { updateSEO } = require('../ai/seo-agent');
         logAgent('seo_expert', 'SEO优化', 'running', '正在更新 Sitemap 和 SEO 文件...');
         result = await updateSEO();
-        logAgent('seo_expert', 'SEO优化', 'success', `完成: ${result.pages} 个页面`);
+        logAgent('seo_expert', 'SEO优化', 'success', `完成: ${result.pages} 个页面`, aiMeta(result));
         break;
       }
       case 'analyze': {
         const { analyzeAndAdapt } = require('../ai/analyzer');
         logAgent('analyzer', '数据分析', 'running', '正在分析流量数据...');
         result = await analyzeAndAdapt();
-        logAgent('analyzer', '数据分析', 'success', `完成: ${result.insights} 条洞察`);
+        logAgent('analyzer', '数据分析', 'success', `完成: ${result.insights} 条洞察`, aiMeta(result));
         break;
       }
       case 'template_review':
@@ -103,7 +107,7 @@ async function executeTask(taskType) {
           try {
             const { planStructure } = require('../ai/planner');
             const planResult = await planStructure();
-            logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`);
+            logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`, aiMeta(planResult));
             planned = claimPlannedPages(2, workerId, 45);
           } catch (err) {
             logAgent('planner', '补充规划', 'failed', err.message);
@@ -219,7 +223,7 @@ async function coldStart() {
   logAgent('planner', '结构规划', 'running', '规划网站结构和内容计划...');
   const { planStructure } = require('../ai/planner');
   const planResult = await planStructure();
-  logAgent('planner', '结构规划', 'success', `创建了 ${planResult.categories} 个栏目, ${planResult.articles} 篇计划`);
+  logAgent('planner', '结构规划', 'success', `创建了 ${planResult.categories} 个栏目, ${planResult.articles} 篇计划`, aiMeta(planResult));
 
   // 2. 批量生成文章（8篇，并发3路加速）
   const planned = claimPlannedPages(8, `cold-start-${Date.now()}`, 60);

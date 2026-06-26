@@ -12,7 +12,7 @@ async function analyzeAndAdapt() {
   const recentArticles = getPublishedPages(20);
 
   const messages = getAnalyzerPrompt(analyticsSummary, categories, recentArticles);
-  const { data, model, tokensUsed } = await callAIForJSON(messages, {
+  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
     taskType: 'analyze',
     maxTokens: 4096,
   });
@@ -51,7 +51,7 @@ async function analyzeAndAdapt() {
     }
   }
 
-  return { insights: data.insights?.length || 0, actions, model, tokensUsed };
+  return { insights: data.insights?.length || 0, actions, model, tokensUsed, provider };
 }
 
 module.exports = { analyzeAndAdapt };

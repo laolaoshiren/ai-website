@@ -78,6 +78,7 @@ async function generateArticle(page) {
     maxTokens: 8192,
     temperature: 0.75,
   });
+  const aiMeta = { provider, model };
 
   // 发布前去 AI 味质检与自动重写
   const prepared = await prepareArticleForPublication(data, {
@@ -88,11 +89,11 @@ async function generateArticle(page) {
   });
   const finalData = prepared.article;
   if (prepared.meta.style_status === 'rewritten') {
-    logAgent('editor', '去AI味重写', 'success', `已重写: ${finalData.title} (${prepared.meta.style_score}分)`);
+    logAgent('editor', '去AI味重写', 'success', `已重写: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
   } else if (!prepared.publishable) {
-    logAgent('editor', '去AI味质检', 'failed', `未达标，保留待写重试: ${finalData.title} (${prepared.meta.style_score}分)`);
+    logAgent('editor', '去AI味质检', 'failed', `未达标，保留待写重试: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
   } else {
-    logAgent('editor', '去AI味质检', 'success', `通过: ${finalData.title} (${prepared.meta.style_score}分)`);
+    logAgent('editor', '去AI味质检', 'success', `通过: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
   }
 
   // 渲染

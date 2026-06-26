@@ -9,6 +9,10 @@ function scoreSuffix(result) {
 function buildArticleOutcomeLogs(page, result, options = {}) {
   const title = result?.title || page?.title || '未命名文章';
   const reviewerAction = options.reviewerAction || '审核文章';
+  const meta = {
+    provider: result?.provider || '',
+    model: result?.model || '',
+  };
 
   if (result?.published) {
     return [
@@ -17,12 +21,14 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
         action: '撰写文章',
         status: 'success',
         detail: `完成: ${title}${providerSuffix(result)}`,
+        meta,
       },
       {
         role: 'reviewer',
         action: reviewerAction,
         status: 'success',
         detail: `通过: ${title}`,
+        meta,
       },
     ];
   }
@@ -33,19 +39,21 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
       action: '撰写文章',
       status: 'success',
       detail: `生成待重写: ${title}${providerSuffix(result)}`,
+      meta,
     },
     {
       role: 'reviewer',
       action: reviewerAction,
       status: 'failed',
       detail: `未发布，等待重写: ${title}${scoreSuffix(result)}`,
+      meta,
     },
   ];
 }
 
 function logArticleOutcome(logAgent, page, result, options = {}) {
   for (const entry of buildArticleOutcomeLogs(page, result, options)) {
-    logAgent(entry.role, entry.action, entry.status, entry.detail);
+    logAgent(entry.role, entry.action, entry.status, entry.detail, entry.meta);
   }
 }
 

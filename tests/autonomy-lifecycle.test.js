@@ -122,12 +122,14 @@ test('article outcome logs do not approve unpublished drafts', () => {
       action: '撰写文章',
       status: 'success',
       detail: '生成待重写: 质检未通过的文章 (provider-a)',
+      meta: { provider: 'provider-a', model: '' },
     },
     {
       role: 'reviewer',
       action: '审核文章',
       status: 'failed',
       detail: '未发布，等待重写: 质检未通过的文章 (72分)',
+      meta: { provider: 'provider-a', model: '' },
     },
   ]);
 });

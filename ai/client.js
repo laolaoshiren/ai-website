@@ -176,7 +176,7 @@ async function callProvider(provider, messages, options = {}) {
   const tokensUsed = data.usage?.total_tokens || 0;
   const toolCalls = data.choices?.[0]?.message?.tool_calls || null;
 
-  return { content, model: data.model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
+  return { content, model: data.model || model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
 }
 
 /**
