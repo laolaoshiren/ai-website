@@ -70,3 +70,48 @@ test('admin logs view renders AI provider and model columns', async () => {
   assert.match(html, /OpenRouter/);
   assert.match(html, /gpt-4\.1-mini/);
 });
+
+test('admin dashboard recent logs render AI provider and model columns', async () => {
+  const { enrichAgentLogAI } = require('../routes/agent-log-ai');
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'dashboard.ejs'),
+    {
+      title: 'Dashboard',
+      currentPath: '/admin',
+      csrfToken: 'token',
+      stats: {
+        totalArticles: 1,
+        totalPlanned: 0,
+        totalCategories: 1,
+        totalPageviews: 0,
+        activeProviders: 1,
+        totalProviders: 1,
+      },
+      agentLogs: [
+        enrichAgentLogAI({
+          agent_role: 'writer',
+          action: '撰写文章',
+          status: 'success',
+          detail: '完成: demo',
+          meta: { provider: 'OpenRouter', model: 'gpt-4.1-mini' },
+          created_at: '2026-06-27 10:00:00',
+        }),
+      ],
+      agentStatuses: {},
+      agentRoles: ['writer'],
+      agentRoleNames: { writer: '写手' },
+      schedules: [],
+      outage: { active: false },
+      rageStatus: { active: false, level: 3 },
+      workMode: 'smart',
+      getConfig: () => ({ ai_loop_enabled: '0' }),
+      success: '',
+      error: '',
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /AI/);
+  assert.match(html, /OpenRouter/);
+  assert.match(html, /gpt-4\.1-mini/);
+});

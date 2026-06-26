@@ -85,7 +85,7 @@
   <div class="admin-panel">
     <h2>📜 最近 Agent 日志</h2>
     <table class="admin-table">
-      <thead><tr><th>时间</th><th>角色</th><th>操作</th><th>状态</th><th>详情</th></tr></thead>
+      <thead><tr><th>时间</th><th>角色</th><th>操作</th><th>AI 提供商</th><th>模型</th><th>状态</th><th>详情</th></tr></thead>
       <tbody>
         <% if (agentLogs.length > 0) { %>
           <% agentLogs.slice(0, 15).forEach(function(log) { %>
@@ -93,12 +93,14 @@
             <td class="td-time"><%= log.created_at || '' %></td>
             <td><span class="agent-badge"><%= roleNames[log.agent_role] || log.agent_role %></span></td>
             <td><%= log.action %></td>
+            <td><%= log.ai_provider || '-' %></td>
+            <td><code><%= log.ai_model || '-' %></code></td>
             <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
             <td class="td-detail"><%= (log.detail || '').slice(0, 60) %></td>
           </tr>
           <% }); %>
         <% } else { %>
-          <tr><td colspan="5" style="text-align:center">暂无日志</td></tr>
+          <tr><td colspan="7" style="text-align:center">暂无日志</td></tr>
         <% } %>
       </tbody>
     </table>
