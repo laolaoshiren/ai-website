@@ -8,7 +8,7 @@
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
   <!-- 添加/编辑表单 -->
-  <div id="providerForm" class="admin-panel" style="display:none">
+  <div id="providerForm" class="admin-panel provider-form-panel" style="display:none">
     <h2 id="formTitle">添加新提供商</h2>
     <form method="POST" id="providerFormInner" action="/admin/providers/add">
       <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
@@ -57,15 +57,21 @@
       </div>
       <div class="provider-actions">
         <button type="button" class="btn btn-sm btn-outline" onclick='editProvider(<%= JSON.stringify({id:p.id,name:p.name,base_url:p.base_url,api_key:p.api_key,model:p.model}) %>)'>✏️ 编辑</button>
-        <form method="POST" action="/admin/providers/<%= p.id %>/test" style="display:inline">
-          <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-sm btn-outline">🔌 测试</button></form>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline"
+          data-provider-test-button
+          data-provider-test-url="/admin/providers/<%= p.id %>/test"
+          data-provider-test-result="provider-test-result-<%= p.id %>"
+          data-csrf-token="<%= csrfToken %>"
+        >🔌 测试</button>
         <form method="POST" action="/admin/providers/<%= p.id %>/toggle" style="display:inline">
           <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
           <button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
         <form method="POST" action="/admin/providers/<%= p.id %>/delete" style="display:inline">
           <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
           <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️ 删除</button></form>
+        <div id="provider-test-result-<%= p.id %>" class="provider-test-result" role="status" aria-live="polite"></div>
       </div>
     </div>
     <% }); %>
@@ -101,4 +107,53 @@ function editProvider(p) {
 function hideForm() {
   document.getElementById('providerForm').style.display = 'none';
 }
+
+function setProviderTestResult(resultEl, state, message) {
+  if (!resultEl) return;
+  resultEl.className = 'provider-test-result ' + state;
+  resultEl.textContent = message;
+}
+
+async function testProvider(event) {
+  event.preventDefault();
+  var button = event.currentTarget;
+  var resultEl = document.getElementById(button.dataset.providerTestResult);
+  var csrfToken = button.dataset.csrfToken || '';
+  var originalText = button.textContent;
+  var body = new URLSearchParams();
+  body.set('csrf_token', csrfToken);
+
+  button.disabled = true;
+  button.textContent = '测试中...';
+  setProviderTestResult(resultEl, 'is-loading', '正在测试连接...');
+
+  try {
+    var response = await fetch(button.dataset.providerTestUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: body.toString(),
+    });
+    var data = {};
+    try { data = await response.json(); } catch (err) { data = { success: false, error: '测试接口返回异常' }; }
+    if (response.ok && data.success) {
+      setProviderTestResult(resultEl, 'is-success', '连接成功：' + (data.message || data.model || 'Provider 可用'));
+    } else {
+      setProviderTestResult(resultEl, 'is-error', '连接失败：' + (data.error || data.message || ('HTTP ' + response.status)));
+    }
+  } catch (err) {
+    setProviderTestResult(resultEl, 'is-error', '连接失败：' + err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+document.querySelectorAll('[data-provider-test-button]').forEach(function(button) {
+  button.addEventListener('click', testProvider);
+});
 </script>
