@@ -28,6 +28,62 @@
   <div class="alert alert-warning">⚠️ 还没有可用的 AI 提供商！请前往 <a href="/admin/providers">AI 提供商</a> 添加。</div>
   <% } %>
 
+  <% var brief = typeof activityBrief !== 'undefined' ? activityBrief : null; %>
+  <% if (brief) { %>
+  <div class="admin-panel activity-brief-panel">
+    <div class="panel-title-row">
+      <h2>系统运行简报</h2>
+      <span class="panel-subtle"><%= brief.generatedAt || '' %></span>
+    </div>
+    <div class="brief-health-grid">
+      <% (brief.health || []).forEach(function(item) { %>
+      <div class="brief-health-item brief-tone-<%= item.tone || 'info' %>">
+        <span><%= item.label %></span>
+        <strong><%= item.value %></strong>
+      </div>
+      <% }); %>
+      <div class="brief-health-item brief-tone-<%= brief.moa && brief.moa.enabled ? 'success' : 'muted' %>">
+        <span>MoA 模式</span>
+        <strong><%= brief.moa && brief.moa.enabled ? '已开启' : '未开启' %></strong>
+      </div>
+    </div>
+    <% if (brief.moa && brief.moa.latest) { %>
+    <div class="brief-moa-card">
+      <div>
+        <span class="brief-kicker">最近 MoA</span>
+        <strong><%= brief.moa.latest.modeLabel %><%= brief.moa.latest.model ? ' / ' + brief.moa.latest.model : '' %></strong>
+        <p>
+          候选 <%= brief.moa.latest.candidateCount || 0 %> 个
+          <% if ((brief.moa.latest.failedCandidates || 0) > 0) { %>，失败 <%= brief.moa.latest.failedCandidates %> 个<% } %>
+          <% if (brief.moa.latest.time) { %>，<%= brief.moa.latest.time %><% } %>
+        </p>
+        <% if (brief.moa.latest.note) { %><small><%= brief.moa.latest.note.slice(0, 90) %></small><% } %>
+      </div>
+      <% if (brief.moa.latest.candidates && brief.moa.latest.candidates.length) { %>
+      <div class="brief-model-tags">
+        <% brief.moa.latest.candidates.forEach(function(candidate) { %><code><%= candidate %></code><% }); %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+    <div class="brief-timeline">
+      <% if (brief.actions && brief.actions.length > 0) { %>
+        <% brief.actions.slice(0, 6).forEach(function(action) { %>
+        <div class="brief-action">
+          <span class="status-badge status-<%= action.statusClass || 'planned' %>"><%= action.status %></span>
+          <div>
+            <strong><%= action.summary %></strong>
+            <p><%= action.time || '' %><% if (action.method) { %> · <%= action.method %><% } %></p>
+          </div>
+        </div>
+        <% }); %>
+      <% } else { %>
+        <div class="brief-empty">暂无系统动作记录</div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-number"><%= stats.totalArticles %></div><div class="stat-label">已发布文章</div></div>
     <div class="stat-card"><div class="stat-number"><%= stats.totalPlanned %></div><div class="stat-label">待生成计划</div></div>

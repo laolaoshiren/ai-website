@@ -105,3 +105,16 @@ test('MoA JSON parse failures should fall back to single-model JSON generation',
     false
   );
 });
+
+test('single-model fallback results keep the MoA failure reason', () => {
+  const { applyMoAFallbackMarker } = require('../ai/client');
+
+  const result = applyMoAFallbackMarker(
+    { provider: 'OpenRouter', model: 'gpt-4.1-mini', content: 'ok' },
+    new Error('MoA 候选结果不足')
+  );
+
+  assert.equal(result.moaFallback, true);
+  assert.equal(result.moaError, 'MoA 候选结果不足');
+  assert.equal(result.provider, 'OpenRouter');
+});

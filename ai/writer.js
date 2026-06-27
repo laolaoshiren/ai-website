@@ -69,6 +69,28 @@ function buildQualityRetryGuidance(page = {}) {
   return lines.join('\n');
 }
 
+function compactMoACandidates(candidates = []) {
+  return (Array.isArray(candidates) ? candidates : [])
+    .map((candidate) => ({
+      provider: candidate.provider || candidate.name || '',
+      model: candidate.model || '',
+    }))
+    .filter((candidate) => candidate.provider || candidate.model);
+}
+
+function buildAIMeta(result = {}) {
+  const aiMode = result.moaFallback ? 'moa_fallback' : result.moa ? 'moa' : 'single';
+  return {
+    provider: result.provider || '',
+    model: result.model || '',
+    tokensUsed: result.tokensUsed || 0,
+    ai_mode: aiMode,
+    moa_candidates: compactMoACandidates(result.candidates),
+    moa_failed_candidates: Number(result.failedCandidates || 0),
+    moa_error: result.moaError || '',
+  };
+}
+
 async function generateArticle(page) {
   const { getPublishedPages, updatePage, getCategories, logAgent, retryTimeAfterAttempts } = require('../db/database');
 
@@ -98,12 +120,13 @@ async function generateArticle(page) {
   const messages = getWriterPrompt(page.title, category, keywords, page.summary, existingArticles, searchResults, {
     qualityRetryGuidance: buildQualityRetryGuidance(page),
   });
-  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
+  const aiResult = await callAIForJSON(messages, {
     taskType: 'generate_content',
     maxTokens: 8192,
     temperature: 0.75,
   });
-  const aiMeta = { provider, model };
+  const { data, model, tokensUsed, provider } = aiResult;
+  const aiMeta = buildAIMeta(aiResult);
 
   // 发布前去 AI 味质检与自动重写
   const prepared = await prepareArticleForPublication(data, {
@@ -143,6 +166,13 @@ async function generateArticle(page) {
     claimed_by: null,
     claimed_at: null,
     lock_expires_at: null,
+    ai_mode: aiMeta.ai_mode,
+    ai_provider: provider || '',
+    ai_model: model || '',
+    ai_tokens_used: tokensUsed || 0,
+    ai_moa_candidates: JSON.stringify(aiMeta.moa_candidates || []),
+    ai_moa_failed_candidates: aiMeta.moa_failed_candidates || 0,
+    ai_moa_error: aiMeta.moa_error || null,
     ...prepared.meta,
   });
 
@@ -151,10 +181,14 @@ async function generateArticle(page) {
     model,
     provider,
     tokensUsed,
+    ai_mode: aiMeta.ai_mode,
+    moa_candidates: aiMeta.moa_candidates,
+    moa_failed_candidates: aiMeta.moa_failed_candidates,
+    moa_error: aiMeta.moa_error,
     searchUsed: searchResults.length > 0,
     styleScore: prepared.meta.style_score,
     published: prepared.publishable,
   };
 }
 
-module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance };
+module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta };
