@@ -73,6 +73,10 @@ function readThemeTemplate(id, pageName, options = {}) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function normalizeTemplateRuntimeContent(content) {
+  return String(content ?? '').replace(/href=(["'])\/assets\/theme\.css\1/g, 'href="<%= themeAssetUrl %>"');
+}
+
 function defaultSampleData() {
   return {
     siteTitle: 'AI 智能网站',
@@ -115,9 +119,10 @@ function defaultSampleData() {
 function renderThemeTemplate(id, pageName, data = {}, options = {}) {
   const dir = themeDir(id, options);
   const filePath = path.join(dir, 'templates', `${pageName}.ejs`);
-  const template = fs.readFileSync(filePath, 'utf8');
+  const template = normalizeTemplateRuntimeContent(fs.readFileSync(filePath, 'utf8'));
   const locals = { ...defaultSampleData(), ...data, pageName };
   locals.themeAssetUrl = data.themeAssetUrl || themeAssetUrl(id);
+  locals.query = locals.query ?? locals.q ?? '';
   locals.site = locals.site || {
     title: locals.siteTitle,
     description: locals.siteDescription,
@@ -125,6 +130,17 @@ function renderThemeTemplate(id, pageName, data = {}, options = {}) {
     url: locals.siteUrl,
   };
   locals.post = locals.post || locals.article;
+  locals.partial = (partialPath, partialData = {}) => {
+    let normalized = normalizePath(partialPath);
+    if (!normalized.startsWith('partials/')) normalized = `partials/${normalized}`;
+    if (!normalized.endsWith('.ejs')) normalized += '.ejs';
+    const partialFile = assertThemePathSafe(dir, path.join(dir, normalized));
+    if (!partialFile.startsWith(path.join(dir, 'partials') + path.sep)) {
+      throw new Error(`unsafe partial path: ${partialPath}`);
+    }
+    const partialTemplate = normalizeTemplateRuntimeContent(fs.readFileSync(partialFile, 'utf8'));
+    return ejs.render(partialTemplate, { ...locals, ...partialData }, { filename: partialFile });
+  };
   return ejs.render(template, locals, { filename: filePath });
 }
 

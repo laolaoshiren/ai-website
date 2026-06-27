@@ -253,3 +253,39 @@ test('theme engine tolerates common AI aliases and normalizes asset URLs', async
   assert.equal(report.pass, true);
   assert.match(html, /\/themes\/alias-theme\/assets\/theme\.css/);
 });
+
+test('theme renderer provides a safe partial helper for generated templates', async () => {
+  const root = makeTempRoot();
+  const { saveGeneratedTheme, reviewTheme, renderThemeTemplate } = require('../ai/theme-engine');
+  const pkg = {
+    manifest: {
+      name: 'Partial Helper',
+      version: '1.0.0',
+      site_type: 'blog',
+      templates: ['home', 'article', 'category', 'archive', 'search', '404'],
+      partials: ['header', 'footer', 'article-card', 'pagination'],
+      assets: ['assets/theme.css'],
+    },
+    files: {
+      'templates/home.ejs': '<html><head><title><%= site.title %></title><link rel="stylesheet" href="/assets/theme.css"></head><body><%- partial("partials/header") %><main><h1>Home</h1></main></body></html>',
+      'templates/article.ejs': '<html><head><meta name="description" content="<%= post.summary %>"></head><body><%- partial("partials/header") %><article><%= post.title %></article></body></html>',
+      'templates/category.ejs': '<html><body><%- partial("partials/header") %><h1><%= category.name %></h1></body></html>',
+      'templates/archive.ejs': '<html><body><%- partial("partials/header") %><h1>Archive</h1></body></html>',
+      'templates/search.ejs': '<html><body><%- partial("partials/header") %><h1><%= query || q || "Search" %></h1></body></html>',
+      'templates/404.ejs': '<html><body><%- partial("partials/header") %><h1>404</h1></body></html>',
+      'partials/header.ejs': '<header><%= site.title %></header>',
+      'partials/footer.ejs': '<footer></footer>',
+      'partials/article-card.ejs': '<div></div>',
+      'partials/pagination.ejs': '<nav></nav>',
+      'assets/theme.css': 'body{background:#fff;color:#111;font-family:sans-serif}',
+    },
+  };
+
+  saveGeneratedTheme(pkg, { rootDir: root, id: 'partial-helper' });
+  const report = await reviewTheme('partial-helper', { rootDir: root });
+  const html = renderThemeTemplate('partial-helper', 'home', {}, { rootDir: root });
+
+  assert.equal(report.pass, true);
+  assert.match(html, /<header>/);
+  assert.match(html, /\/themes\/partial-helper\/assets\/theme\.css/);
+});
