@@ -35,6 +35,7 @@ const FALLBACK_CATEGORY = {
   description: '自动兜底栏目，确保文章始终归属到有效栏目。',
   sort_order: 999,
 };
+const MIN_PUBLISHED_TEXT_LENGTH = 800;
 
 function _invalidateCache() {
   _cache.categories.ts = 0;
@@ -132,7 +133,10 @@ async function initDb() {
     }
   }
 
-  if (repairExistingPageCategories() > 0) saveDb();
+  const repairedCategories = repairExistingPageCategories();
+  const recoveredWriting = recoverExpiredWritingPages('startup');
+  const repairedContent = repairPublishedContentQuality('startup');
+  if (repairedCategories + recoveredWriting + repairedContent > 0) saveDb();
 
   return data;
 }
@@ -179,6 +183,24 @@ function retryTimeAfterAttempts(attemptCount) {
   return timeAfterMinutes(Math.min(360, attempts * 15));
 }
 
+function plainContentText(page = {}) {
+  return String(page.content_html || page.content_md || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[`*_>#|~-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function publishedContentQualityIssue(page = {}) {
+  if (page.status !== 'published') return null;
+  const text = plainContentText(page);
+  if (!text) return 'empty_body';
+  if (text.length < MIN_PUBLISHED_TEXT_LENGTH) return 'thin_body';
+  return null;
+}
+
 function sortedCategories(excludeId = null) {
   return getDb().categories
     .filter(c => c.id !== excludeId)
@@ -223,6 +245,54 @@ function repairExistingPageCategories() {
         page.updated_at = now();
         repaired++;
       }
+    }
+
+    if (repaired > 0) scheduleSave();
+    return repaired;
+  });
+}
+
+function recoverExpiredWritingPages(reason = 'maintenance') {
+  return withLock(() => {
+    const nowStr = now();
+    let recovered = 0;
+
+    for (const page of getDb().pages) {
+      if (page.status !== 'writing') continue;
+      if (!page.lock_expires_at || page.lock_expires_at > nowStr) continue;
+      page.status = 'planned';
+      page.claimed_by = null;
+      page.claimed_at = null;
+      page.lock_expires_at = null;
+      page.next_retry_at = null;
+      page.last_error = `expired_writing_lock:${reason}`;
+      page.updated_at = nowStr;
+      recovered++;
+    }
+
+    if (recovered > 0) scheduleSave();
+    return recovered;
+  });
+}
+
+function repairPublishedContentQuality(reason = 'maintenance') {
+  return withLock(() => {
+    const nowStr = now();
+    let repaired = 0;
+
+    for (const page of getDb().pages) {
+      const issue = publishedContentQualityIssue(page);
+      if (!issue) continue;
+      page.status = 'planned';
+      page.published_at = null;
+      page.featured = 0;
+      page.claimed_by = null;
+      page.claimed_at = null;
+      page.lock_expires_at = null;
+      page.next_retry_at = null;
+      page.last_error = `content_quality_repair:${issue}:${reason}`;
+      page.updated_at = nowStr;
+      repaired++;
     }
 
     if (repaired > 0) scheduleSave();
@@ -616,7 +686,7 @@ module.exports = {
   getSetting, setSetting, getAllSettings,
   logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
-  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, repairExistingPageCategories, insertPage, updatePage, deletePage,
+  getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, repairExistingPageCategories, recoverExpiredWritingPages, repairPublishedContentQuality, insertPage, updatePage, deletePage,
   enrichPage, getStats,
   recordAnalytics, getAnalyticsSummary,
   getSchedules, updateScheduleLastRun, getScheduleByType, addSchedule, updateSchedule, deleteSchedule,

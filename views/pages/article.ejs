@@ -187,32 +187,6 @@
         }
       }
 
-      var startTime = Date.now();
-      var maxScroll = 0;
-      var pageSlug = '<%= article.slug %>';
-
-      fetch('/api/analytics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page_slug: pageSlug, event_type: 'pageview' })
-      }).catch(function(){});
-
-      window.addEventListener('scroll', function() {
-        var scrollPercent = Math.round((window.scrollY + window.innerHeight) / document.body.scrollHeight * 100);
-        if (scrollPercent > maxScroll) maxScroll = scrollPercent;
-      });
-
-      window.addEventListener('beforeunload', function() {
-        var duration = Math.round((Date.now() - startTime) / 1000);
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon('/api/analytics', JSON.stringify({
-            page_slug: pageSlug, event_type: 'time_on_page', value: duration
-          }));
-          navigator.sendBeacon('/api/analytics', JSON.stringify({
-            page_slug: pageSlug, event_type: 'scroll_depth', value: maxScroll
-          }));
-        }
-      });
     })();
     </script>
 

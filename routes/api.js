@@ -8,7 +8,8 @@ const { recordAnalytics, getPageBySlug, getStats } = require('../db/database');
 
 // 简单限流：每 IP 每分钟最多 30 次
 const rateLimitMap = new Map();
-setInterval(() => rateLimitMap.clear(), 60000);
+const rateLimitCleanupTimer = setInterval(() => rateLimitMap.clear(), 60000);
+if (rateLimitCleanupTimer.unref) rateLimitCleanupTimer.unref();
 function rateLimit(req, res, next) {
   const ip = req.ip;
   const count = rateLimitMap.get(ip) || 0;
@@ -17,10 +18,34 @@ function rateLimit(req, res, next) {
   next();
 }
 
+function normalizePageSlug(pageSlug) {
+  let slug = String(pageSlug || '').trim();
+  if (slug.startsWith('/article/')) slug = slug.slice('/article/'.length);
+  slug = slug.replace(/^\/+/, '');
+  try { slug = decodeURIComponent(slug); } catch {}
+  return slug;
+}
+
+function normalizeAnalyticsPayload(body) {
+  let input = body || {};
+  if (typeof input === 'string') {
+    try { input = JSON.parse(input); } catch { input = {}; }
+  }
+  const value = input.value === undefined || input.value === null || input.value === ''
+    ? null
+    : Number(input.value);
+  return {
+    page_slug: normalizePageSlug(input.page_slug),
+    event_type: String(input.event_type || '').trim(),
+    value: Number.isFinite(value) ? value : null,
+    referrer: input.referrer || null,
+  };
+}
+
 // 接收分析数据
 router.post('/analytics', rateLimit, (req, res) => {
   try {
-    const { page_slug, event_type, value, referrer } = req.body;
+    const { page_slug, event_type, value, referrer } = normalizeAnalyticsPayload(req.body);
     if (!page_slug || !event_type) {
       return res.status(400).json({ error: '缺少必要参数' });
     }
@@ -31,7 +56,7 @@ router.post('/analytics', rateLimit, (req, res) => {
       page_id: page?.id || null,
       page_slug,
       event_type,
-      value: value ? parseFloat(value) : null,
+      value,
       referrer: referrer || req.get('referer') || null,
       user_agent: req.get('user-agent') || null,
       ip_hash,
@@ -50,3 +75,4 @@ router.get('/health', (req, res) => {
 });
 
 module.exports = router;
+module.exports.normalizeAnalyticsPayload = normalizeAnalyticsPayload;

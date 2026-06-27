@@ -61,6 +61,7 @@ const SUMMARY_OPENERS = [
 
 const HEADING_SHELL = /^(?:引言|导语|结语|总结|展望|[一二三四五六七八九十]+[、.．]|第[一二三四五六七八九十]+[章节]|[0-9]+(?:\.[0-9]+)?\s*)/;
 const FACT_ANCHOR = /(?:\d+(?:\.\d+)?%?|\d{4}年|\d+月|[A-Za-z][A-Za-z0-9+#.-]{2,}|据.{1,12}(?:报道|数据|报告)|根据.{1,18}(?:数据|报告|披露)|https?:\/\/)/g;
+const MIN_BODY_LENGTH = 800;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -109,6 +110,24 @@ function auditArticleStyle(draft, options = {}) {
   const fullText = [title, summary, body].filter(Boolean).join('\n');
   const headings = extractHeadings(content);
   const issues = [];
+
+  if (!body) {
+    addIssue(
+      issues,
+      'empty_body',
+      '正文为空',
+      5,
+      '文章没有可阅读正文，不能发布到前台、RSS 或 sitemap。'
+    );
+  } else if (body.length < MIN_BODY_LENGTH) {
+    addIssue(
+      issues,
+      'thin_body',
+      '正文信息量不足',
+      3,
+      `正文只有 ${body.length} 字，低于 ${MIN_BODY_LENGTH} 字的发布门槛。`
+    );
+  }
 
   const titleTermCount = countTerms(title, FORMULAIC_TITLE_TERMS);
   if (title.length > 34 || titleTermCount >= 2 || /20\d{2}年.+[：:]/.test(title)) {
