@@ -26,6 +26,16 @@
       </div>
     </div>
 
+    <div class="admin-panel" style="margin-top:1.5rem">
+      <h2>MoA 模型协作</h2>
+      <p class="text-muted" style="margin-bottom:1rem">开启后，文章生成和去 AI 味重写会尝试多个模型并行产出候选稿，再由聚合模型综合为最终结果。MoA 失败时会自动回退到现有单模型流程；关闭后保持当前逻辑不变。</p>
+      <input type="hidden" name="moa_enabled" value="0">
+      <label class="toggle-row" style="display:flex;align-items:center;gap:0.75rem">
+        <input type="checkbox" name="moa_enabled" value="1" <%= config.moa_enabled === '1' ? 'checked' : '' %>>
+        <span>启用 MoA 多模型协作模式</span>
+      </label>
+    </div>
+
     <div class="form-actions"><button type="submit" class="btn btn-primary btn-lg">💾 保存设置</button></div>
   </form>
 

@@ -18,6 +18,12 @@ const { validateCategoryInput } = require('../ai/category-policy');
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
 const loginAttempts = new Map(); // ip -> { count, lastAttempt }
 const LOGIN_LIMIT = 5;
+
+function normalizeSettingValue(value) {
+  if (Array.isArray(value)) return value[value.length - 1] ?? '';
+  return value;
+}
+
 const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 分钟
 
 // ============ 会话管理（持久化到数据库） ============
@@ -206,8 +212,8 @@ router.get('/settings', (req, res) => {
 
 router.post('/settings', requireCsrf, (req, res) => {
   try {
-    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key'];
-    for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, req.body[field]); }
+    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled'];
+    for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, normalizeSettingValue(req.body[field])); }
     refreshConfig();
     res.redirect('/admin/settings?success=1');
   } catch (err) { res.redirect('/admin/settings?error=' + encodeURIComponent(err.message)); }
@@ -604,3 +610,4 @@ router.post('/friend-links/:id/delete', requireCsrf, (req, res) => {
 });
 
 module.exports = router;
+module.exports.normalizeSettingValue = normalizeSettingValue;
