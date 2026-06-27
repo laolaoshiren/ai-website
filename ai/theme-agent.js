@@ -77,6 +77,10 @@ a{color:inherit;text-decoration:none}.site-header,.site-footer{max-width:1180px;
 @media(max-width:720px){.theme-page{padding:16px}.hero{padding:34px 0 22px}.content-grid{grid-template-columns:1fr}.site-header,.site-footer{padding:18px 16px}}`;
 }
 
+function normalizeTemplateContent(content) {
+  return String(content ?? '').replace(/href=(["'])\/assets\/theme\.css\1/g, 'href="<%= themeAssetUrl %>"');
+}
+
 function normalizePackage(raw = {}, site = {}) {
   const siteType = ALLOWED_SITE_TYPES.includes(site.site_type) ? site.site_type : 'cms';
   const manifest = {
@@ -92,6 +96,7 @@ function normalizePackage(raw = {}, site = {}) {
   for (const pageName of REQUIRED_TEMPLATES) {
     const filePath = `templates/${pageName}.ejs`;
     if (!files[filePath]) files[filePath] = defaultTemplate(pageName);
+    else files[filePath] = normalizeTemplateContent(files[filePath]);
   }
   for (const partial of REQUIRED_PARTIALS) {
     const filePath = `partials/${partial}.ejs`;

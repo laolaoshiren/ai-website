@@ -116,7 +116,16 @@ function renderThemeTemplate(id, pageName, data = {}, options = {}) {
   const dir = themeDir(id, options);
   const filePath = path.join(dir, 'templates', `${pageName}.ejs`);
   const template = fs.readFileSync(filePath, 'utf8');
-  return ejs.render(template, { ...defaultSampleData(), ...data, pageName }, { filename: filePath });
+  const locals = { ...defaultSampleData(), ...data, pageName };
+  locals.themeAssetUrl = data.themeAssetUrl || themeAssetUrl(id);
+  locals.site = locals.site || {
+    title: locals.siteTitle,
+    description: locals.siteDescription,
+    language: locals.siteLanguage,
+    url: locals.siteUrl,
+  };
+  locals.post = locals.post || locals.article;
+  return ejs.render(template, locals, { filename: filePath });
 }
 
 async function reviewTheme(id, options = {}) {
