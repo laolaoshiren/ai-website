@@ -77,6 +77,19 @@ function normalizeTemplateRuntimeContent(content) {
   return String(content ?? '').replace(/href=(["'])\/assets\/theme\.css\1/g, 'href="<%= themeAssetUrl %>"');
 }
 
+function normalizeThemePost(item = {}) {
+  const date = item.date || item.published_at || item.created_at || item.updated_at || '';
+  const category = item.category || item.category_name || '';
+  return { ...item, date, category };
+}
+
+function formatThemeDate(value) {
+  if (!value) return '';
+  const date = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return String(value).split(' ')[0] || '';
+  return date.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 function defaultSampleData() {
   return {
     siteTitle: 'AI 智能网站',
@@ -129,7 +142,16 @@ function renderThemeTemplate(id, pageName, data = {}, options = {}) {
     language: locals.siteLanguage,
     url: locals.siteUrl,
   };
-  locals.post = locals.post || locals.article;
+  const sourcePosts = Array.isArray(locals.posts)
+    ? locals.posts
+    : (Array.isArray(locals.articles) && locals.articles.length > 0)
+      ? locals.articles
+      : (Array.isArray(locals.latest) && locals.latest.length > 0)
+        ? locals.latest
+        : (Array.isArray(locals.allArticles) ? locals.allArticles : []);
+  locals.posts = sourcePosts.map(normalizeThemePost);
+  locals.post = normalizeThemePost(locals.post || locals.article);
+  locals.formatDate = locals.formatDate || formatThemeDate;
   locals.partial = (partialPath, partialData = {}) => {
     let normalized = normalizePath(partialPath);
     if (!normalized.startsWith('partials/')) normalized = `partials/${normalized}`;
