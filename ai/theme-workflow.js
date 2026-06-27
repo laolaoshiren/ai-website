@@ -46,15 +46,35 @@ async function generateAndReviewTheme(options = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     db.logAgent('technician', 'AI theme generation', 'running', `Generating ${siteType} frontend theme (${attempt}/${maxAttempts})`);
-    const pkg = await generateThemePackage({
-      site,
-      articles,
-      categories,
-      instruction,
-      callAIForJSON: options.callAIForJSON,
-    });
-    const saved = saveGeneratedTheme(pkg, options.themeEngineOptions || {});
-    const report = await reviewTheme(saved.id, { ...(options.themeEngineOptions || {}), enforceDifferentiation: true });
+    let pkg;
+    let saved;
+    let report;
+    try {
+      pkg = await generateThemePackage({
+        site,
+        articles,
+        categories,
+        instruction,
+        callAIForJSON: options.callAIForJSON,
+      });
+      saved = saveGeneratedTheme(pkg, options.themeEngineOptions || {});
+      report = await reviewTheme(saved.id, { ...(options.themeEngineOptions || {}), enforceDifferentiation: true });
+    } catch (err) {
+      report = {
+        pass: false,
+        score: 0,
+        issues: [`generation failed: ${err.message}`],
+      };
+      db.logAgent(
+        'technician',
+        'AI theme generation',
+        'failed',
+        `${report.issues[0]} (${attempt}/${maxAttempts})`,
+      );
+      lastResult = { themeId: null, package: null, saved: null, report, status: 'failed', attempt, attempts: maxAttempts };
+      instruction = retryInstruction(options.instruction || '', report, attempt);
+      continue;
+    }
     const status = report.pass ? 'preview' : 'failed';
 
     db.addAIThemeRecord({

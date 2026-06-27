@@ -103,3 +103,40 @@ test('theme workflow retries with reviewer feedback until a differentiated previ
   assert.equal(themes.filter(theme => theme.status === 'failed').length, 1);
   assert.equal(themes.filter(theme => theme.status === 'preview').length, 1);
 });
+
+test('theme workflow retries when AI returns an unusable theme response', async () => {
+  const rootDir = makeTempRoot();
+  const current = db.getDb();
+  current.ai_themes = [];
+  current.settings.site_title = 'AI 纪元';
+  current.settings.site_description = 'AI news';
+  current.settings.site_type = 'magazine';
+  refreshConfig();
+
+  let calls = 0;
+  const result = await require('../ai/theme-workflow').generateAndReviewTheme({
+    site_type: 'magazine',
+    instruction: 'Make a paper index.',
+    maxAttempts: 2,
+    themeEngineOptions: { rootDir },
+    callAIForJSON: async (messages) => {
+      calls += 1;
+      const promptText = messages.map(message => message.content).join('\n');
+      if (calls === 1) throw new Error('AI returned empty content');
+      assert.match(promptText, /generation failed|empty content/i);
+      return {
+        data: {
+          manifest: baseManifest('Paper Index After Error'),
+          files: requiredPages(
+            '<html><head><title><%= site.title %></title><link rel="stylesheet" href="<%= themeAssetUrl %>"></head><body class="paper-index"><main class="cover-sheet"><section class="masthead"><p>AI Review</p><h1><%= site.title %></h1></section><section class="issue-columns"><% posts.forEach(function(post){ %><article class="toc-row"><a href="/article/<%= post.slug %>"><%= post.title %></a></article><% }) %></section></main></body></html>',
+            'body{margin:0;background:#f6f0e6;color:#191715;font-family:Georgia,serif}.cover-sheet{min-height:100vh;padding:42px;display:flex;gap:36px}.masthead{writing-mode:vertical-rl;border-left:3px solid #191715;padding-left:20px}.issue-columns{columns:2 260px;column-gap:42px}.toc-row{break-inside:avoid;border-top:1px solid #191715;padding:16px 0}@media(max-width:720px){.cover-sheet{display:block;padding:24px}.masthead{writing-mode:horizontal-tb;border-left:0;border-bottom:3px solid #191715}.issue-columns{columns:1}}',
+          ),
+        },
+      };
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.report.pass, true);
+  assert.equal(result.status, 'preview');
+});
