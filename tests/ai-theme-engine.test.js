@@ -185,6 +185,40 @@ test('theme reviewer can reject themes that are too similar to the builtin layou
   assert.match(report.issues.join('\n'), /builtin|similar|differentiation/i);
 });
 
+test('theme reviewer rejects renamed dark tech card portals as builtin-like', async () => {
+  const root = makeTempRoot();
+  const { saveGeneratedTheme, reviewTheme } = require('../ai/theme-engine');
+  const pkg = {
+    manifest: {
+      name: 'Renamed Tech Portal',
+      version: '1.0.0',
+      site_type: 'magazine',
+      templates: ['home', 'article', 'category', 'archive', 'search', '404'],
+      partials: ['header', 'footer', 'article-card', 'pagination'],
+      assets: ['assets/theme.css'],
+    },
+    files: {
+      'templates/home.ejs': '<html><head><title><%= site.title %></title><link rel="stylesheet" href="<%= themeAssetUrl %>"></head><body class="cyber-journal"><header class="terminal-header"><div class="brand"><h1><%= site.title %></h1></div><nav class="command-nav"><ul class="nav-links"><% site.categories.forEach(function(category){ %><li><a href="/category/<%= category.slug %>"><%= category.name %></a></li><% }) %></ul></nav></header><main class="intel-dashboard"><section class="headline-ticker"><span>Latest</span></section><div class="dashboard-layout"><section class="intel-feed"><div class="feed-grid"><% posts.slice(0, 6).forEach(function(post){ %><article class="feed-item"><h3><a href="/article/<%= post.slug %>"><%= post.title %></a></h3></article><% }) %></div></section><aside class="hotspot-sidebar"><ol><% posts.slice(6, 12).forEach(function(post, index){ %><li><span><%= index + 1 %></span><a href="/article/<%= post.slug %>"><%= post.title %></a></li><% }) %></ol></aside></div></main></body></html>',
+      'templates/article.ejs': '<html><head><meta name="description" content="<%= post.summary %>"></head><body><article><h1><%= post.title %></h1></article></body></html>',
+      'templates/category.ejs': '<html><body><h1><%= category.name %></h1></body></html>',
+      'templates/archive.ejs': '<html><body><h1>Archive</h1></body></html>',
+      'templates/search.ejs': '<html><body><h1>Search</h1></body></html>',
+      'templates/404.ejs': '<html><body><h1>404</h1></body></html>',
+      'partials/header.ejs': '<header></header>',
+      'partials/footer.ejs': '<footer></footer>',
+      'partials/article-card.ejs': '<article></article>',
+      'partials/pagination.ejs': '<nav></nav>',
+      'assets/theme.css': ':root{--primary-glow:#00f0ff;--secondary-glow:#ff00aa;--bg-dark:#0a0a0f;--bg-panel:#11111a;--bg-card:#1a1a24}.terminal-header{display:flex;justify-content:space-between;background:var(--bg-panel)}.nav-links{display:flex;gap:1.5rem}.intel-dashboard{max-width:1400px}.dashboard-layout{display:grid;grid-template-columns:1fr 320px}.feed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem}.feed-item{background:var(--bg-card);border:1px solid rgba(0,240,255,.2);padding:1.5rem;border-left:3px solid var(--primary-glow)}body{background:var(--bg-dark);color:#e0e0e0}',
+    },
+  };
+
+  saveGeneratedTheme(pkg, { rootDir: root, id: 'renamed-tech-portal' });
+  const report = await reviewTheme('renamed-tech-portal', { rootDir: root, enforceDifferentiation: true });
+
+  assert.equal(report.pass, false);
+  assert.match(report.issues.join('\n'), /layout fingerprint|mobile navigation/i);
+});
+
 test('frontend agent can generate a complete theme package for an empty site', async () => {
   const { generateThemePackage } = require('../ai/theme-agent');
   const pkg = await generateThemePackage({

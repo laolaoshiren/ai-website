@@ -169,6 +169,53 @@ function renderThemeTemplate(id, pageName, data = {}, options = {}) {
   return ejs.render(template, locals, { filename: filePath });
 }
 
+function hasRegex(source, regex) {
+  return regex.test(String(source || ''));
+}
+
+function analyzeDifferentiation(files = {}) {
+  const home = files['templates/home.ejs'] || '';
+  const css = files['assets/theme.css'] || '';
+  const source = Object.values(files).join('\n');
+  const signals = [];
+
+  if (hasRegex(home, /<header[\s\S]{0,1200}<nav/i) || hasRegex(home, /class=(["'])[^"']*(header|nav|navbar|menu)[^"']*\1/i)) {
+    signals.push('top header navigation');
+  }
+  if (hasRegex(home, /(site\.)?categories\.forEach/i) && hasRegex(css, /nav[^{}]*\{[^{}]*display\s*:\s*flex/i)) {
+    signals.push('category-driven horizontal nav');
+  }
+  if (hasRegex(css, /grid-template-columns\s*:\s*repeat\(\s*auto-(fill|fit)\s*,\s*minmax/i)) {
+    signals.push('auto-fit article grid');
+  }
+  if (hasRegex(home, /(posts|articles|latest|site\.posts)\.slice\(\s*0\s*,\s*\d+\s*\)[\s\S]{0,500}\.forEach[\s\S]{0,900}<article/i)) {
+    signals.push('sliced article card loop');
+  }
+  if (hasRegex(home, /<(aside|ol)\b[\s\S]{0,1200}(rank|hotspot|排行|热度|sidebar|popular|trending)/i)) {
+    signals.push('ranking/sidebar rail');
+  }
+  if (
+    hasRegex(css, /#0a0a0f|#11111a|#1a1a24|--bg-dark|--bg-panel|--bg-card/i) &&
+    hasRegex(css, /#00f0ff|#00e5ff|cyan|--primary-glow|--accent|#ff00aa|magenta/i)
+  ) {
+    signals.push('dark neon tech palette');
+  }
+  if (hasRegex(source, /(card|feed-item|panel|tile)/i) && hasRegex(css, /(border-left|box-shadow|background\s*:\s*var\(--bg-card|border\s*:)/i)) {
+    signals.push('panel/card article treatment');
+  }
+  if (hasRegex(css, /max-width\s*:\s*(11|12|13|14)\d{2}px/i)) {
+    signals.push('centered portal container');
+  }
+
+  const navFlex = hasRegex(css, /nav[^{}]*\{[^{}]*display\s*:\s*flex/i) || hasRegex(css, /\.nav-[\w-]*\s*\{[^{}]*display\s*:\s*flex/i);
+  const navLoopsCategories = hasRegex(home, /(site\.)?categories\.forEach/i);
+  const hasMobileMedia = hasRegex(css, /@media\s*\([^)]*max-width/i);
+  const hasMobileNavEscape = hasRegex(css, /(flex-wrap\s*:\s*wrap|overflow-x\s*:\s*auto|display\s*:\s*none|grid-template-columns\s*:\s*1fr|white-space\s*:\s*nowrap)/i);
+  const mobileNavRisk = navFlex && navLoopsCategories && (!hasMobileMedia || !hasMobileNavEscape);
+
+  return { signals, mobileNavRisk };
+}
+
 async function reviewTheme(id, options = {}) {
   const sampleData = { ...defaultSampleData(), ...(options.sampleData || {}) };
   const issues = [];
@@ -242,6 +289,15 @@ async function reviewTheme(id, options = {}) {
       issues.push(`builtin similarity too high; differentiation markers reused: ${hits.join(', ')}`);
       score -= 35;
     }
+    const differentiation = analyzeDifferentiation(files);
+    if (differentiation.signals.length >= 5) {
+      issues.push(`builtin-like layout fingerprint: ${differentiation.signals.join(', ')}`);
+      score -= 45;
+    }
+    if (differentiation.mobileNavRisk) {
+      issues.push('mobile navigation risk: category nav needs wrap, horizontal scroll, collapse, or another compact mobile pattern');
+      score -= 20;
+    }
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -270,6 +326,7 @@ module.exports = {
   readThemeTemplate,
   renderThemeTemplate,
   reviewTheme,
+  analyzeDifferentiation,
   defaultSampleData,
   themeAssetUrl,
 };
