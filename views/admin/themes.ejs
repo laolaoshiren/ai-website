@@ -1,0 +1,161 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <div>
+      <h1>🎨 AI 主题引擎</h1>
+      <p class="text-muted">AI 只能生成隔离主题包，内置模板始终保留为兜底。</p>
+    </div>
+    <div class="header-actions">
+      <a class="btn btn-outline" href="/" target="_blank">查看前台</a>
+      <% if (activeTheme) { %>
+        <a class="btn btn-outline" href="/?preview_theme=<%= activeTheme.theme_id %>" target="_blank">预览当前主题</a>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✓ <%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error">✕ <%= error %></div><% } %>
+
+  <div class="theme-status-grid">
+    <div class="admin-panel">
+      <h2>当前状态</h2>
+      <div class="theme-state-line">
+        <span>运行模式</span>
+        <strong><%= config.theme_mode === 'ai_active' ? 'AI 主题' : '内置主题' %></strong>
+      </div>
+      <div class="theme-state-line">
+        <span>AI 主题开关</span>
+        <strong><%= config.ai_theme_enabled === '1' ? '已开启' : '已关闭' %></strong>
+      </div>
+      <div class="theme-state-line">
+        <span>主题锁定</span>
+        <strong><%= config.ai_theme_locked === '1' ? '已锁定' : '未锁定' %></strong>
+      </div>
+      <div class="theme-state-line">
+        <span>网站类型</span>
+        <strong><%= config.site_type || 'cms' %></strong>
+      </div>
+      <% if (activeTheme) { %>
+        <div class="theme-active-card">
+          <span class="status-badge status-success">已发布</span>
+          <h3><%= activeTheme.name %></h3>
+          <p>评分 <strong><%= activeTheme.score || 0 %></strong>/100 · <%= activeTheme.site_type %></p>
+        </div>
+      <% } else { %>
+        <div class="brief-empty">当前使用内置主题。</div>
+      <% } %>
+    </div>
+
+    <div class="admin-panel">
+      <h2>主题设置</h2>
+      <form method="POST" action="/admin/themes/settings" class="theme-control-form">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+        <input type="hidden" name="ai_theme_enabled" value="0">
+        <label class="toggle-row">
+          <input type="checkbox" name="ai_theme_enabled" value="1" <%= config.ai_theme_enabled === '1' ? 'checked' : '' %>>
+          <span>开启 AI 主题生成与发布能力</span>
+        </label>
+        <div class="form-group">
+          <label>网站类型</label>
+          <select name="site_type">
+            <% ['news','blog','cms','magazine','knowledge_base'].forEach(function(type) { %>
+              <option value="<%= type %>" <%= (config.site_type || 'cms') === type ? 'selected' : '' %>><%= type %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">保存设置</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="admin-panel">
+    <h2>生成与修改</h2>
+    <form method="POST" action="/admin/themes/generate" class="theme-control-form">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <input type="hidden" name="ai_theme_enabled" value="1">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>网站类型</label>
+          <select name="site_type">
+            <% ['news','blog','cms','magazine','knowledge_base'].forEach(function(type) { %>
+              <option value="<%= type %>" <%= (config.site_type || 'cms') === type ? 'selected' : '' %>><%= type %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="form-group form-group-full">
+          <label>自然语言要求</label>
+          <textarea name="instruction" rows="4" placeholder="例如：更像科技杂志、减少大面积渐变、首页更适合长文章阅读"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">生成预览主题</button>
+      </div>
+    </form>
+
+    <form method="POST" action="/admin/themes/rewrite" class="theme-control-form theme-rewrite-form">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <input type="hidden" name="site_type" value="<%= config.site_type || 'cms' %>">
+      <div class="form-group">
+        <label>重写要求</label>
+        <textarea name="instruction" rows="3" placeholder="告诉 AI 哪里不满意，系统会生成新版本，不会覆盖旧主题"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" type="submit">按要求重写主题</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="admin-panel">
+    <div class="panel-title-row">
+      <h2>历史版本与审核报告</h2>
+      <form method="POST" action="/admin/themes/rollback">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+        <button class="btn btn-warning btn-sm" type="submit">回退内置主题</button>
+      </form>
+    </div>
+    <% if (themes && themes.length > 0) { %>
+      <div class="table-scroll">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>主题</th>
+              <th>状态</th>
+              <th>评分</th>
+              <th>网站类型</th>
+              <th>审核摘要</th>
+              <th>时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% themes.forEach(function(theme) { %>
+              <tr>
+                <td class="td-title">
+                  <strong><%= theme.name %></strong>
+                  <small><%= theme.theme_id %></small>
+                </td>
+                <td><span class="status-badge status-<%= theme.status === 'published' ? 'success' : (theme.status === 'failed' ? 'failed' : 'planned') %>"><%= theme.status %><%= theme.locked ? ' / locked' : '' %></span></td>
+                <td><strong><%= theme.score || 0 %></strong>/100</td>
+                <td><%= theme.site_type %></td>
+                <td class="td-detail">
+                  <%= theme.review_report && theme.review_report.issues && theme.review_report.issues.length ? theme.review_report.issues.join('; ') : '通过基础审核' %>
+                </td>
+                <td class="td-time"><%= theme.created_at || '' %></td>
+                <td class="td-actions">
+                  <a class="btn btn-outline btn-sm" href="/?preview_theme=<%= theme.theme_id %>" target="_blank">预览</a>
+                  <form method="POST" action="/admin/themes/publish/<%= theme.theme_id %>" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+                    <button class="btn btn-primary btn-sm" type="submit" <%= (theme.score || 0) < 85 ? 'disabled' : '' %>>发布</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="brief-empty">还没有 AI 主题版本。生成后会在这里显示评分、预览入口和发布记录。</div>
+    <% } %>
+  </div>
+</div>
+<%- include('layout-close') %>

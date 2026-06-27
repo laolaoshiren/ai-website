@@ -8,13 +8,14 @@ const { getConfig } = require('../config');
 const { buildArchivePagination, ARCHIVE_ARTICLES_PER_PAGE } = require('./archive-pagination');
 const { buildPagination } = require('./pagination');
 const { buildArticleRelations } = require('./article-relations');
+const { renderThemePage } = require('./theme-renderer');
 
 // 首页
 router.get('/', (req, res) => {
   const featured = getPublishedPages(5, 0).filter(p => p.featured);
   const latest = getPublishedPages(12);
   const categories = getCategories();
-  res.render('pages/home', {
+  renderThemePage(req, res, 'home', {
     title: getConfig().site_title || 'AI 智能网站',
     featured, latest, categories,
     metaDescription: getConfig().site_description,
@@ -42,7 +43,7 @@ router.get('/api/more-articles', (req, res) => {
 router.get('/category/:slug', (req, res) => {
   const slug = decodeURIComponent(req.params.slug);
   const category = getCategoryBySlug(slug);
-  if (!category) return res.status(404).render('pages/404', { title: '栏目不存在' });
+  if (!category) return renderThemePage(req, res, '404', { title: '栏目不存在' }, { statusCode: 404 });
   const limit = 12;
   const allArticles = getPublishedPages(10000, 0, category.id);
   const pagination = buildPagination({
@@ -52,7 +53,7 @@ router.get('/category/:slug', (req, res) => {
     basePath: `/category/${encodeSlug(category.slug)}`,
   });
   const articles = allArticles.slice(pagination.offset, pagination.offset + pagination.perPage);
-  res.render('pages/category', {
+  renderThemePage(req, res, 'category', {
     title: category.name,
     category, articles, pagination,
     metaDescription: category.description,
@@ -83,7 +84,7 @@ router.get('/search', (req, res) => {
     query: { q },
   });
   const articles = results.slice(pagination.offset, pagination.offset + pagination.perPage);
-  res.render('pages/search', { title: q ? '搜索: ' + q : '搜索', q, articles, pagination, total });
+  renderThemePage(req, res, 'search', { title: q ? '搜索: ' + q : '搜索', q, articles, pagination, total });
 });
 
 // 归档
@@ -92,16 +93,16 @@ router.get('/archive', (req, res) => {
   const pagination = buildArchivePagination(all, req.query.page, {
     perPage: ARCHIVE_ARTICLES_PER_PAGE,
   });
-  res.render('pages/archive', { title: '文章归档', ...pagination });
+  renderThemePage(req, res, 'archive', { title: '文章归档', ...pagination });
 });
 
 // 文章详情
 router.get('/article/:slug', (req, res) => {
   let slug;
-  try { slug = decodeURIComponent(req.params.slug); } catch { return res.status(404).render('pages/404', { title: '页面未找到', latest: [] }); }
+  try { slug = decodeURIComponent(req.params.slug); } catch { return renderThemePage(req, res, '404', { title: '页面未找到', latest: [] }, { statusCode: 404 }); }
   const article = getPageBySlug(slug);
   if (!article || article.status !== 'published') {
-    return res.status(404).render('pages/404', { title: '文章不存在' });
+    return renderThemePage(req, res, '404', { title: '文章不存在' }, { statusCode: 404 });
   }
   const config = getConfig();
 
@@ -122,7 +123,7 @@ router.get('/article/:slug', (req, res) => {
   const wordCount = plainText.length;
   const readTime = Math.max(1, Math.round(wordCount / 500));
 
-  res.render('pages/article', {
+  renderThemePage(req, res, 'article', {
     title: article.seo_title || article.title,
     article,
     siteUrl: config.site_url || 'http://localhost:3000',

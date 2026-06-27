@@ -40,6 +40,22 @@ app.use((req, res, next) => {
 const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
 const apiRoutes = require('./routes/api');
+app.use((req, res, next) => {
+  if (!req.headers.cookie || req.session) return next();
+  const cookies = {};
+  req.headers.cookie.split(';').forEach(c => {
+    const [key, val] = c.trim().split('=');
+    if (key && val) cookies[key] = decodeURIComponent(val);
+  });
+  req.cookies = { ...(req.cookies || {}), ...cookies };
+  if (cookies.admin_session && typeof adminRoutes.getSession === 'function') {
+    req.session = adminRoutes.getSession(cookies.admin_session);
+    req.sessionId = cookies.admin_session;
+  }
+  next();
+});
+const { serveThemeAsset } = require('./routes/theme-assets');
+app.get('/themes/:themeId/assets/*', serveThemeAsset);
 app.use('/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/', publicRoutes);
@@ -57,17 +73,19 @@ app.get('/favicon.svg', (req, res) => {
 
 app.use((req, res) => {
   const { getPublishedPages } = require('./db/database');
+  const { renderThemePage } = require('./routes/theme-renderer');
   const latest = getPublishedPages(4);
-  res.status(404).render('pages/404', { title: '页面未找到', latest });
+  renderThemePage(req, res, '404', { title: '页面未找到', latest }, { statusCode: 404 });
 });
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err.message);
+  const { renderThemePage } = require('./routes/theme-renderer');
   // decodeURIComponent 错误（无效编码）→ 404
   if (err instanceof URIError) {
-    return res.status(404).render('pages/404', { title: '页面未找到', latest: [] });
+    return renderThemePage(req, res, '404', { title: '页面未找到', latest: [] }, { statusCode: 404 });
   }
   try {
-    res.status(500).render('pages/404', { title: '服务器错误', latest: [] });
+    renderThemePage(req, res, '404', { title: '服务器错误', latest: [] }, { statusCode: 500 });
   } catch { res.status(500).send('服务器内部错误'); }
 });
 
