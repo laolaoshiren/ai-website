@@ -11,6 +11,22 @@ const http = require('http');
 
 // ==================== 基础工具 ====================
 
+function cleanText(text = '') {
+  return String(text)
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function resolveRedirectUrl(currentUrl, location) {
+  return new URL(location, currentUrl).toString();
+}
+
 function fetchUrl(url, timeout = 10000) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
@@ -22,7 +38,7 @@ function fetchUrl(url, timeout = 10000) {
       }
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        fetchUrl(res.headers.location, timeout).then(resolve).catch(reject);
+        fetchUrl(resolveRedirectUrl(url, res.headers.location), timeout).then(resolve).catch(reject);
         return;
       }
       let body = '';
@@ -69,6 +85,29 @@ function getSiteTheme() {
     const site = require('../config').getSiteConfig();
     return { title: site.title || '', theme: site.theme || '', direction: site.direction || '' };
   } catch { return { title: '', theme: '', direction: '' }; }
+}
+
+async function collectSearchResults(engines, maxResults = 5) {
+  const seen = new Set();
+  const collected = [];
+
+  for (const engine of engines) {
+    let results = [];
+    try {
+      results = await engine();
+    } catch (err) {
+      console.error('搜索引擎兜底失败:', err.message);
+      continue;
+    }
+    for (const result of results || []) {
+      if (!result?.url || seen.has(result.url)) continue;
+      seen.add(result.url);
+      collected.push(result);
+      if (collected.length >= maxResults) return collected;
+    }
+  }
+
+  return collected;
 }
 
 // ==================== 搜索引擎（无需 API Key） ====================
@@ -191,7 +230,7 @@ async function searchTavily(query, maxResults = 5) {
 
 // ==================== RSS 辅助（AI 自管理） ====================
 
-function parseRSS(xml) {
+function parseSearchRSS(xml, source = 'rss') {
   const items = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match;
@@ -203,14 +242,39 @@ function parseRSS(xml) {
     const pubDate = (content.match(/<pubDate>(.*?)<\/pubDate>/i) || [])[1] || '';
     if (title) {
       items.push({
-        title: title.replace(/<[^>]+>/g, '').trim(),
-        url: link.trim(),
-        snippet: desc.replace(/<[^>]+>/g, '').trim().slice(0, 200),
+        title: cleanText(title),
+        url: cleanText(link),
+        snippet: cleanText(desc).slice(0, 200),
         date: pubDate.trim(),
+        source,
       });
     }
   }
   return items;
+}
+
+const parseRSS = parseSearchRSS;
+
+async function searchBingNewsRSS(query, maxResults = 5) {
+  try {
+    const encoded = encodeURIComponent(query);
+    const xml = await fetchUrl(`https://www.bing.com/news/search?q=${encoded}&format=rss`, 12000);
+    return parseSearchRSS(xml, 'bing-news').slice(0, maxResults);
+  } catch (err) {
+    console.error('Bing News RSS 搜索失败:', err.message);
+    return [];
+  }
+}
+
+async function searchGoogleNewsRSS(query, maxResults = 5) {
+  try {
+    const encoded = encodeURIComponent(query);
+    const xml = await fetchUrl(`https://news.google.com/rss/search?q=${encoded}&hl=zh-CN&gl=CN&ceid=CN:zh-Hans`, 12000);
+    return parseSearchRSS(xml, 'google-news').slice(0, maxResults);
+  } catch (err) {
+    console.error('Google News RSS 搜索失败:', err.message);
+    return [];
+  }
 }
 
 /**
@@ -308,32 +372,29 @@ async function searchWeb(query, maxResults = 5) {
   // 给搜索词加上网站主题上下文
   const themedQuery = site.theme ? `${query} ${site.theme}` : query;
 
-  // 层 1：Tavily（优先，最精准）
-  const tavilyResults = await searchTavily(themedQuery, maxResults);
-  if (tavilyResults.length > 0) {
-    console.log(`  🔍 Tavily: ${tavilyResults.length} 条`);
-    return tavilyResults;
-  }
+  const results = await collectSearchResults([
+    () => searchTavily(themedQuery, maxResults),
+    async () => {
+      const [ddgResults, bingResults] = await Promise.all([
+        searchDuckDuckGo(themedQuery, maxResults),
+        searchBing(themedQuery, maxResults),
+      ]);
+      return [...ddgResults, ...bingResults];
+    },
+    () => searchSearXNG(themedQuery, maxResults),
+    async () => {
+      const [bingNews, googleNews] = await Promise.all([
+        searchBingNewsRSS(themedQuery, maxResults),
+        searchGoogleNewsRSS(themedQuery, maxResults),
+      ]);
+      return [...bingNews, ...googleNews];
+    },
+    () => searchRSS(query, maxResults),
+  ], maxResults);
 
-  // 层 2：多搜索引擎并发
-  const [ddgResults, bingResults] = await Promise.all([
-    searchDuckDuckGo(themedQuery, maxResults),
-    searchBing(themedQuery, maxResults),
-  ]);
-  const engineResults = [...ddgResults, ...bingResults];
-  if (engineResults.length > 0) {
-    // 去重（按 URL）
-    const seen = new Set();
-    const unique = engineResults.filter(r => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
-    console.log(`  🔍 搜索引擎: ${unique.length} 条 (DDG:${ddgResults.length} Bing:${bingResults.length})`);
-    return unique.slice(0, maxResults);
-  }
-
-  // 层 3：AI 管理的 RSS
-  const rssResults = await searchRSS(query, maxResults);
-  if (rssResults.length > 0) {
-    console.log(`  📡 RSS: ${rssResults.length} 条`);
-    return rssResults;
+  if (results.length > 0) {
+    console.log(`  🔍 搜索结果: ${results.length} 条 (${[...new Set(results.map(r => r.source || 'unknown'))].join(', ')})`);
+    return results;
   }
 
   console.log(`  ⚠️ 搜索无结果: "${query}"`);
@@ -345,44 +406,49 @@ async function searchWeb(query, maxResults = 5) {
  */
 async function getLatestNews(maxResults = 10) {
   const site = getSiteTheme();
-
-  // 层 1：Tavily
-  if (getConfig('tavily_api_key')) {
-    try {
-      const queries = site.theme
-        ? [`${site.theme} 最新动态`, `${site.theme} 趋势`, site.title]
-        : ['最新热门资讯', '今日热点'];
-      const allTavily = [];
-      for (const q of queries) {
-        const results = await searchTavily(q, 5);
-        allTavily.push(...results);
-      }
-      if (allTavily.length > 0) {
-        console.log(`  🔍 Tavily 热点: ${allTavily.length} 条`);
-        return allTavily.slice(0, maxResults);
-      }
-    } catch {}
-  }
-
-  // 层 2：搜索引擎
   const hotQuery = site.theme ? `${site.theme} 最新` : '今日热点新闻';
-  const [ddgResults, bingResults] = await Promise.all([
-    searchDuckDuckGo(hotQuery, 5),
-    searchBing(hotQuery, 5),
-  ]);
-  const engineResults = [...ddgResults, ...bingResults];
-  if (engineResults.length > 0) {
-    const seen = new Set();
-    const unique = engineResults.filter(r => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
-    console.log(`  🔍 搜索热点: ${unique.length} 条`);
-    return unique.slice(0, maxResults);
+  const tavilyQueries = site.theme
+    ? [`${site.theme} 最新动态`, `${site.theme} 趋势`, site.title]
+    : ['最新热门资讯', '今日热点'];
+
+  const results = await collectSearchResults([
+    async () => {
+      const batches = [];
+      for (const q of tavilyQueries) batches.push(...await searchTavily(q, 5));
+      return batches;
+    },
+    async () => {
+      const [ddgResults, bingResults] = await Promise.all([
+        searchDuckDuckGo(hotQuery, 5),
+        searchBing(hotQuery, 5),
+      ]);
+      return [...ddgResults, ...bingResults];
+    },
+    () => searchSearXNG(hotQuery, maxResults),
+    async () => {
+      const [bingNews, googleNews] = await Promise.all([
+        searchBingNewsRSS(hotQuery, maxResults),
+        searchGoogleNewsRSS(hotQuery, maxResults),
+      ]);
+      return [...bingNews, ...googleNews];
+    },
+    () => searchRSS(site.theme || 'news', maxResults),
+  ], maxResults);
+
+  if (results.length > 0) {
+    console.log(`  🔍 最新资讯: ${results.length} 条 (${[...new Set(results.map(r => r.source || 'unknown'))].join(', ')})`);
   }
-
-  // 层 3：AI 管理的 RSS
-  const rssResults = await searchRSS(site.theme || 'news', maxResults);
-  if (rssResults.length > 0) return rssResults;
-
-  return [];
+  return results;
 }
 
-module.exports = { searchWeb, getLatestNews, fetchRSS, discoverFeed, getManagedFeeds, saveManagedFeeds };
+module.exports = {
+  searchWeb,
+  getLatestNews,
+  fetchRSS,
+  discoverFeed,
+  getManagedFeeds,
+  saveManagedFeeds,
+  collectSearchResults,
+  parseSearchRSS,
+  resolveRedirectUrl,
+};
