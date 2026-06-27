@@ -31,5 +31,5 @@ test('admin categories view exposes edit controls and contains long fields in a 
   assert.match(html, /name="name"/);
   assert.match(html, /编辑/);
   assert.match(html, /td-category-name/);
-  assert.match(html, /\/css\/admin\.css\?v=3/);
+  assert.match(html, /\/css\/admin\.css\?v=4/);
 });
