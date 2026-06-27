@@ -107,6 +107,77 @@ test('releasePageClaim clears writing ownership and keeps retry scheduling', () 
   assert.equal(page.next_retry_at, retryAt);
 });
 
+test('recovers expired writing locks back to the planned queue in bulk', () => {
+  resetPages();
+  const expiredA = db.insertPage({ title: 'Expired A', slug: 'expired-a', status: 'writing' });
+  const expiredB = db.insertPage({ title: 'Expired B', slug: 'expired-b', status: 'writing' });
+  const active = db.insertPage({ title: 'Active C', slug: 'active-c', status: 'writing' });
+
+  db.updatePage(expiredA, {
+    claimed_by: 'lost-worker-a',
+    claimed_at: '2000-01-01 00:00:00',
+    lock_expires_at: '2000-01-01 00:00:00',
+  });
+  db.updatePage(expiredB, {
+    claimed_by: 'lost-worker-b',
+    claimed_at: '2000-01-01 00:00:00',
+    lock_expires_at: '2000-01-01 00:00:00',
+  });
+  db.updatePage(active, {
+    claimed_by: 'active-worker',
+    claimed_at: '2999-01-01 00:00:00',
+    lock_expires_at: '2999-01-01 00:00:00',
+  });
+
+  const recovered = db.recoverExpiredWritingPages('test-recovery');
+
+  assert.equal(recovered, 2);
+  assert.equal(db.getPageById(expiredA).status, 'planned');
+  assert.equal(db.getPageById(expiredA).claimed_by, null);
+  assert.equal(db.getPageById(expiredA).last_error, 'expired_writing_lock:test-recovery');
+  assert.equal(db.getPageById(expiredB).status, 'planned');
+  assert.equal(db.getPageById(active).status, 'writing');
+  assert.equal(db.getPageById(active).claimed_by, 'active-worker');
+});
+
+test('repairs published articles with empty or thin bodies before they reach SEO feeds', () => {
+  resetPages();
+  const emptyId = db.insertPage({
+    title: 'Empty published',
+    slug: 'empty-published',
+    status: 'published',
+    content_md: '',
+    content_html: '',
+    published_at: '2026-06-27 10:00:00',
+  });
+  const thinId = db.insertPage({
+    title: 'Thin published',
+    slug: 'thin-published',
+    status: 'published',
+    content_md: '太短的正文',
+    content_html: '<p>太短的正文</p>',
+    published_at: '2026-06-27 10:00:00',
+  });
+  const richId = db.insertPage({
+    title: 'Rich published',
+    slug: 'rich-published',
+    status: 'published',
+    content_md: '这是合格正文。'.repeat(120),
+    content_html: `<p>${'这是合格正文。'.repeat(120)}</p>`,
+    published_at: '2026-06-27 10:00:00',
+  });
+
+  const repaired = db.repairPublishedContentQuality('test-quality-repair');
+
+  assert.equal(repaired, 2);
+  assert.equal(db.getPageById(emptyId).status, 'planned');
+  assert.equal(db.getPageById(emptyId).published_at, null);
+  assert.equal(db.getPageById(emptyId).last_error, 'content_quality_repair:empty_body:test-quality-repair');
+  assert.equal(db.getPageById(thinId).status, 'planned');
+  assert.equal(db.getPageById(thinId).last_error, 'content_quality_repair:thin_body:test-quality-repair');
+  assert.equal(db.getPageById(richId).status, 'published');
+});
+
 test('article outcome logs do not approve unpublished drafts', () => {
   const { buildArticleOutcomeLogs } = require('../scheduler/article-outcome');
 

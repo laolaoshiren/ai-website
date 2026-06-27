@@ -16,7 +16,7 @@
     "helmet": "^8.2.0",
     "jsdom": "^25.0.0",
     "marked": "^15.0.0",
-    "node-cron": "^3.0.3"
+    "node-cron": "^4.5.0"
   },
   "engines": {
     "node": ">=18.0.0"

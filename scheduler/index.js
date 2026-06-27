@@ -2,7 +2,7 @@
  * 定时任务调度器 v2 - 多 Agent 协同
  */
 const cron = require('node-cron');
-const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
+const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, recoverExpiredWritingPages, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
 const { isAIConfigured } = require('../config');
 const { logArticleOutcome } = require('./article-outcome');
 
@@ -26,6 +26,10 @@ const AGENT_ROLES = {
 async function executeTask(taskType) {
   const providers = getAIProviders().filter(p => p.enabled);
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商');
+  const recovered = recoverExpiredWritingPages(`before-${taskType}`);
+  if (recovered > 0) {
+    logAgent('site_manager', '任务自愈', 'success', `恢复 ${recovered} 篇过期写作锁文章`);
+  }
 
   const agentRole = AGENT_ROLES[taskType] || 'technician';
   const workerId = `${agentRole}-${taskType}-${Date.now()}`;

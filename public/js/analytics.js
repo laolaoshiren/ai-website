@@ -7,11 +7,17 @@
 
   var startTime = Date.now();
   var maxScroll = 0;
-  var pageSlug = window.location.pathname;
+  var pagePath = window.location.pathname;
 
   // 只在文章页采集详细数据
-  var isArticlePage = pageSlug.indexOf('/article/') === 0;
+  var isArticlePage = pagePath.indexOf('/article/') === 0;
   if (!isArticlePage) return;
+  var pageSlug = '';
+  try {
+    pageSlug = decodeURIComponent(pagePath.replace(/^\/article\//, '').replace(/^\/+/, ''));
+  } catch(e) {
+    pageSlug = pagePath.replace(/^\/article\//, '').replace(/^\/+/, '');
+  }
 
   // 记录最大滚动深度
   function trackScroll() {
@@ -25,7 +31,7 @@
   function send(data) {
     try {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/analytics', JSON.stringify(data));
+        navigator.sendBeacon('/api/analytics', new Blob([JSON.stringify(data)], { type: 'application/json' }));
       } else {
         fetch('/api/analytics', {
           method: 'POST',

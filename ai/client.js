@@ -1,10 +1,82 @@
 /**
  * AI 通用客户端 v3 - 多提供商、负载均衡、故障自动恢复
  */
-const { getActiveAIProvider, incrementProviderUsage, getAIProviders } = require('../db/database');
+const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 
 const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
+
+function timestamp() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
+}
+
+function classifyProviderError(err) {
+  const message = String(err?.message || err || '');
+  if (/(?:401|403|invalid api key|invalid key|unauthorized|forbidden|api[_ -]?key)/i.test(message)) return 'auth';
+  if (/(?:429|rate limit|too many requests|quota)/i.test(message)) return 'rate_limit';
+  if (/(?:ECONNRESET|ETIMEDOUT|fetch failed|network|timeout|请求超时)/i.test(message)) return 'network';
+  if (/(?:500|502|503|504|server error|bad gateway|service unavailable)/i.test(message)) return 'server';
+  return 'unknown';
+}
+
+function providerHealthPenalty(provider) {
+  const requestCount = provider.request_count || 0;
+  const errorCount = provider.error_count || 0;
+  const errorRate = requestCount > 0 ? errorCount / requestCount : 0;
+  let penalty = requestCount + errorCount * 10;
+  if (requestCount >= 10 && errorRate >= 0.75) penalty += 100000;
+  else if (requestCount >= 10 && errorRate >= 0.5) penalty += 50000;
+  else if (requestCount >= 10 && errorRate >= 0.25) penalty += 10000;
+  if (provider.disabled_reason === 'auth_error') penalty += 200000;
+  return penalty;
+}
+
+function rankAIProviders(providers = []) {
+  return providers
+    .slice()
+    .sort((a, b) => providerHealthPenalty(a) - providerHealthPenalty(b) || (a.request_count || 0) - (b.request_count || 0) || (a.id || 0) - (b.id || 0));
+}
+
+function chooseProviderCredential(provider, options = {}) {
+  const keys = (provider.api_key || '').split(',').map(k => k.trim()).filter(Boolean);
+  const models = (provider.model || '').split(',').map(m => m.trim()).filter(Boolean);
+  const pick = (items, fallback) => {
+    if (items.length === 0) return fallback;
+    if (options.first) return items[0];
+    return items[Math.floor(Math.random() * items.length)];
+  };
+  return {
+    apiKey: pick(keys, provider.api_key),
+    model: options.model || pick(models, provider.model),
+  };
+}
+
+function markProviderFailure(provider, err) {
+  const errorType = classifyProviderError(err);
+  const updates = {
+    last_error: String(err?.message || err || '').slice(0, 500),
+    last_error_type: errorType,
+    last_error_at: timestamp(),
+  };
+  if (errorType === 'auth') {
+    updates.enabled = false;
+    updates.disabled_reason = 'auth_error';
+  }
+  try { updateAIProvider(provider.id, updates); } catch {}
+  return errorType;
+}
+
+function markProviderSuccess(provider, result = {}) {
+  try {
+    updateAIProvider(provider.id, {
+      last_success_at: timestamp(),
+      last_error_type: null,
+      last_error: null,
+      disabled_reason: provider.disabled_reason === 'auth_error' ? provider.disabled_reason : null,
+      last_model: result.model || '',
+    });
+  } catch {}
+}
 
 // ============ 故障恢复系统 ============
 const outageState = {
@@ -31,16 +103,17 @@ function startRecovery() {
   outageState.checkInterval = setInterval(async () => {
     outageState.lastCheck = new Date().toISOString();
     try {
-      const providers = getAIProviders().filter(p => p.enabled);
+      const providers = rankAIProviders(getAIProviders().filter(p => p.enabled));
       if (providers.length === 0) return;
 
       // 用最轻量的请求探测 provider 是否恢复
       const provider = providers[0];
+      const { apiKey, model } = chooseProviderCredential(provider, { first: true });
       const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.api_key}` },
-        body: JSON.stringify({ model: provider.model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }),
         signal: AbortSignal.timeout(10000),
       });
 
@@ -105,10 +178,8 @@ function setRecoveryCallback(fn) {
  * 调用 AI API（自动选择提供商、故障转移、自动重试、故障恢复）
  */
 async function callAI(messages, options = {}) {
-  const providers = getAIProviders().filter(p => p.enabled);
+  const providers = rankAIProviders(getAIProviders().filter(p => p.enabled));
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
-
-  providers.sort((a, b) => (a.request_count || 0) - (b.request_count || 0));
 
   let lastError = null;
   for (const provider of providers) {
@@ -116,15 +187,15 @@ async function callAI(messages, options = {}) {
       try {
         const result = await callProvider(provider, messages, options);
         incrementProviderUsage(provider.id, true);
+        markProviderSuccess(provider, result);
         // 如果之前在故障状态，成功后停止恢复轮询
         if (outageState.active) stopRecovery();
         return result;
       } catch (err) {
         incrementProviderUsage(provider.id, false);
+        const errorType = markProviderFailure(provider, err);
         lastError = err;
-        const retryable = err.message.includes('ECONNRESET') || err.message.includes('ETIMEDOUT') ||
-          err.message.includes('fetch failed') || err.message.includes('503') || err.message.includes('429') ||
-          err.message.includes('502') || err.message.includes('500');
+        const retryable = errorType === 'network' || errorType === 'rate_limit' || errorType === 'server';
         if (attempt === 0 && retryable) {
           await new Promise(r => setTimeout(r, 1000));
           continue;
@@ -142,10 +213,7 @@ async function callAI(messages, options = {}) {
 
 async function callProvider(provider, messages, options = {}) {
   // 多密钥/多模型：逗号分隔，随机选择实现负载均衡
-  const keys = (provider.api_key || '').split(',').map(k => k.trim()).filter(Boolean);
-  const models = (provider.model || '').split(',').map(m => m.trim()).filter(Boolean);
-  const apiKey = keys[Math.floor(Math.random() * keys.length)] || provider.api_key;
-  const model = options.model || models[Math.floor(Math.random() * models.length)] || provider.model;
+  const { apiKey, model } = chooseProviderCredential(provider, options);
 
   const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
   const body = {
@@ -259,10 +327,7 @@ function parseJSON(text) {
  */
 async function testConnection(provider) {
   try {
-    const keys = (provider.api_key || '').split(',').map(k => k.trim()).filter(Boolean);
-    const models = (provider.model || '').split(',').map(m => m.trim()).filter(Boolean);
-    const apiKey = keys[0] || provider.api_key;
-    const model = models[0] || provider.model;
+    const { apiKey, model } = chooseProviderCredential(provider, { first: true });
     const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
     const response = await fetch(url, {
       method: 'POST',
@@ -275,4 +340,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, rankAIProviders, classifyProviderError, chooseProviderCredential };

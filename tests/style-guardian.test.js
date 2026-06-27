@@ -44,6 +44,16 @@ const humanDraft = {
     '',
     '融资故事要变短。以前可以讲模型路线图，现在要先说三个数字：获客成本、毛利率、客户留存。',
     '',
+    '这类变化已经反映到条款里。一个做工业质检模型的团队说，去年客户还愿意为“模型准确率 95%”买单，今年合同里新增了现场误报率、返工时间、推理成本三项指标。销售周期没变短，但验收标准变硬了。',
+    '',
+    '也有钱继续投向基础设施，只是理由变了。GPU 调度、模型压缩、私有化部署这些公司还在融资，因为它们能直接降低每月账单。某云厂商渠道商给出的报价显示，同样 100 万次调用，客户愿意多花钱买稳定 SLA，却不愿再为一个泛泛的“更聪明模型”付溢价。',
+    '',
+    '对创业者来说，这不是坏消息。它逼团队早点面对真实客户：谁在用、每天用几次、坏一次谁负责、续费预算从哪个部门出。能答清楚这些问题的公司，融资不一定快，但谈判桌上会轻松很多。',
+    '',
+    '投资人内部的评审表也在变。以前一页 PPT 里最显眼的是模型参数、榜单排名和创始团队履历；现在排在前面的通常是试点转正式的比例、单客户部署周期、客户侧需要投入多少工程人天。一个华东的 SaaS 团队把实施周期从 42 天压到 19 天后，才拿到老客户扩容订单。',
+    '',
+    '还有一个容易被忽略的变化：客户开始要求退出方案。合同里会写清楚数据怎么导出、模型服务中断后谁接管、提示词和工作流资产归谁。这些条款听起来不性感，但能减少采购部门的阻力。真正能签下来的 AI 产品，往往先解决了这些琐碎问题。',
+    '',
     '这不浪漫，但更接近真实生意。',
   ].join('\n'),
 };
@@ -71,6 +81,24 @@ test('passes direct article style with concrete details and varied rhythm', () =
   assert.equal(audit.status, 'pass');
   assert.ok(audit.humanScore >= 78, `expected strong human score, got ${audit.humanScore}`);
   assert.equal(audit.issues.filter((issue) => issue.severity >= 3).length, 0);
+});
+
+test('blocks empty and too-short articles before publication', () => {
+  const emptyAudit = auditArticleStyle({
+    title: '只有标题没有正文',
+    summary: '摘要看起来正常，但正文为空。',
+    content_md: '',
+  });
+  const shortAudit = auditArticleStyle({
+    title: 'MCP落地避坑',
+    summary: '这篇文章太短，不应该进入发布队列。',
+    content_md: '一个数据库权限穿透案例说明，MCP 接入不是把工具挂上去就结束。2026 年 6 月，一个团队在灰度环境里发现查询权限没有按租户隔离。',
+  });
+
+  assert.equal(emptyAudit.status, 'review');
+  assert.ok(issueCodes(emptyAudit).has('empty_body'));
+  assert.equal(shortAudit.status, 'review');
+  assert.ok(issueCodes(shortAudit).has('thin_body'));
 });
 
 test('rewrites AI-flavored drafts until the style gate passes', async () => {
