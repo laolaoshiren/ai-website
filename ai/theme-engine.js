@@ -151,6 +151,9 @@ function renderThemeTemplate(id, pageName, data = {}, options = {}) {
         : (Array.isArray(locals.allArticles) ? locals.allArticles : []);
   locals.posts = sourcePosts.map(normalizeThemePost);
   locals.post = normalizeThemePost(locals.post || locals.article);
+  locals.site.categories = locals.categories || [];
+  locals.site.posts = locals.posts;
+  locals.site.latest = locals.latest || locals.posts;
   locals.formatDate = locals.formatDate || formatThemeDate;
   locals.partial = (partialPath, partialData = {}) => {
     let normalized = normalizePath(partialPath);

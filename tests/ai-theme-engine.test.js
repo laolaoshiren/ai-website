@@ -315,7 +315,7 @@ test('theme renderer provides a safe partial helper for generated templates', as
       assets: ['assets/theme.css'],
     },
     files: {
-      'templates/home.ejs': '<html><head><title><%= site.title %></title><link rel="stylesheet" href="/assets/theme.css"></head><body><%- partial("partials/header") %><main><% posts.slice(0,1).forEach(function(post){ %><%- partial("partials/article-card", { post: post }) %><% }) %></main></body></html>',
+      'templates/home.ejs': '<html><head><title><%= site.title %></title><link rel="stylesheet" href="/assets/theme.css"></head><body><%- partial("partials/header") %><nav><% site.categories.forEach(function(category){ %><a><%= category.name %></a><% }) %></nav><main><% posts.slice(0,1).forEach(function(post){ %><%- partial("partials/article-card", { post: post }) %><% }) %></main></body></html>',
       'templates/article.ejs': '<html><head><meta name="description" content="<%= post.summary %>"></head><body><%- partial("partials/header") %><article><time><%= formatDate(post.date, "YYYY年MM月DD日") %></time><%= post.title %></article></body></html>',
       'templates/category.ejs': '<html><body><%- partial("partials/header") %><h1><%= category.name %></h1></body></html>',
       'templates/archive.ejs': '<html><body><%- partial("partials/header") %><h1>Archive</h1></body></html>',
