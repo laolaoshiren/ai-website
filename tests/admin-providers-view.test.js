@@ -44,3 +44,36 @@ test('admin provider form fields use readable text colors in dark mode', () => {
     /\.form-group input, \.form-group textarea, \.form-group select \{[^}]*color:\s*var\(--text\)/s,
   );
 });
+
+test('admin provider cards keep long API addresses inside the card', async () => {
+  const longUrl = 'https://api.cloudflare.com/client/v4/accounts/a9e3b28386b04897b33cc17638774eac/ai/v1/openai/chat/completions';
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'providers.ejs'),
+    {
+      title: 'AI 提供商',
+      currentPath: '/admin/providers',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      providers: [
+        {
+          id: 21,
+          name: 'CloudFlare',
+          base_url: longUrl,
+          api_key: 'sk-demo',
+          model: '@cf/zai-org/glm-5.2',
+          enabled: 1,
+          request_count: 41,
+          error_count: 38,
+        },
+      ],
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'admin.css'), 'utf8');
+
+  assert.match(html, new RegExp(longUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(css, /\.provider-card \{[^}]*min-width:\s*0/s);
+  assert.match(css, /\.provider-info code \{[^}]*max-width:\s*100%/s);
+  assert.match(css, /\.provider-info code \{[^}]*overflow-wrap:\s*anywhere/s);
+});
