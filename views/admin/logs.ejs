@@ -53,7 +53,7 @@
               <td><%= log.action %></td>
               <td><%= log.ai_provider || '-' %></td>
               <td><code><%= log.ai_model || '-' %></code></td>
-              <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
+              <td><span class="status-badge status-<%= log.display_status_class || (log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned') %>"><%= log.display_status || log.status %></span></td>
               <td class="td-detail"><%= (log.detail || '').slice(0, 80) %></td>
             </tr>
           <% }); %>

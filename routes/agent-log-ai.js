@@ -20,12 +20,32 @@ function normalizeAgentLogAI(log = {}) {
   return { provider: '', model: '' };
 }
 
+function normalizeAgentLogDisplay(log = {}) {
+  const status = String(log.status || '').trim();
+  const detail = String(log.detail || '');
+  const action = String(log.action || '');
+  const text = `${action} ${detail}`;
+
+  if (status === 'success' || status === 'completed') return { label: '成功', className: 'published' };
+  if (status === 'running' || status === 'working') return { label: '运行中', className: 'planned' };
+  if (status === 'failed' || status === 'error') {
+    if (/(?:未达标|待写重试|等待重写|未发布|style_check_failed)/i.test(text)) {
+      return { label: '待重写', className: 'quality' };
+    }
+    return { label: '失败', className: 'archived' };
+  }
+  return { label: status || '空闲', className: 'draft' };
+}
+
 function enrichAgentLogAI(log = {}) {
   const ai = normalizeAgentLogAI(log);
+  const display = normalizeAgentLogDisplay(log);
   return {
     ...log,
     ai_provider: ai.provider,
     ai_model: ai.model,
+    display_status: display.label,
+    display_status_class: display.className,
   };
 }
 
@@ -35,6 +55,7 @@ function enrichAgentLogsAI(logs = []) {
 
 module.exports = {
   normalizeAgentLogAI,
+  normalizeAgentLogDisplay,
   enrichAgentLogAI,
   enrichAgentLogsAI,
 };

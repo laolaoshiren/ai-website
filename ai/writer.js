@@ -46,6 +46,29 @@ async function prepareArticleForPublication(data, context = {}) {
   };
 }
 
+function buildQualityRetryGuidance(page = {}) {
+  const lastError = String(page.last_error || '').trim();
+  const attemptCount = Number(page.attempt_count || 0);
+  if (!lastError && attemptCount <= 1) return '';
+
+  const lines = [
+    `上一轮尝试没有成功，这是第 ${attemptCount || 1} 次尝试。`,
+  ];
+
+  if (/style_check_failed|未达标|待写重试|等待重写/i.test(lastError)) {
+    lines.push(`失败原因: ${lastError || 'style_check_failed'}`);
+    lines.push('不要重复上一轮的写法。换一个更具体的切口，减少模板化小标题，多写可核查事实、场景和明确判断。');
+  } else if (/JSON|解析|返回内容为空|empty/i.test(lastError)) {
+    lines.push(`失败原因: ${lastError}`);
+    lines.push('这一轮必须只返回合法 JSON，不要在 JSON 前后添加解释、Markdown 围栏或多余文字。');
+  } else if (lastError) {
+    lines.push(`失败原因: ${lastError}`);
+    lines.push('先规避上一轮失败点，再完成正文，不要机械复用旧稿结构。');
+  }
+
+  return lines.join('\n');
+}
+
 async function generateArticle(page) {
   const { getPublishedPages, updatePage, getCategories, logAgent, retryTimeAfterAttempts } = require('../db/database');
 
@@ -72,7 +95,9 @@ async function generateArticle(page) {
   }
 
   // 生成文章
-  const messages = getWriterPrompt(page.title, category, keywords, page.summary, existingArticles, searchResults);
+  const messages = getWriterPrompt(page.title, category, keywords, page.summary, existingArticles, searchResults, {
+    qualityRetryGuidance: buildQualityRetryGuidance(page),
+  });
   const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
     taskType: 'generate_content',
     maxTokens: 8192,
@@ -132,4 +157,4 @@ async function generateArticle(page) {
   };
 }
 
-module.exports = { generateArticle, prepareArticleForPublication };
+module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance };

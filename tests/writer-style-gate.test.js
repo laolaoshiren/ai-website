@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { initDb } = require('../db/database');
 const { getPlannerPrompt, getWriterPrompt } = require('../ai/prompts');
 const { buildRewriteMessages } = require('../ai/humanized-writing');
-const { prepareArticleForPublication } = require('../ai/writer');
+const { prepareArticleForPublication, buildQualityRetryGuidance } = require('../ai/writer');
 
 test.before(async () => {
   await initDb();
@@ -26,6 +26,38 @@ test('writer prompt asks for human-readable articles instead of SEO report templ
   assert.match(text, /每 300-500 字至少/);
   assert.match(text, /不要写“本文将|本文深入|总的来说”/);
   assert.doesNotMatch(text, /字数 2000-4000 字/);
+});
+
+test('writer prompt carries prior quality failure context into the next attempt', () => {
+  const guidance = buildQualityRetryGuidance({
+    last_error: 'style_check_failed',
+    attempt_count: 4,
+  });
+  const messages = getWriterPrompt(
+    'Apple Intelligence 2.0 半年实测',
+    { name: 'AI 资讯' },
+    ['Apple Intelligence'],
+    '写清楚端侧模型真实体验',
+    [],
+    [],
+    { qualityRetryGuidance: guidance },
+  );
+  const text = messages.map((message) => message.content).join('\n');
+
+  assert.match(guidance, /style_check_failed/);
+  assert.match(guidance, /4/);
+  assert.match(text, /style_check_failed/);
+  assert.match(text, /不要重复上一轮/);
+});
+
+test('quality retry guidance distinguishes JSON output failures from style failures', () => {
+  const guidance = buildQualityRetryGuidance({
+    last_error: '无法从 AI 响应中解析 JSON',
+    attempt_count: 2,
+  });
+
+  assert.match(guidance, /JSON/);
+  assert.match(guidance, /只返回/);
 });
 
 test('planner prompt creates specific editorial angles instead of report-style titles', () => {

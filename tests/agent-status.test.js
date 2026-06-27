@@ -25,6 +25,51 @@ test('derives visible agent status from latest logs instead of stale idle state'
   assert.match(statuses.writer.displayText, /AI 投资复盘/);
 });
 
+test('keeps a newer explicit idle state instead of showing an old running log', () => {
+  const statuses = buildAgentStatuses(
+    {
+      technician: {
+        status: 'idle',
+        current_task: null,
+        updated_at: '2026-06-27 19:32:22',
+      },
+    },
+    [
+      {
+        agent_role: 'technician',
+        action: 'heartbeat',
+        status: 'running',
+        detail: 'start heartbeat',
+        created_at: '2026-06-27 19:30:00',
+      },
+    ],
+  );
+
+  assert.equal(statuses.technician.status, 'idle');
+  assert.equal(statuses.technician.dotClass, 'dot-gray');
+  assert.equal(statuses.technician.displayText, '空闲');
+});
+
+test('shows quality gate failures as pending rewrite instead of system errors', () => {
+  const statuses = buildAgentStatuses(
+    {},
+    [
+      {
+        agent_role: 'editor',
+        action: 'style gate',
+        status: 'failed',
+        detail: '未达标，保留待写重试: Apple Intelligence 2.0 半年实测 (58分)',
+        created_at: '2026-06-27 19:32:21',
+      },
+    ],
+  );
+
+  assert.equal(statuses.editor.status, 'quality_hold');
+  assert.equal(statuses.editor.dotClass, 'dot-yellow');
+  assert.match(statuses.editor.displayText, /待重写/);
+  assert.match(statuses.editor.displayText, /Apple Intelligence/);
+});
+
 test('normalizes running and failed logs into dashboard states', () => {
   const statuses = buildAgentStatuses(
     {},

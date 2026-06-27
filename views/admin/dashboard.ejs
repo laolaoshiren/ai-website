@@ -36,6 +36,33 @@
     <div class="stat-card"><div class="stat-number"><%= stats.activeProviders %>/<%= stats.totalProviders %></div><div class="stat-label">AI 提供商</div></div>
   </div>
 
+  <% if (typeof autonomyPlan !== 'undefined' && autonomyPlan.actions && autonomyPlan.actions.length > 0) { %>
+  <div class="admin-panel autonomy-panel">
+    <div class="panel-title-row">
+      <h2>🧭 AI 自治决策队列</h2>
+      <span class="panel-subtle"><%= autonomyPlan.generated_at || '' %></span>
+    </div>
+    <div class="autonomy-summary">
+      <span>低质待重写 <strong><%= autonomyPlan.snapshot.qualityBlocked || 0 %></strong></span>
+      <span>JSON失败 <strong><%= autonomyPlan.snapshot.jsonFailures || 0 %></strong></span>
+      <span>异常Provider <strong><%= (autonomyPlan.snapshot.unhealthyProviders || []).length %></strong></span>
+      <span>待写计划 <strong><%= autonomyPlan.snapshot.plannedCount || 0 %></strong></span>
+    </div>
+    <div class="autonomy-actions">
+      <% autonomyPlan.actions.slice(0, 4).forEach(function(action) { %>
+        <div class="autonomy-action">
+          <span class="autonomy-priority"><%= action.priority %></span>
+          <div>
+            <strong><%= action.title %></strong>
+            <p><%= action.reason %></p>
+          </div>
+          <code><%= action.taskType %></code>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+  <% } %>
+
   <div class="admin-grid">
     <div class="admin-panel">
       <h2>📋 手动触发</h2>
@@ -95,7 +122,7 @@
             <td><%= log.action %></td>
             <td><%= log.ai_provider || '-' %></td>
             <td><code><%= log.ai_model || '-' %></code></td>
-            <td><span class="status-badge status-<%= log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned' %>"><%= log.status %></span></td>
+            <td><span class="status-badge status-<%= log.display_status_class || (log.status === 'success' ? 'published' : log.status === 'failed' ? 'archived' : 'planned') %>"><%= log.display_status || log.status %></span></td>
             <td class="td-detail"><%= (log.detail || '').slice(0, 60) %></td>
           </tr>
           <% }); %>

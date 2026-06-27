@@ -85,6 +85,24 @@
           </section>
           <% } %>
 
+          <% if (typeof topicPath !== 'undefined' && topicPath && topicPath.length > 0) { %>
+          <section class="topic-path-section" aria-labelledby="topic-path-title">
+            <div class="section-heading">
+              <span class="section-kicker">Topic Path</span>
+              <h2 class="section-title" id="topic-path-title">继续读这个主题</h2>
+            </div>
+            <ol class="topic-path-list">
+              <% topicPath.forEach(function(a, index) { %>
+                <li>
+                  <span class="topic-path-index"><%= index + 1 %></span>
+                  <a href="/article/<%= a.slug %>"><%= a.title %></a>
+                  <% if (a.summary) { %><p><%= a.summary %></p><% } %>
+                </li>
+              <% }); %>
+            </ol>
+          </section>
+          <% } %>
+
           <!-- 分享按钮 -->
           <div class="share-bar">
             <span class="share-label">分享文章</span>

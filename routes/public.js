@@ -7,6 +7,7 @@ const { getPublishedPages, getPageBySlug, getCategoryBySlug, getCategories } = r
 const { getConfig } = require('../config');
 const { buildArchivePagination, ARCHIVE_ARTICLES_PER_PAGE } = require('./archive-pagination');
 const { buildPagination } = require('./pagination');
+const { buildArticleRelations } = require('./article-relations');
 
 // 首页
 router.get('/', (req, res) => {
@@ -110,10 +111,11 @@ router.get('/article/:slug', (req, res) => {
   const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
   const nextArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
 
-  // 同栏目相关文章（排除自身，取前3篇）
-  const relatedArticles = allArticles
-    .filter(a => a.id !== article.id && a.category_id === article.category_id)
-    .slice(0, 3);
+  // 相关文章与同主题阅读路径：同栏目、关键词重合和阅读量综合排序
+  const { relatedArticles, topicPath } = buildArticleRelations(article, allArticles, {
+    relatedLimit: 3,
+    pathLimit: 4,
+  });
 
   // 字数统计与阅读时间
   const plainText = (article.content_html || article.content_md || '').replace(/<[^>]*>/g, '');
@@ -126,7 +128,7 @@ router.get('/article/:slug', (req, res) => {
     siteUrl: config.site_url || 'http://localhost:3000',
     metaDescription: article.seo_description || article.summary,
     metaKeywords: article.seo_keywords,
-    prevArticle, nextArticle, relatedArticles, wordCount, readTime,
+    prevArticle, nextArticle, relatedArticles, topicPath, wordCount, readTime,
   });
 });
 

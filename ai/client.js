@@ -310,15 +310,88 @@ async function callAIForJSON(messages, options = {}) {
   }
 }
 
+function repairJsonText(text) {
+  return String(text || '')
+    .trim()
+    .replace(/,\s*([}\]])/g, '$1');
+}
+
+function tryParseJsonCandidate(candidate) {
+  const trimmed = String(candidate || '').trim();
+  if (!trimmed) return null;
+  try { return JSON.parse(trimmed); } catch {}
+  try { return JSON.parse(repairJsonText(trimmed)); } catch {}
+  return null;
+}
+
+function fencedJsonCandidates(text) {
+  const candidates = [];
+  const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+  let match;
+  while ((match = fencePattern.exec(text))) {
+    candidates.push(match[1]);
+  }
+  return candidates;
+}
+
+function balancedJsonCandidates(text, openChar, closeChar) {
+  const source = String(text || '');
+  const candidates = [];
+
+  for (let start = 0; start < source.length; start += 1) {
+    if (source[start] !== openChar) continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let index = start; index < source.length; index += 1) {
+      const char = source[index];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+      } else if (char === openChar) {
+        depth += 1;
+      } else if (char === closeChar) {
+        depth -= 1;
+        if (depth === 0) {
+          candidates.push(source.slice(start, index + 1));
+          break;
+        }
+      }
+    }
+  }
+
+  return candidates;
+}
+
 function parseJSON(text) {
-  if (!text) throw new Error('AI 返回内容为空');
-  try { return JSON.parse(text); } catch {}
-  const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
-  if (jsonMatch) { try { return JSON.parse(jsonMatch[1].trim()); } catch {} }
-  const objectMatch = text.match(/\{[\s\S]*\}/);
-  if (objectMatch) { try { return JSON.parse(objectMatch[0]); } catch {} }
-  const arrayMatch = text.match(/\[[\s\S]*\]/);
-  if (arrayMatch) { try { return JSON.parse(arrayMatch[0]); } catch {} }
+  if (!String(text || '').trim()) throw new Error('AI 返回内容为空');
+  const candidates = [
+    text,
+    ...fencedJsonCandidates(text),
+    ...balancedJsonCandidates(text, '{', '}'),
+    ...balancedJsonCandidates(text, '[', ']'),
+  ];
+  const seen = new Set();
+
+  for (const candidate of candidates) {
+    const key = String(candidate || '').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const parsed = tryParseJsonCandidate(candidate);
+    if (parsed !== null) return parsed;
+  }
+
   throw new Error('无法从 AI 响应中解析 JSON');
 }
 
