@@ -221,6 +221,25 @@ async function reviewTheme(id, options = {}) {
     issues.push('possible mobile overflow risk');
     score -= 8;
   }
+  if (options.enforceDifferentiation) {
+    const source = Object.values(files).join('\n');
+    const builtinMarkers = [
+      'site-header',
+      'hero-section',
+      'articles-grid',
+      'article-card',
+      'site-title',
+      'site-description',
+      'container',
+      '--primary-color',
+      '--card-bg',
+    ];
+    const hits = builtinMarkers.filter(marker => source.includes(marker));
+    if (hits.length >= 5) {
+      issues.push(`builtin similarity too high; differentiation markers reused: ${hits.join(', ')}`);
+      score -= 35;
+    }
+  }
 
   score = Math.max(0, Math.min(100, score));
   return {

@@ -110,7 +110,15 @@ function buildThemePrompt({ site = {}, articles = [], categories = [], instructi
   return [
     {
       role: 'system',
-      content: `你是资深 CMS 主题设计师。你只能按 Theme SDK 输出 JSON，不能修改系统文件。必须生成完整主题包，包含 templates、partials、assets/theme.css。不要输出 Markdown。`,
+      content: `你是资深 CMS 主题设计师。你只能按 Theme SDK 输出 JSON，不能修改系统文件。必须生成完整主题包，包含 templates、partials、assets/theme.css。不要输出 Markdown。
+
+差异化要求（非常重要）：
+- 必须做出和内置主题明显不同的视觉语言、信息架构和页面节奏，distinct by default。
+- 不要复刻“顶部导航 + 居中 hero + 三列文章卡片”的常规模板站结构。
+- 不得复用内置主题的主要 class 命名和结构套路：site-header、hero-section、articles-grid、article-card、site-title、site-description、container。
+- 根据网站类型选择强风格方向：新闻可做编辑部/快讯流，博客可做作者手札/专栏，CMS 可做信息门户，杂志可做封面目录，知识库可做文档索引。
+- 首页必须有一个第一眼能看出主题差异的布局，而不是只换颜色。
+- 保持可读性和移动端稳定，不要为了差异化牺牲文章阅读。`,
     },
     {
       role: 'user',

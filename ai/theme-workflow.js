@@ -30,7 +30,7 @@ async function generateAndReviewTheme(options = {}) {
     callAIForJSON: options.callAIForJSON,
   });
   const saved = saveGeneratedTheme(pkg, options.themeEngineOptions || {});
-  const report = await reviewTheme(saved.id, options.themeEngineOptions || {});
+  const report = await reviewTheme(saved.id, { ...(options.themeEngineOptions || {}), enforceDifferentiation: true });
   const status = report.pass ? 'preview' : 'failed';
 
   db.addAIThemeRecord({

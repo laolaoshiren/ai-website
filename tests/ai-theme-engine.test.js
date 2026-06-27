@@ -151,6 +151,40 @@ test('theme reviewer scores complete themes and rejects broken templates', async
   assert.match(brokenReport.issues.join('\n'), /home/);
 });
 
+test('theme reviewer can reject themes that are too similar to the builtin layout', async () => {
+  const root = makeTempRoot();
+  const { saveGeneratedTheme, reviewTheme } = require('../ai/theme-engine');
+  const pkg = {
+    manifest: {
+      name: 'Builtin Clone',
+      version: '1.0.0',
+      site_type: 'blog',
+      templates: ['home', 'article', 'category', 'archive', 'search', '404'],
+      partials: ['header', 'footer', 'article-card', 'pagination'],
+      assets: ['assets/theme.css'],
+    },
+    files: {
+      'templates/home.ejs': '<html><head><title><%= siteTitle %></title><link rel="stylesheet" href="<%= themeAssetUrl %>"></head><body><header class="site-header"></header><main class="container"><section class="hero-section"><h1 class="site-title">Home</h1></section><section class="articles-grid"><article class="article-card"></article></section></main></body></html>',
+      'templates/article.ejs': '<html><body><article class="article-card"><h1><%= article.title %></h1></article></body></html>',
+      'templates/category.ejs': '<html><body><h1><%= category.name %></h1></body></html>',
+      'templates/archive.ejs': '<html><body><h1>Archive</h1></body></html>',
+      'templates/search.ejs': '<html><body><h1>Search</h1></body></html>',
+      'templates/404.ejs': '<html><body><h1>404</h1></body></html>',
+      'partials/header.ejs': '<header class="site-header"></header>',
+      'partials/footer.ejs': '<footer></footer>',
+      'partials/article-card.ejs': '<article class="article-card"></article>',
+      'partials/pagination.ejs': '<nav></nav>',
+      'assets/theme.css': ':root{--primary-color:#0d9488}.site-header{}.hero-section{}.articles-grid{}.article-card{}.container{}.site-title{} body{background:#fff;color:#111}',
+    },
+  };
+
+  saveGeneratedTheme(pkg, { rootDir: root, id: 'builtin-clone' });
+  const report = await reviewTheme('builtin-clone', { rootDir: root, enforceDifferentiation: true });
+
+  assert.equal(report.pass, false);
+  assert.match(report.issues.join('\n'), /builtin|similar|differentiation/i);
+});
+
 test('frontend agent can generate a complete theme package for an empty site', async () => {
   const { generateThemePackage } = require('../ai/theme-agent');
   const pkg = await generateThemePackage({
@@ -193,6 +227,20 @@ test('frontend agent can generate a complete theme package for an empty site', a
 
   assert.equal(pkg.manifest.site_type, 'blog');
   assert.equal(Object.keys(pkg.files).includes('templates/home.ejs'), true);
+});
+
+test('frontend theme prompt asks for a visibly differentiated design', () => {
+  const { buildThemePrompt } = require('../ai/theme-agent');
+  const messages = buildThemePrompt({
+    site: { title: 'AI Site', site_type: 'blog' },
+    articles: [],
+    categories: [],
+  });
+  const text = messages.map(message => message.content).join('\n');
+
+  assert.match(text, /差异化|distinct/i);
+  assert.match(text, /不要复刻|不得复用|avoid/i);
+  assert.match(text, /site-header|article-card|hero-section/);
 });
 
 test('frontend agent fallback package renders all required templates', async () => {
