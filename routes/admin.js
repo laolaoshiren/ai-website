@@ -193,7 +193,9 @@ router.get('/', (req, res) => {
   let rageStatus = { active: false, level: 3 };
   try { rageStatus = require('../scheduler').getRageModeStatus(); } catch {}
   const workMode = getConfig().work_mode || 'smart';
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  let autonomyPlan = { snapshot: {}, actions: [] };
+  try { autonomyPlan = require('../ai/autonomy-director').buildCurrentAutonomyPlan(db.getDb()); } catch {}
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, autonomyPlan, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============

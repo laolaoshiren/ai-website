@@ -34,14 +34,21 @@ function toTimestamp(value) {
 }
 
 function normalizeStatus(status) {
+  if (status === 'quality_hold') return 'quality_hold';
   if (status === 'running' || status === 'working') return 'working';
   if (status === 'failed' || status === 'error') return 'error';
   if (status === 'success' || status === 'completed') return 'success';
   return 'idle';
 }
 
+function isQualityHoldLog(log = {}) {
+  if (log.status !== 'failed' && log.status !== 'error') return false;
+  const text = `${log.action || ''} ${log.detail || ''}`;
+  return /(?:未达标|待写重试|等待重写|未发布|style_check_failed|quality gate)/i.test(text);
+}
+
 function buildCandidateFromLog(log) {
-  const status = normalizeStatus(log.status);
+  const status = isQualityHoldLog(log) ? 'quality_hold' : normalizeStatus(log.status);
   return {
     status,
     current_task: log.detail || log.action || null,
@@ -83,6 +90,9 @@ function decorateStatus(role, candidate) {
   if (status === 'error') {
     return { ...base, dotClass: 'dot-red', statusLabel: '异常', displayText: task ? `异常：${task}` : '异常' };
   }
+  if (status === 'quality_hold') {
+    return { ...base, dotClass: 'dot-yellow', statusLabel: '待重写', displayText: task ? `待重写：${task}` : '待重写' };
+  }
   return { ...base, dotClass: 'dot-gray', statusLabel: '空闲', displayText: '空闲' };
 }
 
@@ -100,10 +110,12 @@ function latestLogByRole(logs) {
 
 function chooseCandidate(storedCandidate, logCandidate) {
   if (!logCandidate) return storedCandidate;
-  if (!storedCandidate || storedCandidate.status === 'idle') return logCandidate;
+  if (!storedCandidate) return logCandidate;
 
   const storedTs = toTimestamp(storedCandidate.updated_at);
   const logTs = toTimestamp(logCandidate.updated_at);
+  if (storedCandidate.status === 'idle' && logCandidate.status === 'working' && storedTs >= logTs) return storedCandidate;
+  if (storedCandidate.status === 'idle') return logCandidate;
   return storedTs > logTs ? storedCandidate : logCandidate;
 }
 
@@ -125,5 +137,6 @@ module.exports = {
   AGENT_ROLES,
   AGENT_ROLE_NAMES,
   buildAgentStatuses,
+  isQualityHoldLog,
   normalizeStatus,
 };

@@ -31,6 +31,26 @@ test('normalizes AI provider from legacy log detail', () => {
   );
 });
 
+test('normalizes visible log status for quality holds and hard failures', () => {
+  const { normalizeAgentLogDisplay } = require('../routes/agent-log-ai');
+
+  assert.deepEqual(
+    normalizeAgentLogDisplay({
+      status: 'failed',
+      detail: '未达标，保留待写重试: demo (58分)',
+    }),
+    { label: '待重写', className: 'quality' },
+  );
+
+  assert.deepEqual(
+    normalizeAgentLogDisplay({
+      status: 'failed',
+      detail: '失败: demo - 无法从 AI 响应中解析 JSON',
+    }),
+    { label: '失败', className: 'archived' },
+  );
+});
+
 test('admin logs view renders AI provider and model columns', async () => {
   const { enrichAgentLogAI } = require('../routes/agent-log-ai');
   const html = await ejs.renderFile(

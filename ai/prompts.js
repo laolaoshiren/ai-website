@@ -118,7 +118,7 @@ ${newsContext}
 
 // ==================== 写作 Agent 提示词 ====================
 
-function getWriterPrompt(articleTitle, category, keywords, summary, relatedArticles, searchResults) {
+function getWriterPrompt(articleTitle, category, keywords, summary, relatedArticles, searchResults, options = {}) {
   const site = getSiteConfig();
   const now = new Date();
   const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
@@ -159,6 +159,9 @@ ${relatedArticles.map(a => `- 《${a.title}》 (${a.slug}) - ${a.summary || ''}`
     ? `\n🔍 最新搜索结果（请基于这些最新信息撰写，确保内容时效性）：
 ${searchResults.map(r => `📄 ${r.title}\n   链接: ${r.url}\n   摘要: ${r.snippet}`).join('\n\n')}`
     : '';
+  const qualityRetryContext = options.qualityRetryGuidance
+    ? `\n上一轮质量反馈：\n${options.qualityRetryGuidance}`
+    : '';
 
   const user = `${getBaseContext()}
 
@@ -170,6 +173,7 @@ ${searchResults.map(r => `📄 ${r.title}\n   链接: ${r.url}\n   摘要: ${r.s
 内容规划：${summary || '按照标题自行展开'}
 ${relatedContext}
 ${searchContext}
+${qualityRetryContext}
 
 ⚠️ 重要提醒：
 - 基于上述搜索结果中的最新信息撰写，不要依赖过时的知识
