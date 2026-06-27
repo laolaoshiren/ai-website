@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { initDb } = require('../db/database');
 const { getPlannerPrompt, getWriterPrompt } = require('../ai/prompts');
 const { buildRewriteMessages } = require('../ai/humanized-writing');
-const { prepareArticleForPublication, buildQualityRetryGuidance } = require('../ai/writer');
+const { prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta } = require('../ai/writer');
 
 test.before(async () => {
   await initDb();
@@ -116,6 +116,40 @@ test('publication preparation runs the style gate and stores style metadata', as
   assert.equal(prepared.meta.style_status, 'rewritten');
   assert.equal(prepared.meta.style_rewrite_attempts, 1);
   assert.equal(prepared.meta.style_issues, '[]');
+});
+
+test('writer AI metadata records MoA mode and candidate history', () => {
+  const meta = buildAIMeta({
+    provider: 'MoA:OpenRouter',
+    model: 'gpt-4.1-mini',
+    tokensUsed: 1234,
+    moa: true,
+    failedCandidates: 1,
+    candidates: [
+      { provider: 'A', model: 'a-model', content: 'draft-a' },
+      { provider: 'B', model: 'b-model', content: 'draft-b' },
+    ],
+  });
+
+  assert.equal(meta.ai_mode, 'moa');
+  assert.equal(meta.provider, 'MoA:OpenRouter');
+  assert.equal(meta.model, 'gpt-4.1-mini');
+  assert.equal(meta.tokensUsed, 1234);
+  assert.equal(meta.moa_failed_candidates, 1);
+  assert.deepEqual(meta.moa_candidates, [
+    { provider: 'A', model: 'a-model' },
+    { provider: 'B', model: 'b-model' },
+  ]);
+
+  const fallback = buildAIMeta({
+    provider: 'OpenRouter',
+    model: 'gpt-4.1-mini',
+    moaFallback: true,
+    moaError: 'MoA 候选结果不足',
+  });
+
+  assert.equal(fallback.ai_mode, 'moa_fallback');
+  assert.equal(fallback.moa_error, 'MoA 候选结果不足');
 });
 
 test('rewrite prompt forbids invented facts when humanizing prose', () => {

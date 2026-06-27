@@ -182,6 +182,7 @@ async function callAI(messages, options = {}) {
   const providers = rankAIProviders(getAIProviders().filter(p => p.enabled));
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
 
+  let moaFallbackError = null;
   try {
     const config = require('../config').getConfig();
     if (shouldUseMoA(options, config)) {
@@ -200,6 +201,7 @@ async function callAI(messages, options = {}) {
       });
     }
   } catch (err) {
+    moaFallbackError = err;
     console.log('MoA 模式降级为单模型:', err.message);
   }
 
@@ -212,7 +214,7 @@ async function callAI(messages, options = {}) {
         markProviderSuccess(provider, result);
         // 如果之前在故障状态，成功后停止恢复轮询
         if (outageState.active) stopRecovery();
-        return result;
+        return moaFallbackError ? applyMoAFallbackMarker(result, moaFallbackError) : result;
       } catch (err) {
         incrementProviderUsage(provider.id, false);
         const errorType = markProviderFailure(provider, err);
@@ -267,6 +269,14 @@ async function callProvider(provider, messages, options = {}) {
   const toolCalls = data.choices?.[0]?.message?.tool_calls || null;
 
   return { content, model: data.model || model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
+}
+
+function applyMoAFallbackMarker(result = {}, err) {
+  return {
+    ...result,
+    moaFallback: true,
+    moaError: String(err?.message || err || ''),
+  };
 }
 
 /**
@@ -327,7 +337,7 @@ async function callAIForJSON(messages, options = {}) {
     } catch (parseErr) {
       if (shouldFallbackFromMoAParseError(result, parseErr)) {
         const fallback = await callAI(messages, { ...options, jsonMode: true, moa: false });
-        return { ...fallback, data: parseJSON(fallback.content), moaFallback: true };
+        return { ...fallback, data: parseJSON(fallback.content), moaFallback: true, moaError: parseErr.message };
       }
       throw parseErr;
     }
@@ -447,4 +457,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, rankAIProviders, classifyProviderError, chooseProviderCredential, shouldFallbackFromMoAParseError };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, rankAIProviders, classifyProviderError, chooseProviderCredential, shouldFallbackFromMoAParseError, applyMoAFallbackMarker };

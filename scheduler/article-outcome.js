@@ -13,6 +13,10 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
     provider: result?.provider || '',
     model: result?.model || '',
   };
+  if (result?.ai_mode) meta.ai_mode = result.ai_mode;
+  if (result?.moa_candidates) meta.moa_candidates = result.moa_candidates;
+  if (result?.moa_failed_candidates) meta.moa_failed_candidates = result.moa_failed_candidates;
+  if (result?.moa_error) meta.moa_error = result.moa_error;
 
   if (result?.published) {
     return [

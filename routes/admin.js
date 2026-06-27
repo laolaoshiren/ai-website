@@ -12,6 +12,7 @@ const { testConnection } = require('../ai/client');
 const { buildPagination } = require('./pagination');
 const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('./agent-status');
 const { enrichAgentLogsAI } = require('./agent-log-ai');
+const { buildActivityBrief } = require('./admin-activity-brief');
 const { validateCategoryInput } = require('../ai/category-policy');
 
 // ============ 常量 ============
@@ -191,17 +192,19 @@ router.get('/logout', (req, res) => {
 // ============ 仪表盘 ============
 router.get('/', (req, res) => {
   const stats = db.getStats();
-  const agentLogs = enrichAgentLogsAI(db.getAgentLogs(30));
-  const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), db.getAgentLogs(200));
+  const rawAgentLogs = db.getAgentLogs(200);
+  const agentLogs = enrichAgentLogsAI(rawAgentLogs.slice(0, 30));
+  const agentStatuses = buildAgentStatuses(db.getAgentStatuses(), rawAgentLogs);
   const schedules = db.getSchedules();
   let outage = { active: false };
   try { outage = require('../ai/client').getOutageStatus(); } catch {}
   let rageStatus = { active: false, level: 3 };
   try { rageStatus = require('../scheduler').getRageModeStatus(); } catch {}
   const workMode = getConfig().work_mode || 'smart';
+  const activityBrief = buildActivityBrief({ logs: rawAgentLogs, stats, config: getConfig() });
   let autonomyPlan = { snapshot: {}, actions: [] };
   try { autonomyPlan = require('../ai/autonomy-director').buildCurrentAutonomyPlan(db.getDb()); } catch {}
-  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, autonomyPlan, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, activityBrief, autonomyPlan, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 // ============ 系统设置 ============
