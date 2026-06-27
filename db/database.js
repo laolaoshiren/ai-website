@@ -62,8 +62,13 @@ const DEFAULT_DATA = {
     site_direction: '',
     site_language: 'zh-CN',
     site_url: 'http://localhost:3000',
+    site_type: 'cms',
     ai_loop_enabled: '0',
     moa_enabled: '0',
+    ai_theme_enabled: '0',
+    theme_mode: 'builtin',
+    active_theme_id: '',
+    ai_theme_locked: '0',
     content_plan: '',
     last_strategy_notes: '',
   },
@@ -95,6 +100,7 @@ const DEFAULT_DATA = {
 
   // 模板历史
   template_history: [],
+  ai_themes: [],
 
   // 当前运行状态
   agent_status: {},
@@ -106,7 +112,7 @@ const DEFAULT_DATA = {
   friend_links: [],
 
   // ID 计数器
-  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, ads: 0, friend_links: 0 },
+  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, ads: 0, friend_links: 0, ai_themes: 0 },
 };
 
 async function initDb() {
@@ -122,10 +128,18 @@ async function initDb() {
     if (!(key in data)) data[key] = DEFAULT_DATA[key];
   }
   if (!data._counters) data._counters = DEFAULT_DATA._counters;
+  for (const [key, value] of Object.entries(DEFAULT_DATA._counters)) {
+    if (!(key in data._counters)) data._counters[key] = value;
+  }
+  if (!data.settings) data.settings = {};
+  for (const [key, value] of Object.entries(DEFAULT_DATA.settings)) {
+    if (!(key in data.settings)) data.settings[key] = value;
+  }
   if (!data.admin) data.admin = { password: '', setup: false };
   if (!data.ai_providers) data.ai_providers = [];
   if (!data.agent_logs) data.agent_logs = [];
   if (!data.agent_status) data.agent_status = {};
+  if (!Array.isArray(data.ai_themes)) data.ai_themes = [];
   // 初始化所有 Agent 状态（确保面板显示完整）
   const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'seo_expert', 'user_tester', 'analyzer', 'technician'];
   for (const role of ALL_AGENTS) {
@@ -347,6 +361,93 @@ function setSetting(key, value) {
   return withLock(() => { getDb().settings[key] = String(value); scheduleSave(); });
 }
 function getAllSettings() { return { ...getDb().settings }; }
+
+// ============ AI frontend themes ============
+function themeRecordDefaults(input = {}) {
+  const nowStr = now();
+  return {
+    theme_id: input.theme_id || '',
+    name: input.name || input.theme_id || 'AI Theme',
+    site_type: input.site_type || getSetting('site_type') || 'cms',
+    status: input.status || 'preview',
+    score: Number(input.score || 0),
+    locked: input.locked === true,
+    design_note: input.design_note || '',
+    instruction: input.instruction || '',
+    review_report: input.review_report || null,
+    ai_meta: input.ai_meta || null,
+    preview_url: input.preview_url || '',
+    created_at: input.created_at || nowStr,
+    updated_at: input.updated_at || nowStr,
+    published_at: input.published_at || null,
+  };
+}
+
+function listAIThemes() {
+  return getDb().ai_themes.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+}
+
+function getAIThemeByThemeId(themeId) {
+  return getDb().ai_themes.find(t => t.theme_id === themeId) || null;
+}
+
+function addAIThemeRecord(input = {}) {
+  return withLock(() => {
+    const existing = input.theme_id ? getAIThemeByThemeId(input.theme_id) : null;
+    if (existing) {
+      Object.assign(existing, themeRecordDefaults({ ...existing, ...input, updated_at: now() }));
+      scheduleSave();
+      return existing.id;
+    }
+    const id = nextId('ai_themes');
+    getDb().ai_themes.push({ id, ...themeRecordDefaults(input) });
+    scheduleSave();
+    return id;
+  });
+}
+
+function updateAIThemeRecord(themeId, updates = {}) {
+  return withLock(() => {
+    const theme = getAIThemeByThemeId(themeId);
+    if (!theme) return null;
+    Object.assign(theme, updates, { updated_at: now() });
+    scheduleSave();
+    return theme;
+  });
+}
+
+function publishAITheme(themeId, updates = {}) {
+  return withLock(() => {
+    const theme = getAIThemeByThemeId(themeId);
+    if (!theme) throw new Error(`AI theme not found: ${themeId}`);
+    const nowStr = now();
+    for (const item of getDb().ai_themes) {
+      if (item.theme_id !== themeId && item.status === 'published') item.status = 'archived';
+      item.updated_at = nowStr;
+    }
+    Object.assign(theme, updates, {
+      status: 'published',
+      locked: true,
+      published_at: nowStr,
+      updated_at: nowStr,
+    });
+    getDb().settings.ai_theme_enabled = '1';
+    getDb().settings.theme_mode = 'ai_active';
+    getDb().settings.active_theme_id = themeId;
+    getDb().settings.ai_theme_locked = '1';
+    scheduleSave();
+    return theme;
+  });
+}
+
+function rollbackToBuiltinTheme() {
+  return withLock(() => {
+    getDb().settings.theme_mode = 'builtin';
+    getDb().settings.active_theme_id = '';
+    getDb().settings.ai_theme_locked = '0';
+    scheduleSave();
+  });
+}
 
 // ============ Agent 日志 ============
 function logAgent(agentRole, action, status, detail, meta) {
@@ -685,6 +786,7 @@ module.exports = {
   getAdmin, setAdminPassword,
   getAIProviders, getActiveAIProvider, addAIProvider, updateAIProvider, deleteAIProvider, incrementProviderUsage,
   getSetting, setSetting, getAllSettings,
+  listAIThemes, getAIThemeByThemeId, addAIThemeRecord, updateAIThemeRecord, publishAITheme, rollbackToBuiltinTheme,
   logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
   getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, repairExistingPageCategories, recoverExpiredWritingPages, repairPublishedContentQuality, insertPage, updatePage, deletePage,

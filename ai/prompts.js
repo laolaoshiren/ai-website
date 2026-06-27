@@ -15,6 +15,7 @@ function getBaseContext() {
 网站名称：${site.title}
 网站主题：${site.theme || '未指定（由 AI 自行决定）'}
 发展方向：${site.direction || '未指定（由 AI 自行规划）'}
+网站类型：${site.site_type || site.siteType || 'cms'}
 语言：${site.language}`;
 }
 

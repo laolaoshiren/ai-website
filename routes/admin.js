@@ -139,7 +139,7 @@ router.post('/setup', (req, res) => {
   const hash = bcrypt.hashSync(password, 12);
   db.setAdminPassword(hash);
   const sess = createSession(req.ip);
-  res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
+  res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
   res.redirect('/admin');
 });
 
@@ -173,7 +173,7 @@ router.post('/login', (req, res) => {
   if (authenticated) {
     loginAttempts.delete(ip);
     const sess = createSession(req.ip);
-    res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
+    res.setHeader('Set-Cookie', `admin_session=${sess.id}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${getSecureFlag(req)}`);
     res.redirect('/admin');
   } else {
     const a = loginAttempts.get(ip) || { count: 0 };
@@ -185,7 +185,10 @@ router.post('/login', (req, res) => {
 // ============ 登出 ============
 router.get('/logout', (req, res) => {
   deleteSession(req.sessionId);
-  res.setHeader('Set-Cookie', `admin_session=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${getSecureFlag(req)}`);
+  res.setHeader('Set-Cookie', [
+    `admin_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${getSecureFlag(req)}`,
+    `admin_session=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${getSecureFlag(req)}`,
+  ]);
   res.redirect('/admin/login');
 });
 
@@ -215,11 +218,91 @@ router.get('/settings', (req, res) => {
 
 router.post('/settings', requireCsrf, (req, res) => {
   try {
-    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled'];
+    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'site_type', 'tavily_api_key', 'moa_enabled'];
     for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, normalizeSettingValue(req.body[field])); }
     refreshConfig();
     res.redirect('/admin/settings?success=1');
   } catch (err) { res.redirect('/admin/settings?error=' + encodeURIComponent(err.message)); }
+});
+
+// ============ AI theme engine ============
+router.get('/themes', (req, res) => {
+  const config = getConfig();
+  const themes = db.listAIThemes();
+  const activeTheme = config.active_theme_id ? db.getAIThemeByThemeId(config.active_theme_id) : null;
+  res.render('admin/themes', {
+    title: 'AI Theme Engine',
+    config,
+    themes,
+    activeTheme,
+    csrfToken: req.session?.csrf || '',
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.post('/themes/settings', requireCsrf, (req, res) => {
+  try {
+    db.setSetting('ai_theme_enabled', req.body.ai_theme_enabled === '1' ? '1' : '0');
+    if (req.body.site_type) db.setSetting('site_type', normalizeSettingValue(req.body.site_type));
+    refreshConfig();
+    res.redirect('/admin/themes?success=' + encodeURIComponent('AI theme settings saved'));
+  } catch (err) {
+    res.redirect('/admin/themes?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/themes/generate', requireCsrf, async (req, res) => {
+  try {
+    const { generateAndReviewTheme } = require('../ai/theme-workflow');
+    if (req.body.site_type) db.setSetting('site_type', normalizeSettingValue(req.body.site_type));
+    db.setSetting('ai_theme_enabled', req.body.ai_theme_enabled === '1' ? '1' : '0');
+    refreshConfig();
+    const result = await generateAndReviewTheme({
+      site_type: db.getSetting('site_type') || 'cms',
+      instruction: req.body.instruction || '',
+    });
+    const message = result.report.pass
+      ? `AI theme generated: ${result.themeId} (${result.report.score}/100)`
+      : `AI theme needs rewrite: ${result.themeId} (${result.report.score}/100)`;
+    res.redirect('/admin/themes?success=' + encodeURIComponent(message));
+  } catch (err) {
+    res.redirect('/admin/themes?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/themes/rewrite', requireCsrf, async (req, res) => {
+  try {
+    const { generateAndReviewTheme } = require('../ai/theme-workflow');
+    const result = await generateAndReviewTheme({
+      site_type: req.body.site_type || db.getSetting('site_type') || 'cms',
+      instruction: req.body.instruction || 'Rewrite current AI theme with a better visual direction.',
+    });
+    res.redirect('/admin/themes?success=' + encodeURIComponent(`AI theme rewrite generated: ${result.themeId} (${result.report.score}/100)`));
+  } catch (err) {
+    res.redirect('/admin/themes?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/themes/publish/:themeId', requireCsrf, (req, res) => {
+  try {
+    const { publishReviewedTheme } = require('../ai/theme-workflow');
+    publishReviewedTheme(req.params.themeId);
+    res.redirect('/admin/themes?success=' + encodeURIComponent('AI theme published and locked'));
+  } catch (err) {
+    res.redirect('/admin/themes?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/themes/rollback', requireCsrf, (req, res) => {
+  try {
+    db.rollbackToBuiltinTheme();
+    refreshConfig();
+    db.logAgent('technician', 'AI theme rollback', 'success', 'Frontend switched back to builtin theme');
+    res.redirect('/admin/themes?success=' + encodeURIComponent('Rolled back to builtin theme'));
+  } catch (err) {
+    res.redirect('/admin/themes?error=' + encodeURIComponent(err.message));
+  }
 });
 
 // 修改密码
@@ -614,3 +697,4 @@ router.post('/friend-links/:id/delete', requireCsrf, (req, res) => {
 
 module.exports = router;
 module.exports.normalizeSettingValue = normalizeSettingValue;
+module.exports.getSession = getSession;
