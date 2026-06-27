@@ -32,6 +32,33 @@ test('admin settings page uses a readable responsive form layout', async () => {
   assert.match(html, /class="settings-textarea"/);
 });
 
+test('admin settings page exposes the MoA mode switch', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'settings.ejs'),
+    {
+      title: '系统设置',
+      currentPath: '/admin/settings',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      config: {
+        site_title: 'AI 纪元',
+        site_description: '测试描述',
+        site_url: 'https://aiweb.bt199.com',
+        site_language: 'zh-CN',
+        moa_enabled: '1',
+        work_mode: 'smart',
+        rage_level: '3',
+      },
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /name="moa_enabled"/);
+  assert.match(html, /value="1" checked/);
+  assert.match(html, /MoA/);
+});
+
 test('admin settings form CSS avoids cramped one-row fields and native bright scrollbars', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'admin.css'), 'utf8');
 

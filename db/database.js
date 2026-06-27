@@ -63,6 +63,7 @@ const DEFAULT_DATA = {
     site_language: 'zh-CN',
     site_url: 'http://localhost:3000',
     ai_loop_enabled: '0',
+    moa_enabled: '0',
     content_plan: '',
     last_strategy_notes: '',
   },

@@ -3,6 +3,7 @@
  */
 const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
+const { shouldUseMoA, runMoA } = require('./moa');
 
 const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -181,6 +182,27 @@ async function callAI(messages, options = {}) {
   const providers = rankAIProviders(getAIProviders().filter(p => p.enabled));
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
 
+  try {
+    const config = require('../config').getConfig();
+    if (shouldUseMoA(options, config)) {
+      return await runMoA(messages, options, {
+        getProviders: () => getAIProviders().filter(p => p.enabled),
+        rankProviders: rankAIProviders,
+        callProvider,
+        onSuccess: (provider, result) => {
+          incrementProviderUsage(provider.id, true);
+          markProviderSuccess(provider, result);
+        },
+        onFailure: (provider, err) => {
+          incrementProviderUsage(provider.id, false);
+          markProviderFailure(provider, err);
+        },
+      });
+    }
+  } catch (err) {
+    console.log('MoA 模式降级为单模型:', err.message);
+  }
+
   let lastError = null;
   for (const provider of providers) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -300,7 +322,15 @@ async function callAIWithTools(messages, options = {}, maxRounds = 3) {
 async function callAIForJSON(messages, options = {}) {
   try {
     const result = await callAI(messages, { ...options, jsonMode: true });
-    return { ...result, data: parseJSON(result.content) };
+    try {
+      return { ...result, data: parseJSON(result.content) };
+    } catch (parseErr) {
+      if (shouldFallbackFromMoAParseError(result, parseErr)) {
+        const fallback = await callAI(messages, { ...options, jsonMode: true, moa: false });
+        return { ...fallback, data: parseJSON(fallback.content), moaFallback: true };
+      }
+      throw parseErr;
+    }
   } catch (err) {
     if (err.message.includes('response_format') || err.message.includes('json_object')) {
       const result = await callAI(messages, { ...options, jsonMode: false });
@@ -308,6 +338,10 @@ async function callAIForJSON(messages, options = {}) {
     }
     throw err;
   }
+}
+
+function shouldFallbackFromMoAParseError(result, err) {
+  return !!result?.moa && /JSON|解析|parse|empty|为空/i.test(String(err?.message || err || ''));
 }
 
 function repairJsonText(text) {
@@ -413,4 +447,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, rankAIProviders, classifyProviderError, chooseProviderCredential };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, rankAIProviders, classifyProviderError, chooseProviderCredential, shouldFallbackFromMoAParseError };
