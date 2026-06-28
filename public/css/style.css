@@ -1622,7 +1622,7 @@ button {
 
 .archive-item {
   display: grid;
-  grid-template-columns: 60px 1fr auto;
+  grid-template-columns: minmax(150px, max-content) minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) 0;
@@ -1634,6 +1634,7 @@ button {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .archive-link {
@@ -2050,11 +2051,11 @@ button {
   }
 
   .archive-item {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .archive-category {
-    grid-column: 2;
     justify-self: start;
   }
 

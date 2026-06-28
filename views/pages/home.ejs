@@ -145,17 +145,7 @@
         .then(function(data) {
           var grid = document.getElementById('articles-grid');
           data.articles.forEach(function(a) {
-            var pubDate = (a.published_at || '').split(' ')[0];
-            var timeLabel = pubDate;
-            if (pubDate) {
-              var parts = pubDate.split('-');
-              var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-              var diff = Math.floor((Date.now() - d) / 86400000);
-              if (diff <= 0) timeLabel = '今天';
-              else if (diff === 1) timeLabel = '昨天';
-              else if (diff < 7) timeLabel = diff + '天前';
-              else if (diff < 30) timeLabel = Math.floor(diff / 7) + '周前';
-            }
+            var publishedAt = a.published_at || '';
             var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + escapeHtml(a.category_name) + '</a>' : '';
             var visualLabel = escapeHtml((a.category_name || 'AI').slice(0, 2));
             var visualClass = a.category_slug ? ' visual-' + String(a.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
@@ -166,7 +156,7 @@
             var html = '<article class="article-card fade-in visible">' +
               mediaHtml +
               '<div class="card-content">' +
-              '<div class="card-meta">' + catHtml + (pubDate ? '<time class="card-date">' + timeLabel + '</time>' : '') + '</div>' +
+              '<div class="card-meta">' + catHtml + (publishedAt ? '<time class="card-date" datetime="' + escapeHtml(publishedAt.replace(' ', 'T')) + '">' + escapeHtml(publishedAt) + '</time>' : '') + '</div>' +
               '<h3 class="card-title"><a href="/article/' + a.slug + '">' + escapeHtml(a.title) + '</a></h3>' +
               (a.summary ? '<p class="card-summary">' + escapeHtml(a.summary.slice(0, 120)) + '</p>' : '') +
               '<div class="card-footer"><div class="card-stats"><span class="stat-views">' + (a.view_count || 0) + ' 阅读</span><span class="stat-ai">AI 生成</span></div><a href="/article/' + a.slug + '" class="read-more">阅读</a></div>' +
