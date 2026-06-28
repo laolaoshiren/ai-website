@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ejs = require('ejs');
+const { JSDOM } = require('jsdom');
 
 test('admin settings page uses a readable responsive form layout', async () => {
   const html = await ejs.renderFile(
@@ -82,8 +83,54 @@ test('admin settings page manages Tavily keys with a modal and validation action
 
   assert.match(html, /id="tavilyKeysModal"/);
   assert.match(html, /name="tavily_api_key"/);
+  assert.match(html, /\/admin\/settings\/tavily\/save/);
   assert.match(html, /\/admin\/settings\/tavily\/test/);
   assert.match(html, /一键验证|验证/);
+});
+
+test('admin settings Tavily modal apply persists keys before leaving the page', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'settings.ejs'),
+    {
+      title: '系统设置',
+      currentPath: '/admin/settings',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      config: {
+        site_title: 'AI 纪元',
+        site_url: 'https://aiweb.bt199.com',
+        site_language: 'zh-CN',
+        tavily_api_key: 'tvly-a',
+        work_mode: 'smart',
+        rage_level: '3',
+      },
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  const calls = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    url: 'https://aiweb.bt199.com/admin/settings',
+    beforeParse(window) {
+      window.fetch = async (url, options = {}) => {
+        calls.push({ url, options });
+        return {
+          json: async () => ({ success: true, count: 2, keys: 'tvly-a\ntvly-b' }),
+        };
+      };
+    },
+  });
+
+  dom.window.document.getElementById('tavilyKeysInput').value = 'tvly-a\ntvly-b';
+  await dom.window.applyTavilyKeysModal();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, '/admin/settings/tavily/save');
+  assert.match(calls[0].options.body, /csrf_token=token/);
+  assert.match(calls[0].options.body, /tavily_api_key=tvly-a%0Atvly-b/);
+  assert.equal(dom.window.document.getElementById('tavilyKeyCount').textContent, '2');
 });
 
 test('admin settings page exposes the article image generation switch', async () => {
