@@ -569,6 +569,30 @@ test('planner briefs with visible phone screens are rewritten to blank non-ui su
   assert.doesNotMatch(plan.prompt, /苹果AI|微信读书|支付宝|抖音/);
 });
 
+test('planner briefs with blank phone screens prefer device backs instead of visible displays', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: '苹果AI入华三周，微信读书、支付宝、抖音踩了哪些坑',
+      summary: '文章讨论国内 App 适配 Apple Intelligence 时遇到的隐私、权限和交互风险。',
+      category_name: '技术应用',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'App integration safeguards cover',
+        visual_angle: 'A symbolic still life representing app-level security controls.',
+        prompt: 'A high angle close-up of a modern smartphone lying on a minimalist wooden desk. The phone screen is blank and dark. Two translucent geometric shields project above the screen, no text, no logos.',
+      }),
+    },
+  );
+
+  const sourceBrief = plan.prompt.match(/English visual brief[^.]+(?:\.[^.]+){0,3}/i)?.[0] || plan.prompt;
+  assert.match(sourceBrief, /back side|camera lenses|matte case|front glass side hidden/i);
+  assert.doesNotMatch(sourceBrief, /phone screen|above the screen|screen is blank|visible display/i);
+});
+
 test('semantic image review instructions use MVP quality gate instead of over-strict taste judging', () => {
   const { buildImageReviewMessages } = require('../ai/article-image');
 
