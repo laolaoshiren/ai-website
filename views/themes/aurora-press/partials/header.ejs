@@ -22,6 +22,10 @@
       <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="搜索文章">
       <button type="submit" aria-label="搜索">搜索</button>
     </form>
+
+    <button type="button" class="ap-mode-toggle" data-theme-mode-toggle onclick="toggleFrontendThemeMode()" aria-label="切换明暗模式">
+      <span data-theme-mode-icon>◐</span>
+    </button>
   </div>
 </header>
 

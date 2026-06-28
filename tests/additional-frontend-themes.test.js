@@ -9,8 +9,8 @@ const requiredPages = ['home', 'category', 'article', 'archive', 'search', '404'
 const requiredPartials = ['head', 'header', 'footer', 'article-card', 'pagination'];
 
 const themes = [
-  { id: 'ink-scroll', css: 'ink-scroll.css', marker: 'class="ink-' },
-  { id: 'star-harbor', css: 'star-harbor.css', marker: 'class="sh-' },
+  { id: 'ink-scroll', css: 'ink-scroll.css', marker: 'class="ink-', layoutMarker: 'ink-manuscript' },
+  { id: 'star-harbor', css: 'star-harbor.css', marker: 'class="sh-', layoutMarker: 'sh-command-center' },
 ];
 
 const article = {
@@ -93,6 +93,7 @@ test('additional frontend themes render every public page with independent CSS a
       const html = await ejs.renderFile(path.join(themeDir, `${page}.ejs`), data, renderOptions);
       assert.match(html, new RegExp(`/css/themes/${theme.css.replace('.', '\\.')}`));
       assert.match(html, new RegExp(theme.marker));
+      if (page === 'home') assert.match(html, new RegExp(theme.layoutMarker));
       assert.doesNotMatch(html, /\/css\/style\.css/);
       assert.doesNotMatch(html, /\/css\/themes\/aurora-press\.css/);
     }

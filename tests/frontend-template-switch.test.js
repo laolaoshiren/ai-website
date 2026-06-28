@@ -8,6 +8,7 @@ test('frontend theme registry defaults safely and exposes all built-in templates
     DEFAULT_FRONTEND_THEME,
     listFrontendThemes,
     resolveFrontendTheme,
+    resolveFrontendThemeForRequest,
     getFrontendThemeView,
   } = require('../routes/frontend-theme');
 
@@ -26,6 +27,9 @@ test('frontend theme registry defaults safely and exposes all built-in templates
   assert.equal(getFrontendThemeView('aurora-press', 'home'), 'themes/aurora-press/home');
   assert.equal(getFrontendThemeView('ink-scroll', 'home'), 'themes/ink-scroll/home');
   assert.equal(getFrontendThemeView('star-harbor', 'home'), 'themes/star-harbor/home');
+  assert.equal(resolveFrontendThemeForRequest({ query: { preview_theme: 'ink-scroll' } }, { frontend_theme: 'aurora-press' }).id, 'ink-scroll');
+  assert.equal(resolveFrontendThemeForRequest({ query: { preview_theme: 'missing-theme' } }, { frontend_theme: 'aurora-press' }).id, 'aurora-press');
+  assert.equal(resolveFrontendThemeForRequest({ query: {} }, { frontend_theme: 'star-harbor' }).id, 'star-harbor');
 });
 
 test('public pages render through the frontend theme renderer', () => {

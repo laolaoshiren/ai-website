@@ -2,6 +2,9 @@
 <%
   var activeTheme = themes.find(function(theme) { return theme.id === currentThemeId; }) || themes[0];
   var totalThemes = themes.length;
+  function templatePreviewHref(theme) {
+    return '/?preview_theme=' + encodeURIComponent(theme.id);
+  }
 %>
 <div class="admin-page template-admin-page">
   <div class="page-header-bar template-page-header">
@@ -23,7 +26,7 @@
     </div>
     <div class="template-active-actions">
       <span class="template-active-id"><%= activeTheme.id %></span>
-      <a href="/" class="btn btn-outline" target="_blank" rel="noopener">预览当前模板</a>
+      <a href="<%= templatePreviewHref(activeTheme) %>" class="btn btn-outline" target="_blank" rel="noopener">预览当前模板</a>
     </div>
   </section>
 
@@ -64,6 +67,7 @@
               data-template-badge="<%= theme.badge %>"
               data-template-active="<%= theme.id === currentThemeId ? '1' : '0' %>"
               data-template-default="<%= theme.id === 'builtin-default' ? '1' : '0' %>"
+              data-template-preview-href="<%= templatePreviewHref(theme) %>"
             >
               <input type="radio" name="frontend_theme" value="<%= theme.id %>" <%= theme.id === currentThemeId ? 'checked' : '' %> onchange="selectTemplateCard(this)">
               <span class="template-card-topline">
@@ -77,7 +81,7 @@
               <span class="template-card-desc"><%= theme.description %></span>
               <span class="template-card-meta">
                 <code><%= theme.id %></code>
-                <a href="/" target="_blank" rel="noopener" onclick="event.stopPropagation()">预览</a>
+                <a href="<%= templatePreviewHref(theme) %>" target="_blank" rel="noopener" onclick="event.stopPropagation()">预览</a>
               </span>
             </label>
           <% }); %>
@@ -97,7 +101,7 @@
       </div>
       <div class="template-sticky-buttons">
         <button type="submit" class="btn btn-primary btn-lg">应用所选模板</button>
-        <a href="/" class="btn btn-outline btn-lg" target="_blank" rel="noopener">查看前台效果</a>
+        <a href="<%= templatePreviewHref(activeTheme) %>" id="selectedTemplatePreviewLink" class="btn btn-outline btn-lg" target="_blank" rel="noopener">预览所选模板</a>
       </div>
     </div>
   </form>
@@ -157,6 +161,8 @@ function selectTemplateCard(input) {
   });
   var label = document.getElementById('selectedTemplateName');
   if (label) label.textContent = card.dataset.templateName || input.value;
+  var preview = document.getElementById('selectedTemplatePreviewLink');
+  if (preview) preview.href = card.dataset.templatePreviewHref || '/';
 }
 
 document.addEventListener('DOMContentLoaded', function() {

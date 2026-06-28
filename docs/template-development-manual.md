@@ -9,6 +9,8 @@
 - 新模板通过后台“模板设置”切换启用。
 - 模板失败时，系统会回退默认模板。
 - 模板不能直接修改文章数据、栏目数据或系统设置。
+- 每套新模板都必须从独立视觉概念出发，不要复刻默认模板或其他模板的布局、配色、组件节奏和首页信息组织方式；只换颜色、圆角、阴影或卡片样式不算合格的新模板。
+- 新模板必须同时支持明暗模式切换，并在桌面端和移动端都保持可读、稳定、不溢出。
 
 ## 2. 目录结构
 
@@ -250,19 +252,37 @@ frontend_theme=<template-id>
 
 如果模板 ID 不存在，系统拒绝保存。如果模板渲染失败，前台自动回退默认模板。
 
-## 11. CSS 规范
+模板预览不应该写入配置，也不需要先应用模板。后台预览入口应使用：
+
+```text
+/?preview_theme=<template-id>
+```
+
+该参数只影响当前请求渲染，刷新普通首页仍使用当前已应用模板。
+
+## 11. 明暗模式
+
+- 每套非默认模板必须提供明暗模式，且使用统一约定：
+- `partials/head.ejs` 必须在 CSS 加载前读取 `localStorage.getItem('frontend-theme-mode')`，并把 `light` 或 `dark` 写入 `<html>` 的 `data-theme` 属性。
+- `partials/header.ejs` 必须提供一个可见切换按钮，并带有 `data-theme-mode-toggle` 属性。
+- `partials/footer.ejs` 必须提供 `toggleFrontendThemeMode()` 脚本，切换后写回 `frontend-theme-mode`。
+- CSS 必须包含 `[data-theme="dark"]` 规则，不能只依赖浏览器默认深色模式。
+- 明暗模式只改变视觉表现，不能改变页面结构、链接、数据字段或模板 ID。
+
+## 12. CSS 规范
 
 - 每套模板必须使用自己的 CSS 文件。
 - 推荐所有类名前缀统一，例如 `ap-`、`cms-`、`food-`。
 - 不要修改 `/public/css/style.css` 来实现新模板。
 - 不要依赖默认模板的 class。
+- 不要复刻其他模板的首页结构。新模板至少要在信息架构、首屏重点、列表组织方式、导航节奏中体现明显差异。
 - 避免文字溢出、图片撑破容器、移动端横向滚动。
 - 列表页图片必须使用缩略图。
 - 卡片圆角建议不超过 `8px`。
 - 字体大小不要使用 `vw` 随视口缩放。
 - 移动端必须单列或清晰折叠。
 
-## 12. 开发检查清单
+## 13. 开发检查清单
 
 开发完成后至少检查：
 
@@ -278,10 +298,13 @@ frontend_theme=<template-id>
 - 页面没有引用 `/css/style.css`。
 - 页面包含 `/js/analytics.js`。
 - 后台模板设置页能看到新模板。
+- 后台预览链接能通过 `preview_theme` 查看模板，且无需应用模板。
 - 切换新模板后，刷新前台生效。
 - 切回默认模板后，前台恢复默认模板。
+- 明暗模式按钮可见、可切换、可持久保存。
+- 明暗模式下首页、栏目页、文章页、归档页、搜索页、404 页都无明显错位。
 
-## 13. 测试清单
+## 14. 测试清单
 
 本地执行：
 
@@ -293,7 +316,7 @@ node --check routes/frontend-theme.js routes/public.js routes/admin.js server.js
 如果只验证模板相关测试：
 
 ```bash
-node --test tests/frontend-template-switch.test.js tests/admin-templates-view.test.js tests/aurora-press-theme.test.js
+node --test tests/frontend-template-switch.test.js tests/admin-templates-view.test.js tests/additional-frontend-themes.test.js tests/frontend-theme-dark-mode.test.js
 ```
 
 视觉验证建议访问：
@@ -306,9 +329,12 @@ node --test tests/frontend-template-switch.test.js tests/admin-templates-view.te
 /article/<任意文章slug>
 /not-found-demo
 /admin/templates
+/?preview_theme=<template-id>
 ```
 
-## 14. 禁止事项
+建议分别截取每套模板的明亮模式和暗色模式首页截图，确认模板之间不是同一结构换皮。
+
+## 15. 禁止事项
 
 - 不要删除默认模板。
 - 不要让模板写入数据库。
@@ -318,4 +344,5 @@ node --test tests/frontend-template-switch.test.js tests/admin-templates-view.te
 - 不要修改文章生成、栏目生成、AI Provider、Agent 调度逻辑。
 - 不要在列表页加载原始大图。
 - 不要为了模板效果改变文章字段结构。
+- 不要为了快速出模板直接复制另一套模板后只改颜色。
 

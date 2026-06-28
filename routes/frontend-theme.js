@@ -42,6 +42,20 @@ function isValidFrontendTheme(themeId) {
   return THEME_IDS.has(String(themeId || '').trim());
 }
 
+function resolveFrontendThemeForRequest(req, config) {
+  const previewThemeId = String(req?.query?.preview_theme || '').trim();
+  if (previewThemeId && isValidFrontendTheme(previewThemeId)) {
+    return resolveFrontendTheme(previewThemeId);
+  }
+  return resolveFrontendTheme(config?.frontend_theme);
+}
+
+function attachFrontendThemePreview(req, res, next) {
+  const { getConfig } = require('../config');
+  res.locals.previewFrontendTheme = resolveFrontendThemeForRequest(req, getConfig());
+  next();
+}
+
 function getFrontendThemeView(themeOrId, pageName) {
   const themeId = typeof themeOrId === 'object' ? themeOrId.id : themeOrId;
   const resolved = resolveFrontendTheme(themeId);
@@ -51,7 +65,12 @@ function getFrontendThemeView(themeOrId, pageName) {
 
 function renderFrontendPage(res, pageName, data = {}) {
   const { getConfig } = require('../config');
-  const theme = resolveFrontendTheme(getConfig().frontend_theme);
+  const theme = resolveFrontendTheme(
+    data.previewFrontendThemeId ||
+    data.frontendThemeId ||
+    res.locals?.previewFrontendTheme?.id ||
+    getConfig().frontend_theme
+  );
   const view = getFrontendThemeView(theme, pageName);
   const fallbackView = getFrontendThemeView(DEFAULT_FRONTEND_THEME, pageName);
   const payload = {
@@ -72,7 +91,9 @@ module.exports = {
   DEFAULT_FRONTEND_THEME,
   listFrontendThemes,
   resolveFrontendTheme,
+  resolveFrontendThemeForRequest,
   isValidFrontendTheme,
+  attachFrontendThemePreview,
   getFrontendThemeView,
   renderFrontendPage,
 };

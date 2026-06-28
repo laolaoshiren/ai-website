@@ -13,6 +13,19 @@
   --ap-serif: Georgia, "Times New Roman", "Noto Serif SC", serif;
 }
 
+[data-theme="dark"] .ap-body {
+  --ap-ink: #f8efe3;
+  --ap-ink-soft: #d8cdbc;
+  --ap-paper: #15120f;
+  --ap-paper-strong: #211b16;
+  --ap-line: #44382d;
+  --ap-muted: #a99b8b;
+  --ap-coral: #ff7b64;
+  --ap-teal: #51d5c8;
+  --ap-gold: #e6b85f;
+  --ap-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
 * { box-sizing: border-box; letter-spacing: 0; }
 
 html { scroll-behavior: smooth; }
@@ -44,7 +57,7 @@ html { scroll-behavior: smooth; }
 
 .ap-header-inner {
   display: grid;
-  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.1fr) minmax(210px, 0.55fr);
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.1fr) minmax(210px, 0.55fr) 42px;
   gap: 24px;
   align-items: center;
   min-height: 82px;
@@ -154,6 +167,24 @@ html { scroll-behavior: smooth; }
 }
 
 .ap-header-search button { padding: 0 14px; }
+
+.ap-mode-toggle {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--ap-line);
+  border-radius: 999px;
+  background: var(--ap-paper-strong);
+  color: var(--ap-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+
+.ap-mode-toggle:hover {
+  border-color: var(--ap-ink);
+}
 
 .ap-frontpage {
   padding: 38px 0 28px;
@@ -669,6 +700,7 @@ html { scroll-behavior: smooth; }
 
 .ap-prose > *:first-child { margin-top: 0; }
 .ap-prose p { color: #262626; }
+[data-theme="dark"] .ap-prose p { color: var(--ap-ink-soft); }
 .ap-prose h2,
 .ap-prose h3 {
   margin-top: 2em;
@@ -873,7 +905,7 @@ html { scroll-behavior: smooth; }
 
 @media (max-width: 1020px) {
   .ap-header-inner {
-    grid-template-columns: minmax(220px, 1fr) auto;
+    grid-template-columns: minmax(220px, 1fr) minmax(210px, 230px) 42px;
   }
   .ap-nav {
     grid-column: 1 / -1;
@@ -923,6 +955,7 @@ html { scroll-behavior: smooth; }
     padding: 12px 0;
   }
   .ap-header-search { width: 100%; }
+  .ap-mode-toggle { width: 100%; }
   .ap-nav {
     grid-column: auto;
     grid-row: auto;

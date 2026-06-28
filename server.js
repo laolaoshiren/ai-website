@@ -45,6 +45,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(require('./routes/frontend-theme').attachFrontendThemePreview);
+
 const adminRoutes = require('./routes/admin');
 const publicRoutes = require('./routes/public');
 const apiRoutes = require('./routes/api');

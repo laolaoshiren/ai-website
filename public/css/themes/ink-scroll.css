@@ -45,7 +45,7 @@
 
 .ink-header-inner {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 240px);
+  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 240px) 42px;
   align-items: center;
   gap: 24px;
   min-height: 76px;
@@ -141,6 +141,327 @@
   padding: 0 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.ink-mode-toggle {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(49, 43, 33, 0.18);
+  border-radius: 999px;
+  background: #fffdf7;
+  color: #211f1b;
+  cursor: pointer;
+  font: 900 16px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+[data-theme="dark"] .ink-body {
+  background:
+    linear-gradient(90deg, rgba(141, 197, 170, 0.07) 1px, transparent 1px) 0 0 / 42px 42px,
+    linear-gradient(180deg, #121814 0%, #18231d 48%, #0f1412 100%);
+  color: #f4efe4;
+}
+
+[data-theme="dark"] .ink-site-header {
+  border-bottom-color: rgba(244, 239, 228, 0.12);
+  background: rgba(18, 24, 20, 0.94);
+}
+
+[data-theme="dark"] .ink-brand-mark,
+[data-theme="dark"] .ink-page-link.is-current {
+  background: #d8b45b;
+  color: #15110d;
+}
+
+[data-theme="dark"] .ink-brand small,
+[data-theme="dark"] .ink-hero-title p,
+[data-theme="dark"] .ink-page-head p,
+[data-theme="dark"] .ink-article-title p,
+[data-theme="dark"] .ink-card-copy p,
+[data-theme="dark"] .ink-empty p,
+[data-theme="dark"] .ink-note p,
+[data-theme="dark"] .ink-result-line,
+[data-theme="dark"] .ink-page-summary,
+[data-theme="dark"] .ink-archive-item time,
+[data-theme="dark"] .ink-archive-item span {
+  color: #b8aa98;
+}
+
+[data-theme="dark"] .ink-nav a {
+  color: #d7cdbc;
+}
+
+[data-theme="dark"] .ink-nav a:hover,
+[data-theme="dark"] .ink-nav a.is-active {
+  background: rgba(216, 180, 91, 0.18);
+  color: #f6d479;
+}
+
+[data-theme="dark"] .ink-search,
+[data-theme="dark"] .ink-search-panel,
+[data-theme="dark"] .ink-mode-toggle,
+[data-theme="dark"] .ink-hero-title,
+[data-theme="dark"] .ink-index,
+[data-theme="dark"] .ink-empty,
+[data-theme="dark"] .ink-page-count,
+[data-theme="dark"] .ink-note,
+[data-theme="dark"] .ink-lead,
+[data-theme="dark"] .ink-article-card,
+[data-theme="dark"] .ink-article-nav a,
+[data-theme="dark"] .ink-topic-path li,
+[data-theme="dark"] .ink-archive-month,
+[data-theme="dark"] .ink-error-inner,
+[data-theme="dark"] .ink-page-step,
+[data-theme="dark"] .ink-page-link,
+[data-theme="dark"] .ink-page-ellipsis,
+[data-theme="dark"] .ink-category-ribbon a,
+[data-theme="dark"] .ink-tags a {
+  border-color: rgba(244, 239, 228, 0.14);
+  background: rgba(29, 38, 32, 0.86);
+  color: #f4efe4;
+}
+
+[data-theme="dark"] .ink-hero-title h1,
+[data-theme="dark"] .ink-page-head h1,
+[data-theme="dark"] .ink-article-title h1,
+[data-theme="dark"] .ink-error h1,
+[data-theme="dark"] .ink-lead h2,
+[data-theme="dark"] .ink-card-copy h3 {
+  color: #fff8ea;
+}
+
+[data-theme="dark"] .ink-kicker,
+[data-theme="dark"] .ink-primary-link,
+[data-theme="dark"] .ink-read-link,
+[data-theme="dark"] .ink-section-heading span,
+[data-theme="dark"] .ink-error-inner > span,
+[data-theme="dark"] .ink-page-count strong,
+[data-theme="dark"] .ink-card-meta a,
+[data-theme="dark"] .ink-story-meta a {
+  color: #f6d479;
+}
+
+[data-theme="dark"] .ink-section-heading {
+  border-bottom-color: rgba(244, 239, 228, 0.32);
+}
+
+[data-theme="dark"] .ink-category-ribbon {
+  border-color: rgba(244, 239, 228, 0.12);
+  background: rgba(28, 48, 38, 0.72);
+}
+
+[data-theme="dark"] .ink-card-media,
+[data-theme="dark"] .ink-card-fallback {
+  background: #22352a;
+}
+
+[data-theme="dark"] .ink-site-footer {
+  background: #0c100e;
+}
+
+.ink-manuscript {
+  padding: 48px 0 30px;
+}
+
+.ink-manuscript-grid {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+.ink-manuscript-rail {
+  position: sticky;
+  top: 102px;
+  min-height: 430px;
+  border: 1px solid rgba(49, 43, 33, 0.14);
+  border-left: 5px solid #1e4d40;
+  border-radius: 8px;
+  background: rgba(255, 252, 245, 0.78);
+  box-shadow: 0 18px 48px rgba(48, 39, 25, 0.08);
+  padding: 24px 20px;
+}
+
+.ink-manuscript-rail strong {
+  display: block;
+  margin-top: 18px;
+  color: #191713;
+  font-size: 29px;
+  line-height: 1.16;
+}
+
+.ink-manuscript-rail p {
+  margin: 14px 0 0;
+  color: #5d564d;
+  line-height: 1.75;
+}
+
+.ink-rail-topics {
+  display: grid;
+  gap: 6px;
+  margin-top: 24px;
+}
+
+.ink-rail-topics a {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid rgba(49, 43, 33, 0.12);
+  padding: 11px 0;
+  color: #211f1b;
+  font-weight: 800;
+}
+
+.ink-rail-topics span {
+  color: #9b2f28;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ink-manuscript-lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 360px);
+  min-height: 450px;
+  overflow: hidden;
+  border: 1px solid rgba(49, 43, 33, 0.15);
+  border-radius: 8px;
+  background: #fffdf7;
+  box-shadow: 0 24px 70px rgba(48, 39, 25, 0.1);
+}
+
+.ink-lead-paper {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 44px;
+}
+
+.ink-lead-paper h1 {
+  margin: 18px 0 0;
+  color: #191713;
+  font-size: 54px;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.ink-lead-paper p {
+  margin: 18px 0 0;
+  color: #50493f;
+  font-size: 18px;
+  line-height: 1.9;
+}
+
+.ink-lead-stamp {
+  position: relative;
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(30, 77, 64, 0.88), rgba(155, 47, 40, 0.74)),
+    repeating-linear-gradient(45deg, rgba(255, 252, 245, 0.18) 0 1px, transparent 1px 13px);
+  color: #fffaf1;
+  text-align: center;
+}
+
+.ink-lead-stamp img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ink-lead-stamp-empty span {
+  display: inline-grid;
+  min-width: 120px;
+  min-height: 120px;
+  place-items: center;
+  border: 1px solid rgba(255, 250, 241, 0.42);
+  border-radius: 50%;
+  padding: 18px;
+  font-weight: 900;
+}
+
+.ink-manuscript-empty {
+  min-height: 360px;
+}
+
+.ink-reading-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 28px;
+  align-items: start;
+}
+
+.ink-reading-layout .ink-section-heading,
+.ink-reading-layout .ink-card-list,
+.ink-reading-layout > .ink-empty {
+  grid-column: 1;
+}
+
+.ink-reading-aside {
+  position: sticky;
+  top: 102px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  border: 1px solid rgba(49, 43, 33, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 252, 245, 0.82);
+  box-shadow: 0 18px 48px rgba(48, 39, 25, 0.08);
+  padding: 20px;
+}
+
+.ink-reading-aside a {
+  display: block;
+  border-top: 1px solid rgba(49, 43, 33, 0.12);
+  padding: 14px 0;
+}
+
+.ink-reading-aside strong {
+  display: block;
+  line-height: 1.45;
+}
+
+.ink-reading-aside time,
+.ink-reading-aside p {
+  display: block;
+  margin-top: 7px;
+  color: #6f685c;
+  font: 700 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+[data-theme="dark"] .ink-manuscript-rail,
+[data-theme="dark"] .ink-manuscript-lead,
+[data-theme="dark"] .ink-reading-aside {
+  border-color: rgba(244, 239, 228, 0.14);
+  background: rgba(29, 38, 32, 0.86);
+  color: #f4efe4;
+}
+
+[data-theme="dark"] .ink-manuscript-rail strong,
+[data-theme="dark"] .ink-lead-paper h1,
+[data-theme="dark"] .ink-reading-aside strong {
+  color: #fff8ea;
+}
+
+[data-theme="dark"] .ink-manuscript-rail p,
+[data-theme="dark"] .ink-lead-paper p,
+[data-theme="dark"] .ink-reading-aside time,
+[data-theme="dark"] .ink-reading-aside p {
+  color: #b8aa98;
+}
+
+[data-theme="dark"] .ink-rail-topics a,
+[data-theme="dark"] .ink-reading-aside a {
+  border-color: rgba(244, 239, 228, 0.12);
+  color: #f4efe4;
+}
+
+[data-theme="dark"] .ink-lead-stamp {
+  background:
+    linear-gradient(135deg, rgba(216, 180, 91, 0.82), rgba(30, 77, 64, 0.68)),
+    repeating-linear-gradient(45deg, rgba(18, 24, 20, 0.22) 0 1px, transparent 1px 13px);
 }
 
 .ink-hero {
@@ -790,18 +1111,32 @@
   }
 
   .ink-hero-grid,
+  .ink-manuscript-grid,
+  .ink-manuscript-lead,
+  .ink-reading-layout,
   .ink-lead,
   .ink-article-head-inner,
   .ink-article-layout {
     grid-template-columns: 1fr;
   }
 
-  .ink-hero-title {
+  .ink-hero-title,
+  .ink-manuscript-rail {
     min-height: auto;
   }
 
+  .ink-manuscript-rail,
+  .ink-reading-aside,
   .ink-article-side {
     position: static;
+  }
+
+  .ink-reading-layout .ink-section-heading,
+  .ink-reading-layout .ink-card-list,
+  .ink-reading-layout > .ink-empty,
+  .ink-reading-aside {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 
@@ -816,9 +1151,19 @@
   }
 
   .ink-lead-copy,
+  .ink-lead-paper,
+  .ink-reading-aside,
   .ink-empty,
   .ink-error-inner {
     padding: 20px;
+  }
+
+  .ink-lead-paper h1 {
+    font-size: 36px;
+  }
+
+  .ink-lead-stamp {
+    min-height: 220px;
   }
 
   .ink-article-card {
@@ -851,5 +1196,9 @@
   .ink-search-panel {
     width: 100%;
     min-width: 0;
+  }
+
+  .ink-mode-toggle {
+    width: 100%;
   }
 }

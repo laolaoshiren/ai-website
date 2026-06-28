@@ -16,4 +16,9 @@
     </div>
   </div>
 </footer>
+<script>
+function toggleFrontendThemeMode(){var h=document.documentElement;var current=h.getAttribute('data-theme')==='dark'?'dark':'light';var next=current==='dark'?'light':'dark';h.setAttribute('data-theme',next);try{localStorage.setItem('frontend-theme-mode',next)}catch(e){}updateFrontendThemeModeIcon()}
+function updateFrontendThemeModeIcon(){var dark=document.documentElement.getAttribute('data-theme')==='dark';document.querySelectorAll('[data-theme-mode-icon]').forEach(function(item){item.textContent=dark?'☀':'◐'})}
+updateFrontendThemeModeIcon();
+</script>
 
