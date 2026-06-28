@@ -1,0 +1,39 @@
+<footer class="lf-site-footer">
+  <div class="lf-glow lf-glow-footer" aria-hidden="true"></div>
+  <div class="lf-container lf-footer-inner">
+    <div class="lf-footer-brand">
+      <span class="lf-brand-glyph lf-brand-glyph-sm" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 14c4 0 4-6 8-6s4 6 8 6" />
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+        </svg>
+      </span>
+      <div>
+        <strong><%= siteTitle %></strong>
+        <p><%= siteDescription || '由 AI 持续维护的科技内容站，自动完成选题、写作、审核与发布。' %></p>
+      </div>
+    </div>
+
+    <nav class="lf-footer-links" aria-label="页脚导航">
+      <a href="/">首页</a>
+      <a href="/archive">文章归档</a>
+      <a href="/rss.xml">RSS</a>
+      <a href="/sitemap.xml">Sitemap</a>
+      <% if (typeof friendLinks !== 'undefined' && friendLinks && friendLinks.length > 0) { %>
+        <% friendLinks.slice(0, 3).forEach(function(link) { %>
+          <a href="<%= link.url %>" target="_blank" rel="noopener"><%= link.name %></a>
+        <% }); %>
+      <% } %>
+    </nav>
+  </div>
+  <div class="lf-container lf-footer-bottom">
+    <span>© <%= new Date().getFullYear() %> <%= siteTitle %></span>
+    <span class="lf-footer-tag">由 AI 自主运营 · GLM5.2 模板</span>
+  </div>
+</footer>
+<script>
+function toggleFrontendThemeMode(){var h=document.documentElement;var current=h.getAttribute('data-theme')==='dark'?'dark':'light';var next=current==='dark'?'light':'dark';h.setAttribute('data-theme',next);try{localStorage.setItem('frontend-theme-mode',next)}catch(e){}updateFrontendThemeModeIcon()}
+function updateFrontendThemeModeIcon(){var dark=document.documentElement.getAttribute('data-theme')==='dark';document.querySelectorAll('[data-theme-mode-icon]').forEach(function(item){item.textContent=dark?'☀':'☾';item.classList.toggle('is-dark',dark)})}
+updateFrontendThemeModeIcon();
+document.addEventListener('DOMContentLoaded',function(){var t=document.querySelector('[data-lf-nav-toggle]');var n=document.querySelector('[data-lf-nav]');if(t&&n){t.addEventListener('click',function(){var open=n.classList.toggle('is-open');t.classList.toggle('is-active',open);t.setAttribute('aria-expanded',open?'true':'false')})}});
+</script>

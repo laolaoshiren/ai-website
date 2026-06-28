@@ -25,6 +25,12 @@ const FRONTEND_THEMES = [
     description: '面向资讯站和快讯站的现代简报模板，突出信息密度、扫描效率和醒目导读。',
     badge: '简报',
   },
+  {
+    id: 'lumen-flow',
+    name: '流光科技媒体 GLM5.2',
+    description: '靛蓝青渐变、玻璃质感与柔和光晕的现代科技媒体模板，GLM5.2 出品。首屏全宽 Hero 舞台配合时间线信息流，强调科技感与流畅阅读。',
+    badge: '科技',
+  },
 ];
 
 const THEME_IDS = new Set(FRONTEND_THEMES.map(theme => theme.id));

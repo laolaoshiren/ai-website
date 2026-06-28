@@ -1,0 +1,41 @@
+<%
+  var lfPublishedAt = article.published_at ? String(article.published_at) : '';
+  var lfCardImage = article.image_review_status === 'pass' ? (article.card_image || article.cover_thumbnail || article.cover_image) : '';
+  var lfCategoryName = article.category_name || '专题';
+  var lfCategorySlug = article.category_slug || '';
+  var lfVisualLabel = String(lfCategoryName).slice(0, 2);
+  var lfViews = article.view_count || 0;
+%>
+<article class="lf-card">
+  <a class="lf-card-media" href="/article/<%= article.slug %>" aria-label="<%= article.title %>">
+    <% if (lfCardImage) { %>
+      <img src="<%= lfCardImage %>" alt="<%= article.image_alt || article.title %>" loading="lazy" decoding="async">
+      <span class="lf-card-media-tint" aria-hidden="true"></span>
+    <% } else { %>
+      <span class="lf-card-fallback">
+        <span class="lf-card-fallback-mark"><%= lfVisualLabel %></span>
+        <small><%= lfCategoryName %></small>
+      </span>
+    <% } %>
+    <% if (lfCategorySlug) { %>
+      <span class="lf-card-pill"><%= lfCategoryName %></span>
+    <% } %>
+  </a>
+  <div class="lf-card-body">
+    <div class="lf-card-meta">
+      <% if (lfPublishedAt) { %>
+        <time datetime="<%= lfPublishedAt.replace(' ', 'T') %>"><%= lfPublishedAt %></time>
+      <% } %>
+      <span class="lf-card-dot" aria-hidden="true">·</span>
+      <span><%= lfViews %> 阅读</span>
+    </div>
+    <h3><a href="/article/<%= article.slug %>"><%= article.title %></a></h3>
+    <% if (article.summary) { %>
+      <p><%= String(article.summary).slice(0, 110) %></p>
+    <% } %>
+    <a class="lf-card-link" href="/article/<%= article.slug %>">
+      阅读全文
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+    </a>
+  </div>
+</article>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var lfCover = article.image_review_status === 'pass' ? article.cover_image : '';
+      var lfPublishedAt = article.published_at ? String(article.published_at) : '';
+      var lfReadTime = typeof readTime !== 'undefined' ? readTime : '—';
+      var lfWordCount = typeof wordCount !== 'undefined' ? wordCount : '—';
+    %>
+
+    <header class="lf-article-hero">
+      <div class="lf-container lf-article-hero-inner">
+        <div class="lf-article-hero-copy">
+          <div class="lf-article-meta">
+            <% if (article.category_name) { %><a class="lf-pill" href="/category/<%= article.category_slug %>"><%= article.category_name %></a><% } %>
+            <% if (lfPublishedAt) { %><time datetime="<%= lfPublishedAt.replace(' ', 'T') %>"><%= lfPublishedAt %></time><% } %>
+          </div>
+          <h1><%= article.title %></h1>
+          <% if (article.summary) { %><p class="lf-article-summary"><%= article.summary %></p><% } %>
+          <div class="lf-article-facts">
+            <span><%= article.view_count || 0 %> 次阅读</span>
+            <span class="lf-dot" aria-hidden="true">·</span>
+            <span>约 <%= lfWordCount %> 字</span>
+            <span class="lf-dot" aria-hidden="true">·</span>
+            <span><%= lfReadTime %> 分钟</span>
+            <span class="lf-dot" aria-hidden="true">·</span>
+            <span>AI 生成</span>
+          </div>
+        </div>
+        <% if (lfCover) { %>
+          <figure class="lf-article-cover">
+            <img src="<%= lfCover %>" alt="<%= article.image_alt || article.title %>" loading="eager">
+            <% if (article.image_alt) { %><figcaption><%= article.image_alt %></figcaption><% } %>
+          </figure>
+        <% } %>
+      </div>
+    </header>
+
+    <div class="lf-container">
+      <div class="lf-article-layout">
+        <article class="lf-prose">
+          <%- article.content_html || '<p>内容加载中。</p>' %>
+
+          <% if (article.seo_keywords) { %>
+            <div class="lf-prose-tags">
+              <% article.seo_keywords.split(',').forEach(function(tag) { %>
+                <% var lfTag = tag.trim(); if (lfTag) { %>
+                  <a href="/search?q=<%= encodeURIComponent(lfTag) %>"><%= lfTag %></a>
+                <% } %>
+              <% }); %>
+            </div>
+          <% } %>
+        </article>
+
+        <aside class="lf-article-aside" aria-label="文章信息">
+          <section class="lf-aside-block lf-aside-notice">
+            <span class="lf-aside-tag">Notice</span>
+            <p>本文由 AI 自动生成，基于公开信息整理，仅供参考。</p>
+          </section>
+
+          <% if (typeof topicPath !== 'undefined' && topicPath && topicPath.length > 0) { %>
+            <section class="lf-aside-block">
+              <span class="lf-aside-tag">Topic Path</span>
+              <h4>主题阅读路径</h4>
+              <ol class="lf-topic-path">
+                <% topicPath.forEach(function(item, index) { %>
+                  <li>
+                    <span><%= index + 1 %></span>
+                    <a href="/article/<%= item.slug %>"><%= item.title %></a>
+                  </li>
+                <% }); %>
+              </ol>
+            </section>
+          <% } %>
+        </aside>
+      </div>
+    </div>
+
+    <% if (prevArticle || nextArticle) { %>
+      <nav class="lf-container lf-article-nav" aria-label="上下篇文章">
+        <% if (prevArticle) { %>
+          <a class="lf-nav-card lf-nav-prev" href="/article/<%= prevArticle.slug %>">
+            <span>上一篇</span>
+            <strong><%= prevArticle.title %></strong>
+          </a>
+        <% } else { %>
+          <span></span>
+        <% } %>
+        <% if (nextArticle) { %>
+          <a class="lf-nav-card lf-nav-next" href="/article/<%= nextArticle.slug %>">
+            <span>下一篇</span>
+            <strong><%= nextArticle.title %></strong>
+          </a>
+        <% } %>
+      </nav>
+    <% } %>
+
+    <% if (relatedArticles && relatedArticles.length > 0) { %>
+      <section class="lf-section">
+        <div class="lf-container">
+          <header class="lf-section-head">
+            <div>
+              <span class="lf-section-tag">Related</span>
+              <h2>相关阅读</h2>
+            </div>
+          </header>
+          <div class="lf-card-grid">
+            <% relatedArticles.forEach(function(item) { %>
+              <%- include('partials/article-card', { article: item }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

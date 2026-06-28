@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <section class="lf-page-hero">
+      <div class="lf-container lf-page-hero-inner">
+        <nav class="lf-crumbs" aria-label="位置">
+          <a href="/">首页</a>
+          <span aria-hidden="true">/</span>
+          <a href="/archive">栏目</a>
+          <span aria-hidden="true">/</span>
+          <span><%= category.name %></span>
+        </nav>
+        <div class="lf-page-hero-copy">
+          <span class="lf-section-tag">Category</span>
+          <h1><%= category.name %></h1>
+          <p><%= category.description || '该栏目下的全部文章。' %></p>
+        </div>
+        <% if (pagination && pagination.totalItems > 0) { %>
+          <div class="lf-page-stat">
+            <strong><%= pagination.totalItems %></strong>
+            <span>篇文章</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="lf-section">
+      <div class="lf-container">
+        <% if (articles.length > 0) { %>
+          <div class="lf-card-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: category.name + '分页' }) %>
+        <% } else { %>
+          <div class="lf-empty">
+            <h2>这个栏目还在准备中</h2>
+            <p>AI 会根据站点方向持续补充内容。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ const requiredPartials = ['head', 'header', 'footer', 'article-card', 'paginatio
 const themes = [
   { id: 'ink-scroll', css: 'ink-scroll.css', marker: 'class="ink-', layoutMarker: 'ink-manuscript' },
   { id: 'star-harbor', css: 'star-harbor.css', marker: 'class="sh-', layoutMarker: 'sh-command-center' },
+  { id: 'lumen-flow', css: 'lumen-flow.css', marker: 'class="lf-', layoutMarker: 'lf-hero' },
 ];
 
 const article = {

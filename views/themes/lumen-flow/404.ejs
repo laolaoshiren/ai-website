@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <section class="lf-error">
+      <div class="lf-container lf-error-inner">
+        <span class="lf-error-code">404</span>
+        <span class="lf-error-label">Signal Lost · 信号丢失</span>
+        <h1>页面没有找到</h1>
+        <p>你访问的页面不存在，或已被移动到新的地址。</p>
+        <div class="lf-error-actions">
+          <a class="lf-cta" href="/">
+            返回首页
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+          </a>
+          <a class="lf-link-button lf-link-button-soft" href="/archive">查看归档</a>
+        </div>
+      </div>
+    </section>
+
+    <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
+      <section class="lf-section">
+        <div class="lf-container">
+          <header class="lf-section-head">
+            <div>
+              <span class="lf-section-tag">Keep Reading</span>
+              <h2>推荐阅读</h2>
+            </div>
+          </header>
+          <div class="lf-card-grid">
+            <% latest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

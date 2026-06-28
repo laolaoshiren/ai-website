@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <section class="lf-page-hero">
+      <div class="lf-container lf-page-hero-inner">
+        <nav class="lf-crumbs" aria-label="位置">
+          <a href="/">首页</a>
+          <span aria-hidden="true">/</span>
+          <span>归档</span>
+        </nav>
+        <div class="lf-page-hero-copy">
+          <span class="lf-section-tag">Archive</span>
+          <h1>文章归档</h1>
+          <p>共 <%= totalArticles %> 篇文章，覆盖 <%= totalMonths %> 个月的时间线。</p>
+        </div>
+        <% if (totalArticles > 0) { %>
+          <div class="lf-page-stat">
+            <strong><%= startArticle %>-<%= endArticle %></strong>
+            <span>当前页</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="lf-section">
+      <div class="lf-container">
+        <% if (archive.length > 0) { %>
+          <div class="lf-archive">
+            <% archive.forEach(function(group) { %>
+              <% var lfYm = group[0]; var lfGroupArticles = group[1]; %>
+              <section class="lf-archive-month">
+                <header class="lf-archive-month-head">
+                  <span class="lf-archive-month-num"><%= lfYm.slice(5, 7) %></span>
+                  <div>
+                    <h2><%= parseInt(lfYm.slice(0, 4), 10) %> 年 <%= parseInt(lfYm.slice(5, 7), 10) %> 月</h2>
+                    <small><%= lfGroupArticles.length %> 篇文章</small>
+                  </div>
+                </header>
+                <div class="lf-archive-items">
+                  <% lfGroupArticles.forEach(function(article) { %>
+                    <a class="lf-archive-item" href="/article/<%= article.slug %>">
+                      <time datetime="<%= String(article.published_at || '').replace(' ', 'T') %>"><%= String(article.published_at || '').slice(5, 10) %></time>
+                      <span class="lf-archive-item-title"><%= article.title %></span>
+                      <% if (article.category_name) { %><span class="lf-archive-item-cat"><%= article.category_name %></span><% } %>
+                    </a>
+                  <% }); %>
+                </div>
+              </section>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '归档分页' }) %>
+        <% } else { %>
+          <div class="lf-empty">
+            <h2>暂无已发布文章</h2>
+            <p>文章发布后会自动进入归档。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

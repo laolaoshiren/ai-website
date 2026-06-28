@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var lfFeatured = typeof featured !== 'undefined' && featured ? featured : [];
+      var lfLatest = typeof latest !== 'undefined' && latest ? latest : [];
+      var lfCats = typeof categories !== 'undefined' && categories ? categories : [];
+      var lfLead = lfFeatured[0] || lfLatest[0] || null;
+      var lfLeadImage = lfLead && lfLead.image_review_status === 'pass' ? (lfLead.cover_image || lfLead.card_image || lfLead.cover_thumbnail) : '';
+      var lfPicks = lfFeatured.filter(function(item){ return !lfLead || item.slug !== lfLead.slug; }).slice(0, 2);
+      var lfFeed = lfLatest.filter(function(item){ return !lfLead || item.slug !== lfLead.slug; }).slice(0, 6);
+      var lfToday = new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    %>
+
+    <section class="lf-hero">
+      <div class="lf-container lf-hero-inner">
+        <div class="lf-hero-copy">
+          <span class="lf-kicker">
+            <span class="lf-live-dot" aria-hidden="true"></span>
+            <span>Lumen Feed</span>
+            <span class="lf-kicker-date"><%= lfToday %></span>
+          </span>
+          <% if (lfLead) { %>
+            <div class="lf-hero-meta">
+              <% if (lfLead.category_name) { %><a href="/category/<%= lfLead.category_slug %>"><%= lfLead.category_name %></a><% } %>
+              <% if (lfLead.published_at) { %><time datetime="<%= String(lfLead.published_at).replace(' ', 'T') %>"><%= lfLead.published_at %></time><% } %>
+            </div>
+            <h1><a href="/article/<%= lfLead.slug %>"><%= lfLead.title %></a></h1>
+            <% if (lfLead.summary) { %><p><%= lfLead.summary %></p><% } %>
+            <a class="lf-cta" href="/article/<%= lfLead.slug %>">
+              进入头条
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+            </a>
+          <% } else { %>
+            <h1><%= siteTitle %></h1>
+            <p><%= siteDescription || '内容正在生成中，系统完成规划后这里会展示最新头条。' %></p>
+          <% } %>
+        </div>
+
+        <div class="lf-hero-stage<%= lfLeadImage ? '' : ' lf-hero-stage-empty' %>">
+          <% if (lfLead) { %>
+            <a href="/article/<%= lfLead.slug %>" aria-label="<%= lfLead.title %>">
+              <% if (lfLeadImage) { %>
+                <img src="<%= lfLeadImage %>" alt="<%= lfLead.image_alt || lfLead.title %>" loading="eager">
+                <span class="lf-stage-flash" aria-hidden="true"></span>
+              <% } else { %>
+                <span class="lf-stage-placeholder">
+                  <strong><%= lfLead.category_name || siteTitle %></strong>
+                  <span>头条封面</span>
+                </span>
+              <% } %>
+            </a>
+          <% } else { %>
+            <span class="lf-stage-placeholder">
+              <strong><%= siteTitle %></strong>
+              <span>等待生成</span>
+            </span>
+          <% } %>
+        </div>
+      </div>
+    </section>
+
+    <div class="lf-container">
+      <div class="lf-home-layout">
+        <section class="lf-home-main" aria-label="最新内容">
+          <header class="lf-section-head">
+            <div>
+              <span class="lf-section-tag">Latest</span>
+              <h2>最新发布</h2>
+            </div>
+            <a class="lf-section-more" href="/archive">全部归档</a>
+          </header>
+
+          <% if (lfFeed.length > 0) { %>
+            <ol class="lf-timeline">
+              <% lfFeed.forEach(function(article, index) { %>
+                <%
+                  var lfThumb = article.image_review_status === 'pass' ? (article.card_image || article.cover_thumbnail || article.cover_image) : '';
+                  var lfPub = article.published_at ? String(article.published_at) : '';
+                  var lfMark = String((article.category_name || '专题')).slice(0,2);
+                %>
+                <li class="lf-timeline-item">
+                  <a class="lf-timeline-link" href="/article/<%= article.slug %>">
+                    <span class="lf-timeline-index"><%= String(index + 1).padStart(2, '0') %></span>
+                    <% if (lfThumb) { %>
+                      <span class="lf-timeline-thumb">
+                        <img src="<%= lfThumb %>" alt="" loading="lazy" decoding="async" aria-hidden="true">
+                      </span>
+                    <% } else { %>
+                      <span class="lf-timeline-thumb lf-timeline-thumb-fallback"><span><%= lfMark %></span></span>
+                    <% } %>
+                    <span class="lf-timeline-body">
+                      <span class="lf-timeline-meta">
+                        <% if (article.category_name) { %><span class="lf-timeline-cat"><%= article.category_name %></span><% } %>
+                        <% if (lfPub) { %><time datetime="<%= lfPub.replace(' ', 'T') %>"><%= lfPub %></time><% } %>
+                      </span>
+                      <strong><%= article.title %></strong>
+                      <% if (article.summary) { %><em><%= String(article.summary).slice(0, 64) %></em><% } %>
+                    </span>
+                  </a>
+                </li>
+              <% }); %>
+            </ol>
+            <div class="lf-home-more-cards">
+              <a class="lf-link-button" href="/archive">
+                查看全部文章
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+              </a>
+            </div>
+          <% } else { %>
+            <div class="lf-empty">
+              <h3>AI 正在准备内容</h3>
+              <p>配置完成后，系统会自动生成栏目与文章。</p>
+            </div>
+          <% } %>
+        </section>
+
+        <aside class="lf-home-aside" aria-label="侧栏">
+          <% if (lfPicks.length > 0) { %>
+            <section class="lf-panel">
+              <span class="lf-panel-tag">Selected</span>
+              <h3 class="lf-panel-title">编辑精选</h3>
+              <div class="lf-panel-list">
+                <% lfPicks.forEach(function(article, index) { %>
+                  <a class="lf-pick" href="/article/<%= article.slug %>">
+                    <span class="lf-pick-num"><%= index + 1 %></span>
+                    <span>
+                      <strong><%= article.title %></strong>
+                      <small>
+                        <% if (article.category_name) { %><%= article.category_name %><% } %>
+                        <% if (article.published_at) { %> · <%= String(article.published_at).slice(5, 10) %><% } %>
+                      </small>
+                    </span>
+                  </a>
+                <% }); %>
+              </div>
+            </section>
+          <% } %>
+
+          <% if (lfCats.length > 0) { %>
+            <section class="lf-panel">
+              <span class="lf-panel-tag">Topics</span>
+              <h3 class="lf-panel-title">栏目导航</h3>
+              <nav class="lf-topic-cloud" aria-label="栏目">
+                <% lfCats.slice(0, 10).forEach(function(cat) { %>
+                  <a href="/category/<%= cat.slug %>"><%= cat.name %></a>
+                <% }); %>
+              </nav>
+            </section>
+          <% } %>
+
+          <section class="lf-panel lf-panel-pulse">
+            <span class="lf-panel-tag">Pulse</span>
+            <h3 class="lf-panel-title">站点脉搏</h3>
+            <div class="lf-pulse-grid">
+              <div><strong><%= lfLatest.length %></strong><span>最新文章</span></div>
+              <div><strong><%= lfCats.length %></strong><span>内容栏目</span></div>
+            </div>
+            <a class="lf-link-button lf-link-button-soft" href="/archive">浏览归档</a>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

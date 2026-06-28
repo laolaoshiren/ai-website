@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="lf-body">
+  <div class="lf-aurora" aria-hidden="true">
+    <span class="lf-aurora-blob lf-aurora-1"></span>
+    <span class="lf-aurora-blob lf-aurora-2"></span>
+    <span class="lf-aurora-grid"></span>
+  </div>
+  <%- include('partials/header') %>
+  <main>
+    <section class="lf-page-hero lf-search-hero">
+      <div class="lf-container lf-page-hero-inner lf-search-hero-inner">
+        <div class="lf-page-hero-copy">
+          <span class="lf-section-tag">Search</span>
+          <h1>站内搜索</h1>
+          <p><%= q ? '关键词：' + q : '输入关键词，查找已发布的文章。' %></p>
+        </div>
+        <form class="lf-search-panel" action="/search" method="get" role="search">
+          <svg class="lf-search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" /></svg>
+          <input type="search" name="q" value="<%= q || '' %>" placeholder="输入关键词" autofocus>
+          <button type="submit">搜索</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="lf-section">
+      <div class="lf-container">
+        <% if (q) { %>
+          <div class="lf-results-line">找到 <strong><%= total %></strong> 篇相关文章</div>
+        <% } %>
+        <% if (articles.length > 0) { %>
+          <div class="lf-card-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '搜索结果分页' }) %>
+        <% } else if (q) { %>
+          <div class="lf-empty">
+            <h2>没有找到相关内容</h2>
+            <p>换个关键词再试一次。</p>
+          </div>
+        <% } else { %>
+          <div class="lf-empty">
+            <h2>准备搜索</h2>
+            <p>搜索会覆盖标题、摘要与关键词。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

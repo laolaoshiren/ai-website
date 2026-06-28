@@ -1,0 +1,21 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+!function(){try{var m=localStorage.getItem('frontend-theme-mode');if(!m){m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',m)}catch(e){document.documentElement.setAttribute('data-theme','light')}}();
+</script>
+<%
+  var lfPageTitle = typeof title !== 'undefined' && title ? title : siteTitle;
+  var lfPageDescription = typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : (siteDescription || '');
+%>
+<title><%= lfPageTitle && lfPageTitle !== siteTitle ? lfPageTitle + ' · ' + siteTitle : siteTitle %></title>
+<meta name="description" content="<%= lfPageDescription %>">
+<% if (typeof metaKeywords !== 'undefined' && metaKeywords) { %>
+  <meta name="keywords" content="<%= metaKeywords %>">
+<% } %>
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="<%= lfPageTitle || siteTitle %>">
+<meta property="og:description" content="<%= lfPageDescription %>">
+<meta property="og:site_name" content="<%= siteTitle %>">
+<link rel="alternate" type="application/rss+xml" title="<%= siteTitle %>" href="/rss.xml">
+<link rel="stylesheet" href="/css/themes/lumen-flow.css?v=1">
