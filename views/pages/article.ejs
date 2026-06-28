@@ -30,7 +30,7 @@
           <h1 class="article-title"><%= article.title %></h1>
           <div class="article-meta">
             <% if (article.published_at) { %>
-              <time>发布于 <%= article.published_at.split(' ')[0] %></time>
+              <time datetime="<%= String(article.published_at).replace(' ', 'T') %>">发布于 <%= article.published_at %></time>
             <% } %>
             <span><%= article.view_count || 0 %> 次阅读</span>
             <span>约 <%= wordCount %> 字</span>

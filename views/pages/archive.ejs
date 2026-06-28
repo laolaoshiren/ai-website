@@ -35,7 +35,7 @@
                 <ul class="archive-list">
                   <% articles.forEach(function(a) { %>
                     <li class="archive-item">
-                      <span class="archive-date"><%= (a.published_at || '').slice(8, 10) %>日</span>
+                      <time class="archive-date" datetime="<%= String(a.published_at || '').replace(' ', 'T') %>"><%= a.published_at || '' %></time>
                       <a href="/article/<%= a.slug %>" class="archive-link"><%= a.title %></a>
                       <% if (a.category_name) { %>
                         <span class="archive-category"><%= a.category_name %></span>

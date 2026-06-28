@@ -2,6 +2,7 @@
   var visualLabel = article.category_name ? String(article.category_name).slice(0, 2) : 'AI';
   var visualClass = article.category_slug ? ' visual-' + String(article.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
   var cardImage = article.image_review_status === 'pass' ? (article.card_image || article.cover_thumbnail || article.cover_image) : '';
+  var publishedAt = article.published_at ? String(article.published_at) : '';
 %>
 <article class="article-card fade-in">
   <% if (cardImage) { %>
@@ -23,22 +24,8 @@
       <% if (article.category_name) { %>
         <a href="/category/<%= article.category_slug %>" class="card-category"><%= article.category_name %></a>
       <% } %>
-      <% if (article.published_at) { %>
-        <%
-          var pubDate = article.published_at.split(' ')[0];
-          var parts = pubDate.split('-');
-          var dateObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-          var now = new Date();
-          var diffMs = now - dateObj;
-          var diffDays = Math.floor(diffMs / 86400000);
-          var timeLabel = '';
-          if (diffDays <= 0) timeLabel = '今天';
-          else if (diffDays === 1) timeLabel = '昨天';
-          else if (diffDays < 7) timeLabel = diffDays + '天前';
-          else if (diffDays < 30) timeLabel = Math.floor(diffDays / 7) + '周前';
-          else timeLabel = pubDate;
-        %>
-        <time class="card-date" datetime="<%= pubDate %>"><%= timeLabel %></time>
+      <% if (publishedAt) { %>
+        <time class="card-date" datetime="<%= publishedAt.replace(' ', 'T') %>"><%= publishedAt %></time>
       <% } %>
     </div>
     <h3 class="card-title">
