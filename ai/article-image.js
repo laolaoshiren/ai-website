@@ -261,11 +261,10 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
     : articleContext;
 
   return [
-    'Object-only editorial cover image.',
-    `Visual brief: ${visualBrief || 'the core idea of the article'}.`,
-    'Compose a single centered abstract 3D still life on an empty studio background.',
-    'Use one symbolic core object, clean data-flow ribbons, blank geometric blocks and subtle capital-flow arcs to express the idea.',
-    'Use a modern magazine-quality technology and business style, spacious composition, refined lighting, landscape 1024x768, polished and uncluttered.',
+    'Non-figurative object-only editorial cover image.',
+    'The visible subject must be a luminous blue-white glass core inside a circular ring, floating above blank white cubes, with clean data-flow ribbons and subtle gold-blue flow arcs.',
+    `Use this concept only for mood, never literally: ${visualBrief || 'the core idea of the article'}.`,
+    'Use an empty seamless studio background, spacious composition, refined lighting, landscape 1024x768, polished and uncluttered.',
     'No people, no faces, no hands, no bodies. Keep all surfaces blank and typography-free; avoid brand marks, interface captures, signboards, captions, watermarks and messy details.',
   ].join(' ');
 }
