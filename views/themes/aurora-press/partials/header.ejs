@@ -1,0 +1,27 @@
+<header class="ap-site-header">
+  <div class="ap-container ap-header-inner">
+    <a class="ap-brand" href="/" aria-label="<%= siteTitle %> 首页">
+      <span class="ap-brand-mark">A</span>
+      <span class="ap-brand-text">
+        <strong><%= siteTitle %></strong>
+        <small><%= siteDescription || '自主更新的智能内容站' %></small>
+      </span>
+    </a>
+
+    <nav class="ap-nav" aria-label="主导航">
+      <a href="/" class="<%= currentPath === '/' ? 'is-active' : '' %>">首页</a>
+      <a href="/archive" class="<%= currentPath === '/archive' ? 'is-active' : '' %>">归档</a>
+      <% if (typeof categories !== 'undefined' && categories && categories.length > 0) { %>
+        <% categories.slice(0, 4).forEach(function(cat) { %>
+          <a href="/category/<%= cat.slug %>" class="<%= currentPath === '/category/' + cat.slug ? 'is-active' : '' %>"><%= cat.name %></a>
+        <% }); %>
+      <% } %>
+    </nav>
+
+    <form class="ap-header-search" action="/search" method="get" role="search">
+      <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="搜索文章">
+      <button type="submit" aria-label="搜索">搜索</button>
+    </form>
+  </div>
+</header>
+

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var coverImage = article.image_review_status === 'pass' ? article.cover_image : '';
+      var publishedAt = article.published_at ? String(article.published_at) : '';
+    %>
+    <article class="ap-article">
+      <header class="ap-article-header">
+        <div class="ap-container ap-article-header-grid">
+          <div>
+            <div class="ap-story-meta">
+              <% if (article.category_name) { %><a href="/category/<%= article.category_slug %>"><%= article.category_name %></a><% } %>
+              <% if (publishedAt) { %><time datetime="<%= publishedAt.replace(' ', 'T') %>"><%= publishedAt %></time><% } %>
+            </div>
+            <h1><%= article.title %></h1>
+            <% if (article.summary) { %><p class="ap-article-summary"><%= article.summary %></p><% } %>
+            <div class="ap-article-facts">
+              <span><%= article.view_count || 0 %> 次阅读</span>
+              <span>约 <%= wordCount %> 字</span>
+              <span><%= readTime %> 分钟阅读</span>
+              <span>AI 生成</span>
+            </div>
+          </div>
+          <% if (coverImage) { %>
+            <figure class="ap-article-cover">
+              <img src="<%= coverImage %>" alt="<%= article.image_alt || article.title %>" loading="eager">
+              <% if (article.image_alt) { %><figcaption><%= article.image_alt %></figcaption><% } %>
+            </figure>
+          <% } %>
+        </div>
+      </header>
+
+      <div class="ap-container ap-article-layout">
+        <div class="ap-prose">
+          <%- article.content_html || '<p>内容加载中。</p>' %>
+        </div>
+
+        <aside class="ap-article-aside">
+          <div class="ap-aside-block">
+            <span class="ap-kicker">Notice</span>
+            <p>本文由 AI 自动生成，基于公开信息整理，仅供参考。</p>
+          </div>
+          <% if (article.seo_keywords) { %>
+            <div class="ap-aside-block">
+              <span class="ap-kicker">Tags</span>
+              <div class="ap-tag-list">
+                <% article.seo_keywords.split(',').forEach(function(tag) { %>
+                  <% var cleanTag = tag.trim(); if (cleanTag) { %>
+                    <a href="/search?q=<%= encodeURIComponent(cleanTag) %>"><%= cleanTag %></a>
+                  <% } %>
+                <% }); %>
+              </div>
+            </div>
+          <% } %>
+        </aside>
+      </div>
+    </article>
+
+    <% if ((prevArticle || nextArticle)) { %>
+      <nav class="ap-container ap-article-nav" aria-label="上下篇文章">
+        <% if (prevArticle) { %>
+          <a href="/article/<%= prevArticle.slug %>"><span>上一篇</span><strong><%= prevArticle.title %></strong></a>
+        <% } else { %>
+          <span></span>
+        <% } %>
+        <% if (nextArticle) { %>
+          <a href="/article/<%= nextArticle.slug %>"><span>下一篇</span><strong><%= nextArticle.title %></strong></a>
+        <% } %>
+      </nav>
+    <% } %>
+
+    <% if (relatedArticles && relatedArticles.length > 0) { %>
+      <section class="ap-section">
+        <div class="ap-container">
+          <div class="ap-section-heading">
+            <span>Related</span>
+            <h2>相关阅读</h2>
+          </div>
+          <div class="ap-card-grid">
+            <% relatedArticles.forEach(function(item) { %>
+              <%- include('partials/article-card', { article: item }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (typeof topicPath !== 'undefined' && topicPath && topicPath.length > 0) { %>
+      <section class="ap-section ap-topic-path-section">
+        <div class="ap-container">
+          <div class="ap-section-heading">
+            <span>Topic Path</span>
+            <h2>继续阅读这个主题</h2>
+          </div>
+          <ol class="ap-topic-path">
+            <% topicPath.forEach(function(item, index) { %>
+              <li>
+                <span><%= index + 1 %></span>
+                <a href="/article/<%= item.slug %>"><%= item.title %></a>
+                <% if (item.summary) { %><p><%= item.summary %></p><% } %>
+              </li>
+            <% }); %>
+          </ol>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+

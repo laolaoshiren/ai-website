@@ -68,6 +68,7 @@ const DEFAULT_DATA = {
     ai_loop_enabled: '0',
     moa_enabled: '0',
     image_generation_enabled: '0',
+    frontend_theme: 'builtin-default',
     image_cleanup_keep_days: '180',
     image_cleanup_max_mb: '2048',
     content_plan: '',

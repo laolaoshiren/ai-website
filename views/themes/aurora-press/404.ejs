@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="ap-error-page">
+      <div class="ap-container ap-error-inner">
+        <span class="ap-error-code">404</span>
+        <h1>页面没有找到</h1>
+        <p>你访问的页面不存在，或者已经被移动。</p>
+        <div class="ap-error-actions">
+          <a class="ap-primary-action" href="/">返回首页</a>
+          <a class="ap-secondary-action" href="/archive">查看归档</a>
+        </div>
+      </div>
+    </section>
+
+    <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
+      <section class="ap-section">
+        <div class="ap-container">
+          <div class="ap-section-heading">
+            <span>Keep Reading</span>
+            <h2>推荐阅读</h2>
+          </div>
+          <div class="ap-card-grid">
+            <% latest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+

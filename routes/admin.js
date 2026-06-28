@@ -14,6 +14,7 @@ const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('./agent-s
 const { enrichAgentLogsAI } = require('./agent-log-ai');
 const { buildActivityBrief } = require('./admin-activity-brief');
 const { validateCategoryInput } = require('../ai/category-policy');
+const { listFrontendThemes, resolveFrontendTheme, isValidFrontendTheme } = require('./frontend-theme');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -293,6 +294,35 @@ router.post('/settings/tavily/test', requireCsrf, async (req, res) => {
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
+  }
+});
+
+// ============ 前台模板设置 ============
+router.get('/templates', (req, res) => {
+  const config = getConfig();
+  const currentTheme = resolveFrontendTheme(config.frontend_theme);
+  res.render('admin/templates', {
+    title: '模板设置',
+    themes: listFrontendThemes(),
+    currentThemeId: currentTheme.id,
+    csrfToken: req.session?.csrf || '',
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.post('/templates/select', requireCsrf, (req, res) => {
+  try {
+    const themeId = normalizeSettingValue(req.body.frontend_theme);
+    if (!isValidFrontendTheme(themeId)) {
+      return res.redirect('/admin/templates?error=' + encodeURIComponent('模板不存在或不可用'));
+    }
+    db.setSetting('frontend_theme', themeId);
+    refreshConfig();
+    const theme = resolveFrontendTheme(themeId);
+    res.redirect('/admin/templates?success=' + encodeURIComponent(`前台模板已切换为：${theme.name}`));
+  } catch (err) {
+    res.redirect('/admin/templates?error=' + encodeURIComponent(err.message));
   }
 });
 

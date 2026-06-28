@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="ap-page-hero">
+      <div class="ap-container ap-page-hero-inner">
+        <div>
+          <span class="ap-kicker">Search</span>
+          <h1>站内搜索</h1>
+          <p><%= q ? '搜索关键词：' + q : '输入关键词，查找已发布文章。' %></p>
+        </div>
+        <form class="ap-search-panel" action="/search" method="get" role="search">
+          <input type="search" name="q" value="<%= q || '' %>" placeholder="输入关键词">
+          <button type="submit">搜索</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="ap-section">
+      <div class="ap-container">
+        <% if (q) { %>
+          <div class="ap-results-line">找到 <strong><%= total %></strong> 篇相关文章</div>
+        <% } %>
+        <% if (articles.length > 0) { %>
+          <div class="ap-card-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '搜索结果分页' }) %>
+        <% } else if (q) { %>
+          <div class="ap-empty">
+            <h2>没有找到相关内容</h2>
+            <p>可以换一个关键词再试。</p>
+          </div>
+        <% } else { %>
+          <div class="ap-empty">
+            <h2>准备搜索</h2>
+            <p>搜索会覆盖标题、摘要和关键词。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+

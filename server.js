@@ -65,18 +65,20 @@ app.get('/favicon.svg', (req, res) => {
 
 app.use((req, res) => {
   const { getPublishedPages } = require('./db/database');
+  const { renderFrontendPage } = require('./routes/frontend-theme');
   let latest = getPublishedPages(4);
   try { latest = require('./ai/article-image').prepareArticlesForView(latest); } catch {}
-  res.status(404).render('pages/404', { title: '页面未找到', latest });
+  renderFrontendPage(res.status(404), '404', { title: '页面未找到', latest });
 });
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err.message);
+  const { renderFrontendPage } = require('./routes/frontend-theme');
   // decodeURIComponent 错误（无效编码）→ 404
   if (err instanceof URIError) {
-    return res.status(404).render('pages/404', { title: '页面未找到', latest: [] });
+    return renderFrontendPage(res.status(404), '404', { title: '页面未找到', latest: [] });
   }
   try {
-    res.status(500).render('pages/404', { title: '服务器错误', latest: [] });
+    renderFrontendPage(res.status(500), '404', { title: '服务器错误', latest: [] });
   } catch { res.status(500).send('服务器内部错误'); }
 });
 

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var lead = (featured && featured[0]) || (latest && latest[0]) || null;
+      var rail = latest ? latest.filter(function(item) { return !lead || item.slug !== lead.slug; }).slice(0, 4) : [];
+      var leadImage = lead && lead.image_review_status === 'pass' ? (lead.cover_image || lead.card_image || lead.cover_thumbnail) : '';
+    %>
+
+    <section class="ap-frontpage">
+      <div class="ap-container ap-frontpage-grid">
+        <div class="ap-section-label">
+          <span>Daily Edition</span>
+          <strong><%= new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) %></strong>
+        </div>
+
+        <% if (lead) { %>
+          <article class="ap-lead-story">
+            <a href="/article/<%= lead.slug %>" class="ap-lead-media" aria-label="<%= lead.title %>">
+              <% if (leadImage) { %>
+                <img src="<%= leadImage %>" alt="<%= lead.image_alt || lead.title %>" loading="eager">
+              <% } else { %>
+                <span class="ap-lead-fallback">
+                  <strong><%= lead.category_name || siteTitle %></strong>
+                  <span>精选头条</span>
+                </span>
+              <% } %>
+            </a>
+            <div class="ap-lead-copy">
+              <div class="ap-story-meta">
+                <% if (lead.category_name) { %><a href="/category/<%= lead.category_slug %>"><%= lead.category_name %></a><% } %>
+                <% if (lead.published_at) { %><time datetime="<%= String(lead.published_at).replace(' ', 'T') %>"><%= lead.published_at %></time><% } %>
+              </div>
+              <h1><a href="/article/<%= lead.slug %>"><%= lead.title %></a></h1>
+              <% if (lead.summary) { %><p><%= lead.summary %></p><% } %>
+              <a class="ap-text-link" href="/article/<%= lead.slug %>">阅读头条</a>
+            </div>
+          </article>
+        <% } else { %>
+          <div class="ap-empty ap-lead-empty">
+            <h1><%= siteTitle %></h1>
+            <p>内容正在生成中，稍后这里会展示最新头条。</p>
+          </div>
+        <% } %>
+
+        <aside class="ap-digest-rail" aria-label="最新快读">
+          <div class="ap-rail-title">
+            <span>Briefing</span>
+            <a href="/archive">全部文章</a>
+          </div>
+          <% if (rail.length > 0) { %>
+            <% rail.forEach(function(article, index) { %>
+              <a class="ap-rail-item" href="/article/<%= article.slug %>">
+                <span><%= String(index + 1).padStart(2, '0') %></span>
+                <strong><%= article.title %></strong>
+                <% if (article.published_at) { %><time><%= article.published_at %></time><% } %>
+              </a>
+            <% }); %>
+          <% } else { %>
+            <p class="ap-muted">暂无更多文章。</p>
+          <% } %>
+        </aside>
+      </div>
+    </section>
+
+    <% if (categories && categories.length > 0) { %>
+      <section class="ap-topic-strip">
+        <div class="ap-container ap-topic-strip-inner">
+          <span>栏目</span>
+          <% categories.slice(0, 8).forEach(function(cat) { %>
+            <a href="/category/<%= cat.slug %>"><%= cat.name %></a>
+          <% }); %>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (featured && featured.length > 1) { %>
+      <section class="ap-section">
+        <div class="ap-container">
+          <div class="ap-section-heading">
+            <span>Selected</span>
+            <h2>编辑精选</h2>
+          </div>
+          <div class="ap-card-grid">
+            <% featured.slice(1, 4).forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="ap-section">
+      <div class="ap-container">
+        <div class="ap-section-heading">
+          <span>Latest</span>
+          <h2>最新文章</h2>
+        </div>
+        <% if (latest && latest.length > 0) { %>
+          <div class="ap-card-grid">
+            <% latest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="ap-empty">
+            <h3>AI 正在准备内容</h3>
+            <p>配置完成后，系统会自动生成栏目和文章。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+

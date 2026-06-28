@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="ap-page-hero">
+      <div class="ap-container ap-page-hero-inner">
+        <div>
+          <span class="ap-kicker">Category</span>
+          <h1><%= category.name %></h1>
+          <p><%= category.description || '该栏目下的全部文章。' %></p>
+        </div>
+        <% if (pagination && pagination.totalItems > 0) { %>
+          <div class="ap-page-stat">
+            <strong><%= pagination.totalItems %></strong>
+            <span>篇文章</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="ap-section">
+      <div class="ap-container">
+        <% if (articles.length > 0) { %>
+          <div class="ap-card-grid">
+            <% articles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: category.name + '分页' }) %>
+        <% } else { %>
+          <div class="ap-empty">
+            <h2>这个栏目还在准备中</h2>
+            <p>AI 会根据站点方向持续补充内容。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+

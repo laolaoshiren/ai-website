@@ -1,0 +1,47 @@
+<%- include('layout-open') %>
+<div class="admin-page">
+  <div class="page-header-bar">
+    <h1>模板设置</h1>
+    <a href="/" class="btn btn-outline" target="_blank" rel="noopener">查看前台</a>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div class="admin-panel template-admin-hero">
+    <div>
+      <p class="template-admin-kicker">Frontend Templates</p>
+      <h2>前台模板切换</h2>
+      <p class="text-muted">模板只影响前台页面视觉与排版，不改变文章、栏目、Agent、AI 提供商等核心数据。默认模板始终保留，可随时切回。</p>
+    </div>
+    <div class="template-admin-current">
+      <span>当前启用</span>
+      <strong><%= (themes.find(function(theme) { return theme.id === currentThemeId; }) || themes[0]).name %></strong>
+    </div>
+  </div>
+
+  <form method="POST" action="/admin/templates/select" class="template-select-form">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+    <div class="template-card-grid">
+      <% themes.forEach(function(theme) { %>
+        <label class="template-card <%= theme.id === currentThemeId ? 'is-active' : '' %>">
+          <input type="radio" name="frontend_theme" value="<%= theme.id %>" <%= theme.id === currentThemeId ? 'checked' : '' %>>
+          <span class="template-card-badge"><%= theme.badge %></span>
+          <span class="template-card-preview template-preview-<%= theme.id %>">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="template-card-title"><%= theme.name %></span>
+          <span class="template-card-desc"><%= theme.description %></span>
+          <span class="template-card-id"><%= theme.id %></span>
+        </label>
+      <% }); %>
+    </div>
+
+    <div class="form-actions template-form-actions">
+      <button type="submit" class="btn btn-primary btn-lg">保存模板设置</button>
+      <a href="/" class="btn btn-outline btn-lg" target="_blank" rel="noopener">查看前台效果</a>
+    </div>
+  </form>
+</div>
+<%- include('layout-close') %>
+

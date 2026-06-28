@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ap-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="ap-page-hero">
+      <div class="ap-container ap-page-hero-inner">
+        <div>
+          <span class="ap-kicker">Archive</span>
+          <h1>文章归档</h1>
+          <p>共 <%= totalArticles %> 篇文章，覆盖 <%= totalMonths %> 个月。</p>
+        </div>
+        <% if (totalArticles > 0) { %>
+          <div class="ap-page-stat">
+            <strong><%= startArticle %>-<%= endArticle %></strong>
+            <span>当前页</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="ap-section">
+      <div class="ap-container">
+        <% if (archive.length > 0) { %>
+          <div class="ap-archive-list">
+            <% archive.forEach(function(group) { %>
+              <% var ym = group[0]; var articles = group[1]; %>
+              <section class="ap-archive-month">
+                <h2><%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7), 10) %> 月</h2>
+                <div class="ap-archive-items">
+                  <% articles.forEach(function(article) { %>
+                    <a class="ap-archive-item" href="/article/<%= article.slug %>">
+                      <time datetime="<%= String(article.published_at || '').replace(' ', 'T') %>"><%= article.published_at || '' %></time>
+                      <strong><%= article.title %></strong>
+                      <% if (article.category_name) { %><span><%= article.category_name %></span><% } %>
+                    </a>
+                  <% }); %>
+                </div>
+              </section>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '归档分页' }) %>
+        <% } else { %>
+          <div class="ap-empty">
+            <h2>暂无已发布文章</h2>
+            <p>文章发布后会自动进入归档。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
+
