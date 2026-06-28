@@ -15,6 +15,8 @@ const { enrichAgentLogsAI } = require('./agent-log-ai');
 const { buildActivityBrief } = require('./admin-activity-brief');
 const { validateCategoryInput } = require('../ai/category-policy');
 const { listFrontendThemes, resolveFrontendTheme, isValidFrontendTheme } = require('./frontend-theme');
+const { BACKUP_SECTIONS, buildBackupZip, normalizeSections, restoreBackup } = require('../utils/admin-backup');
+const { parseMultipartForm } = require('../utils/multipart-form');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -327,6 +329,46 @@ router.post('/templates/select', requireCsrf, (req, res) => {
 });
 
 // 修改密码
+// ============ 备份 / 还原 ============
+router.get('/backup', (req, res) => {
+  res.render('admin/backup', {
+    title: '备份还原',
+    sections: BACKUP_SECTIONS,
+    csrfToken: req.session?.csrf || '',
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.post('/backup/export', requireCsrf, (req, res) => {
+  try {
+    const sections = normalizeSections(req.body.sections);
+    const zip = buildBackupZip(sections);
+    const filename = `ai-website-backup-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', zip.length);
+    res.send(zip);
+  } catch (err) {
+    res.redirect('/admin/backup?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/backup/restore', async (req, res) => {
+  try {
+    const form = await parseMultipartForm(req, { limitBytes: 20 * 1024 * 1024 });
+    const token = form.fields.csrf_token;
+    if (!req.session?.csrf || token !== req.session.csrf) return res.redirect('/admin/login');
+    const upload = form.files.backup_file;
+    if (!upload || !upload.filename || !upload.data.length) throw new Error('请选择要导入的备份文件');
+    const restored = restoreBackup(upload.filename, upload.data, form.fields.sections);
+    const labels = restored.map(id => BACKUP_SECTIONS.find(section => section.id === id)?.label || id).join('、');
+    res.redirect('/admin/backup?success=' + encodeURIComponent(`已还原：${labels}`));
+  } catch (err) {
+    res.redirect('/admin/backup?error=' + encodeURIComponent(err.message));
+  }
+});
+
 router.post('/change-password', requireCsrf, (req, res) => {
   const { old_password, new_password } = req.body;
   const admin = db.getAdmin();

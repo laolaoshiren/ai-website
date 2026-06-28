@@ -1,0 +1,67 @@
+<%- include('layout-open') %>
+<div class="admin-page backup-admin-page">
+  <div class="page-header-bar">
+    <div>
+      <h1>备份还原</h1>
+      <p class="text-muted">按需导出或导入关键运营配置。备份包为 ZIP，每个选项会保存为独立 JSON 文件。</p>
+    </div>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <div class="backup-grid">
+    <section class="admin-panel backup-panel">
+      <h2>导出备份</h2>
+      <p class="text-muted">选择需要备份的内容，系统会生成一个可下载到本地的 ZIP 压缩包。</p>
+      <form method="POST" action="/admin/backup/export">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+        <div class="backup-option-grid">
+          <% sections.forEach(function(section) { %>
+            <label class="backup-option">
+              <input type="checkbox" name="sections" value="<%= section.id %>" checked>
+              <span>
+                <strong><%= section.label %></strong>
+                <small><%= section.filename %></small>
+              </span>
+            </label>
+          <% }); %>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">下载备份包</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="admin-panel backup-panel">
+      <h2>导入还原</h2>
+      <p class="text-muted">可上传完整 ZIP 备份包，也可以上传其中任意一个 JSON 文件。还原只会覆盖勾选的项目。</p>
+      <form method="POST" action="/admin/backup/restore" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+        <div class="form-group">
+          <label>备份文件</label>
+          <input type="file" name="backup_file" accept=".zip,.json,application/zip,application/json" required>
+          <small>支持完整备份包或单个 JSON 文件。</small>
+        </div>
+        <div class="backup-option-grid">
+          <% sections.forEach(function(section) { %>
+            <label class="backup-option">
+              <input type="checkbox" name="sections" value="<%= section.id %>" checked>
+              <span>
+                <strong><%= section.label %></strong>
+                <small>匹配 <%= section.filename %></small>
+              </span>
+            </label>
+          <% }); %>
+        </div>
+        <div class="backup-warning">
+          还原会覆盖所选项目的现有数据。建议先下载当前备份，再执行还原。
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-warning" onclick="return confirm('确认按勾选项还原？现有对应数据会被覆盖。')">导入并还原</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+<%- include('layout-close') %>

@@ -205,6 +205,17 @@ a { color: var(--primary); text-decoration: none; }
 .tavily-test-result li { display: grid; grid-template-columns: minmax(120px, 1fr) auto; gap: 0.5rem; align-items: center; padding: 0.5rem; border: 1px solid rgba(148,163,184,0.16); border-radius: 6px; }
 .tavily-test-result li small { grid-column: 1 / -1; color: var(--text-light); overflow-wrap: anywhere; }
 
+/* Backup and restore */
+.backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 1rem; align-items: start; }
+.backup-panel h2 { margin-bottom: 0.35rem; }
+.backup-option-grid { display: grid; gap: 0.65rem; margin-top: 1rem; }
+.backup-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 0.7rem; align-items: start; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: #141420; cursor: pointer; }
+.backup-option input { margin-top: 0.18rem; accent-color: var(--primary); }
+.backup-option strong, .backup-option small { display: block; }
+.backup-option strong { color: var(--text); font-size: 0.9rem; }
+.backup-option small { margin-top: 0.15rem; color: var(--text-light); font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }
+.backup-warning { margin-top: 1rem; padding: 0.75rem; border: 1px solid rgba(245,158,11,0.35); border-radius: 8px; background: rgba(120,53,15,0.18); color: #fcd34d; font-size: 0.84rem; line-height: 1.55; }
+
 /* Frontend template settings */
 .template-admin-page { padding-bottom: 5rem; }
 .template-page-header { align-items: flex-start; }
