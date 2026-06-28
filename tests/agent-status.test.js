@@ -1,7 +1,37 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildAgentStatuses } = require('../routes/agent-status');
+const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('../routes/agent-status');
+
+test('includes every built-in agent role with readable Chinese names', () => {
+  assert.deepEqual(
+    AGENT_ROLES,
+    [
+      'site_manager',
+      'planner',
+      'news_collector',
+      'writer',
+      'reviewer',
+      'editor',
+      'image_designer',
+      'image_reviewer',
+      'seo_expert',
+      'user_tester',
+      'analyzer',
+      'technician',
+      'polisher',
+    ],
+  );
+
+  assert.equal(AGENT_ROLE_NAMES.image_designer, '配图设计师');
+  assert.equal(AGENT_ROLE_NAMES.image_reviewer, '配图审核员');
+
+  const statuses = buildAgentStatuses({}, []);
+  assert.equal(statuses.image_designer.roleName, '配图设计师');
+  assert.equal(statuses.image_designer.displayText, '空闲');
+  assert.equal(statuses.image_reviewer.roleName, '配图审核员');
+  assert.equal(statuses.image_reviewer.displayText, '空闲');
+});
 
 test('derives visible agent status from latest logs instead of stale idle state', () => {
   const statuses = buildAgentStatuses(

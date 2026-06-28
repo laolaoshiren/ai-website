@@ -137,7 +137,7 @@ async function initDb() {
   if (!data.agent_logs) data.agent_logs = [];
   if (!data.agent_status) data.agent_status = {};
   // 初始化所有 Agent 状态（确保面板显示完整）
-  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'image_designer', 'image_reviewer', 'seo_expert', 'user_tester', 'analyzer', 'technician'];
+  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'image_designer', 'image_reviewer', 'seo_expert', 'user_tester', 'analyzer', 'technician', 'polisher'];
   for (const role of ALL_AGENTS) {
     if (!data.agent_status[role]) {
       data.agent_status[role] = { status: 'idle', current_task: null, updated_at: null };

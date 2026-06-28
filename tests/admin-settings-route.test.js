@@ -17,3 +17,12 @@ test('admin settings normalizes Tavily keys into one unique key per line', () =>
     'tvly-a\ntvly-b\ntvly-c',
   );
 });
+
+test('admin settings preserves all Tavily keys when duplicate form fields submit an array', () => {
+  const { normalizeTavilyKeyInput } = require('../routes/admin');
+
+  assert.equal(
+    normalizeTavilyKeyInput([' tvly-a\r\ntvly-b ', 'tvly-c,tvly-b']),
+    'tvly-a\ntvly-b\ntvly-c',
+  );
+});
