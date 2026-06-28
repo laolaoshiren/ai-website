@@ -124,6 +124,8 @@ async function downloadImageUrl(url, fetchImpl, timeoutMs) {
 async function callImageProvider(provider, prompt, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_IMAGE_TIMEOUT_MS;
+  const attemptsPerKey = Math.max(1, Math.min(5, Number(options.attemptsPerKey || 3) || 3));
+  const retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? 1000) || 0);
   const keys = parseImageProviderKeys(provider.api_key);
   const models = parseImageProviderModels(provider.model);
   if (keys.length === 0) throw new Error('Image provider has no API key');
@@ -138,49 +140,54 @@ async function callImageProvider(provider, prompt, options = {}) {
     const apiKey = keys[keyIndex];
     keyCursor.set(`provider:${provider.id || provider.name}:key`, (keyIndex + 1) % keys.length);
 
-    try {
-      const response = await fetchImpl(normalizeImageEndpoint(provider.base_url), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({
+    for (let providerAttempt = 0; providerAttempt < attemptsPerKey; providerAttempt += 1) {
+      try {
+        const response = await fetchImpl(normalizeImageEndpoint(provider.base_url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            prompt,
+            size: options.size || DEFAULT_IMAGE_SIZE,
+            return_base64: true,
+            extra_body: { response_format: 'b64_json' },
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = errorText;
+          try { errorMessage = JSON.parse(errorText).error?.message || errorText; } catch {}
+          throw new Error(`Image API error (${response.status}): ${errorMessage}`);
+        }
+
+        const data = await response.json();
+        const parsed = parseImageData(data);
+        let buffer = parsed.buffer;
+        let sourceUrl = parsed.url || null;
+        let mimeType = '';
+        if (parsed.type === 'url') {
+          const downloaded = await downloadImageUrl(parsed.url, fetchImpl, timeoutMs);
+          buffer = downloaded.buffer;
+          mimeType = downloaded.mimeType;
+        }
+
+        return {
+          buffer,
+          mimeType,
+          sourceUrl,
+          revisedPrompt: parsed.revisedPrompt,
+          provider: provider.name,
+          providerId: provider.id,
           model,
-          prompt,
-          size: options.size || DEFAULT_IMAGE_SIZE,
-          return_base64: true,
-          extra_body: { response_format: 'b64_json' },
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = errorText;
-        try { errorMessage = JSON.parse(errorText).error?.message || errorText; } catch {}
-        throw new Error(`Image API error (${response.status}): ${errorMessage}`);
+        };
+      } catch (err) {
+        lastError = err;
+        const retryable = ['server', 'network', 'rate_limit'].includes(classifyImageProviderError(err));
+        if (!retryable || providerAttempt >= attemptsPerKey - 1) break;
+        if (retryDelayMs > 0) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
       }
-
-      const data = await response.json();
-      const parsed = parseImageData(data);
-      let buffer = parsed.buffer;
-      let sourceUrl = parsed.url || null;
-      let mimeType = '';
-      if (parsed.type === 'url') {
-        const downloaded = await downloadImageUrl(parsed.url, fetchImpl, timeoutMs);
-        buffer = downloaded.buffer;
-        mimeType = downloaded.mimeType;
-      }
-
-      return {
-        buffer,
-        mimeType,
-        sourceUrl,
-        revisedPrompt: parsed.revisedPrompt,
-        provider: provider.name,
-        providerId: provider.id,
-        model,
-      };
-    } catch (err) {
-      lastError = err;
     }
   }
 

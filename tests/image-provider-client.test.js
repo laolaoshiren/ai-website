@@ -82,6 +82,47 @@ test('image provider call retries the next key and requests base64 output', asyn
   assert.ok(Buffer.isBuffer(result.buffer));
 });
 
+test('image provider call retries transient upstream errors on the same key', async () => {
+  const { callImageProvider, resetImageProviderKeyCursor } = require('../ai/article-image');
+  resetImageProviderKeyCursor();
+  const calls = [];
+
+  const result = await callImageProvider(
+    {
+      id: 9,
+      name: 'Agnes',
+      base_url: 'https://apihub.agnes-ai.com/v1',
+      api_key: 'ok-key',
+      model: 'agnes-image-2.1-flash',
+      enabled: true,
+    },
+    'editorial image prompt',
+    {
+      retryDelayMs: 1,
+      fetchImpl: async (url, init) => {
+        calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+        if (calls.length === 1) {
+          return {
+            ok: false,
+            status: 500,
+            text: async () => JSON.stringify({ error: { message: 'upstream error' } }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ data: [{ b64_json: pngBase64() }] }),
+        };
+      },
+    },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].headers.Authorization, 'Bearer ok-key');
+  assert.equal(calls[1].headers.Authorization, 'Bearer ok-key');
+  assert.equal(result.provider, 'Agnes');
+  assert.ok(Buffer.isBuffer(result.buffer));
+});
+
 test('image provider test validates the generated image without exposing keys', async () => {
   const { testImageProvider, resetImageProviderKeyCursor } = require('../ai/article-image');
   resetImageProviderKeyCursor();
