@@ -12,3 +12,9 @@ test('docker workflow runs the test suite before publishing an image', () => {
   assert.ok(buildIndex > 0, 'workflow should build and push the image');
   assert.ok(testIndex < buildIndex, 'tests must run before image publishing');
 });
+
+test('production Docker image includes runtime utility modules', () => {
+  const dockerfile = fs.readFileSync(path.join(__dirname, '..', 'Dockerfile'), 'utf8');
+
+  assert.match(dockerfile, /COPY --from=builder \/app\/utils \.\/utils/, 'Dockerfile must copy utils into production image');
+});

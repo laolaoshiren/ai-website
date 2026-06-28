@@ -27,6 +27,7 @@ COPY --from=builder /app/ai ./ai
 COPY --from=builder /app/db ./db
 COPY --from=builder /app/routes ./routes
 COPY --from=builder /app/scheduler ./scheduler
+COPY --from=builder /app/utils ./utils
 COPY --from=builder /app/views ./views
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/docker-entrypoint.sh ./
