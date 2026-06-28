@@ -29,3 +29,50 @@ test('writer leaves article image fields untouched when image generation is skip
   assert.deepEqual(buildArticleImageUpdates(null), {});
 });
 
+test('writer logs article image designer success before reviewer success when image passes', () => {
+  const { logArticleImageOutcome } = require('../ai/writer');
+  const calls = [];
+
+  logArticleImageOutcome(
+    (...args) => calls.push(args),
+    { title: 'AI revenue proof needs better product evidence' },
+    {
+      skipped: false,
+      provider: 'Agnes Image',
+      model: 'agnes-image-2.1-flash',
+      review: { status: 'pass', reason: 'semantic_review_passed' },
+    },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map(call => [call[0], call[2]]), [
+    ['image_designer', 'success'],
+    ['image_reviewer', 'success'],
+  ]);
+  assert.match(calls[0][3], /生成完成/);
+  assert.equal(calls[0][4].provider, 'Agnes Image');
+  assert.equal(calls[0][4].model, 'agnes-image-2.1-flash');
+});
+
+test('writer logs article image reviewer failure without leaving designer stuck running', () => {
+  const { logArticleImageOutcome } = require('../ai/writer');
+  const calls = [];
+
+  logArticleImageOutcome(
+    (...args) => calls.push(args),
+    { title: 'Sora 3 video generation risk' },
+    {
+      skipped: true,
+      reason: 'image_review_failed',
+      provider: 'Agnes Image',
+      model: 'agnes-image-2.1-flash',
+    },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map(call => [call[0], call[2]]), [
+    ['image_designer', 'success'],
+    ['image_reviewer', 'failed'],
+  ]);
+  assert.match(calls[1][3], /审核未通过/);
+});

@@ -105,6 +105,35 @@ function buildArticleImageUpdates(imageResult) {
   };
 }
 
+function buildArticleImageLogMeta(imageResult = {}, fallbackMeta = {}) {
+  return {
+    provider: imageResult.provider || fallbackMeta.provider || '',
+    model: imageResult.model || fallbackMeta.model || '',
+    ai_mode: fallbackMeta.ai_mode || '',
+  };
+}
+
+function logArticleImageOutcome(logAgent, article = {}, imageResult = {}, fallbackMeta = {}) {
+  if (typeof logAgent !== 'function' || !imageResult) return;
+  const title = article.title || '未命名文章';
+  const reason = imageResult.reason || 'skipped';
+  const meta = buildArticleImageLogMeta(imageResult, fallbackMeta);
+
+  if (imageResult.skipped) {
+    if (/review/i.test(reason)) {
+      logAgent('image_designer', '生成文章配图', 'success', `生成完成，等待审核: ${title}`, meta);
+      logAgent('image_reviewer', '审核文章配图', 'failed', `审核未通过: ${title} (${reason})`, meta);
+      return;
+    }
+
+    logAgent('image_designer', '生成文章配图', 'success', `跳过配图: ${title} (${reason})`, meta);
+    return;
+  }
+
+  logAgent('image_designer', '生成文章配图', 'success', `生成完成: ${title}`, meta);
+  logAgent('image_reviewer', '审核文章配图', 'success', `审核通过: ${title}`, meta);
+}
+
 async function generateArticle(page) {
   const { getPublishedPages, updatePage, getCategories, getImageProviders, logAgent, retryTimeAfterAttempts } = require('../db/database');
 
@@ -180,15 +209,9 @@ async function generateArticle(page) {
       const imageProviders = getImageProviders();
       const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders);
       if (imageDecision.ok) {
-        logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, aiMeta);
+        logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, { provider: '', model: '', ai_mode: '' });
         imageResult = await generateArticleImage(imageArticle, { config });
-        if (imageResult.skipped) {
-          const role = /review/i.test(imageResult.reason || '') ? 'image_reviewer' : 'image_designer';
-          const status = /review/i.test(imageResult.reason || '') ? 'failed' : 'success';
-          logAgent(role, role === 'image_reviewer' ? '审核文章配图' : '生成文章配图', status, `跳过配图: ${imageArticle.title} (${imageResult.reason || 'skipped'})`, { provider: imageResult.provider || '', model: imageResult.model || '' });
-        } else {
-          logAgent('image_reviewer', '审核文章配图', 'success', `通过: ${imageArticle.title}`, { provider: imageResult.provider || '', model: imageResult.model || '' });
-        }
+        logArticleImageOutcome(logAgent, imageArticle, imageResult);
       }
     } catch (err) {
       logAgent('image_designer', '生成文章配图', 'failed', `跳过配图: ${(finalData.title || page.title)} - ${err.message}`);
@@ -242,4 +265,4 @@ async function generateArticle(page) {
   };
 }
 
-module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta, buildArticleImageUpdates };
+module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta, buildArticleImageUpdates, logArticleImageOutcome };

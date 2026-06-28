@@ -198,27 +198,41 @@ test('article image cleanup removes unreferenced old local images and keeps refe
   }
 });
 
-test('fallback article image prompt avoids generic portrait covers', async () => {
+test('fallback article image prompts are article-specific instead of one fixed visual template', async () => {
   const { planArticleImage } = require('../ai/article-image');
 
-  const plan = await planArticleImage(
+  const businessPlan = await planArticleImage(
     {
+      slug: 'ai-investment-shift',
       title: 'AI investors are moving from foundation models to applied revenue',
       summary: 'Investors are following renewal and margin proof.',
       category_name: 'Industry',
     },
     { skipAIPlanner: true },
   );
+  const videoPlan = await planArticleImage(
+    {
+      slug: 'sora-industrial-pipeline',
+      title: 'Sora 3 pushes video generation into industrial production workflows',
+      summary: 'Studios are testing review pipelines, shot consistency and delivery risk.',
+      category_name: 'Video AI',
+    },
+    { skipAIPlanner: true },
+  );
 
-  assert.match(plan.prompt, /no people/i);
-  assert.match(plan.prompt, /non-figurative|abstract/i);
-  assert.match(plan.prompt, /luminous blue-white glass core/i);
-  assert.match(plan.prompt, /circular ring/i);
-  assert.match(plan.prompt, /blank white cubes/i);
-  assert.match(plan.prompt, /data-flow ribbons/i);
-  assert.doesNotMatch(plan.prompt, /\binvestors?\b/i);
-  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels|server racks|market-map|\bmetric blocks\b|\bscreens\b|\bcharts\b/i);
-  assert.doesNotMatch(plan.prompt, /portrait|scientist|laboratory|lab coat/i);
+  for (const prompt of [businessPlan.prompt, videoPlan.prompt]) {
+    assert.match(prompt, /Editorial cover image/i);
+    assert.match(prompt, /Article focus:/i);
+    assert.match(prompt, /Primary visual brief:/i);
+    assert.match(prompt, /Let the article decide the subject/i);
+    assert.doesNotMatch(prompt, /luminous blue-white glass core/i);
+    assert.doesNotMatch(prompt, /circular ring/i);
+    assert.doesNotMatch(prompt, /blank white cubes/i);
+    assert.doesNotMatch(prompt, /data-flow ribbons/i);
+  }
+  assert.match(businessPlan.prompt, /applied revenue|renewal|margin proof/i);
+  assert.match(videoPlan.prompt, /Sora 3|video generation|production workflows/i);
+  assert.notEqual(businessPlan.prompt, videoPlan.prompt);
 });
 
 test('unsafe planner prompts are rewritten into non-human editorial covers', async () => {
@@ -239,12 +253,100 @@ test('unsafe planner prompts are rewritten into non-human editorial covers', asy
     },
   );
 
-  assert.match(plan.prompt, /object-only/i);
-  assert.match(plan.prompt, /no people/i);
-  assert.match(plan.prompt, /luminous blue-white glass core/i);
-  assert.match(plan.prompt, /circular ring/i);
-  assert.match(plan.prompt, /blank white cubes/i);
-  assert.match(plan.prompt, /data-flow ribbons/i);
-  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels|server racks|market-map|\bmetric blocks\b|\bscreens\b|\bcharts\b/i);
-  assert.doesNotMatch(plan.prompt, /heroic|close-up|portrait|founder|laboratory|lab coat|dashboard text/i);
+  assert.match(plan.prompt, /Editorial cover image/i);
+  assert.match(plan.prompt, /Article focus:/i);
+  assert.match(plan.prompt, /renewal growth|contract renewal proof|founders|subscription software/i);
+  assert.doesNotMatch(plan.prompt, /luminous blue-white glass core/i);
+  assert.doesNotMatch(plan.prompt, /circular ring/i);
+  assert.doesNotMatch(plan.prompt, /blank white cubes/i);
+  assert.doesNotMatch(plan.prompt, /data-flow ribbons/i);
+  assert.doesNotMatch(plan.prompt, /heroic close-up portrait|laboratory wearing a lab coat|dashboard text/i);
+});
+
+test('safe planner prompts keep article-specific visual details', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: 'GPU supply chains move from raw compute to verified delivery capacity',
+      summary: 'Cloud vendors are comparing lead times, cooling limits and shipment evidence.',
+      category_name: 'Infrastructure',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'GPU supply chain editorial cover',
+        prompt: 'Premium editorial still life of matte GPU modules, cooling fins, shipping crates and cable paths arranged like a delivery capacity map, no text, no logos.',
+      }),
+    },
+  );
+
+  assert.match(plan.prompt, /GPU modules|cooling fins|shipping crates|delivery capacity map/i);
+  assert.doesNotMatch(plan.prompt, /luminous blue-white glass core|circular ring|blank white cubes/i);
+  assert.doesNotMatch(plan.prompt, /portrait of|laboratory/i);
+});
+
+test('safe planner prompts can keep contextual people when relevant', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: 'Kyoto autumn walking route: temple paths, tea shops and evening lanterns',
+      summary: 'A travel guide about a quiet walking route, local shops and seasonal atmosphere.',
+      category_name: 'Travel',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'Kyoto autumn walking route cover',
+        visual_angle: 'Use a warm travel scene rather than a generic landscape.',
+        prompt: 'Golden-hour Kyoto lane with maple leaves, temple steps, tea shop doorway and a few travelers seen from behind in the distance, no readable signs, no logos.',
+      }),
+    },
+  );
+
+  assert.match(plan.prompt, /Kyoto lane|maple leaves|temple steps|tea shop|travelers seen from behind/i);
+  assert.match(plan.prompt, /People are allowed/i);
+  assert.doesNotMatch(plan.prompt, /headshot|selfie/i);
+});
+
+test('semantic image review instructions use MVP quality gate instead of over-strict taste judging', () => {
+  const { buildImageReviewMessages } = require('../ai/article-image');
+
+  const messages = buildImageReviewMessages({
+    article: {
+      title: 'Winter miso ramen guide',
+      summary: 'A food article about broth, noodles and toppings.',
+      category_name: 'Food',
+    },
+    prompt: 'Warm bowl of miso ramen on a dinner table, no text, no logos.',
+    dataUrl: 'data:image/png;base64,abc',
+  });
+  const reviewText = messages[1].content[0].text;
+
+  assert.match(reviewText, /MVP/i);
+  assert.match(reviewText, /food, travel, lifestyle, finance, technology/i);
+  assert.match(reviewText, /Pass if the image is basically relevant/i);
+  assert.match(reviewText, /People are allowed/i);
+  assert.doesNotMatch(reviewText, /Pass clean abstract business or technology visuals/i);
+  assert.doesNotMatch(reviewText, /Fail if it contains people/i);
+});
+
+test('fallback prompt is domain-neutral for non-technology articles', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      slug: 'winter-miso-ramen-guide',
+      title: 'Winter miso ramen guide: richer broth, roasted corn and scallion oil',
+      summary: 'A food article about balancing miso broth, noodles, toppings and a warm dinner table.',
+      content_md: 'The article compares soup body, noodle texture, roasted corn sweetness, scallion oil fragrance and home table presentation.',
+      category_name: 'Food',
+    },
+    { skipAIPlanner: true },
+  );
+
+  assert.match(plan.prompt, /miso ramen|broth|noodles|roasted corn|scallion oil|Food/i);
+  assert.match(plan.prompt, /food|dish|ingredients|tableware|kitchen/i);
+  assert.doesNotMatch(plan.prompt, /GPU modules|compute cluster|contract sheets|subscription software|business evidence/i);
 });
