@@ -84,6 +84,7 @@
       <% providers.forEach(function(p) {
         var keys = splitList(p.api_key);
         var models = splitList(p.model);
+        var visionModels = splitList(p.vision_models);
       %>
       <div class="provider-card <%= p.enabled ? '' : 'disabled' %>">
         <div class="provider-header">
@@ -92,6 +93,7 @@
         </div>
         <div class="provider-info">
           <p><strong>模型:</strong> <%= models.length > 1 ? models.length + ' 个 (' + models[0] + '...)' : p.model %></p>
+          <p><strong>视觉审核:</strong> <%= visionModels.length %> / <%= models.length || 0 %> 个模型可用<% if (visionModels.length) { %> (<%= visionModels.slice(0, 2).join(', ') %><%= visionModels.length > 2 ? '...' : '' %>)<% } %></p>
           <p><strong>密钥:</strong> <%= keys.length > 1 ? keys.length + ' 个密钥' : '1 个密钥' %></p>
           <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
           <p><strong>调用:</strong> <%= p.request_count || 0 %> 次 | <strong>错误:</strong> <%= p.error_count || 0 %> 次</p>

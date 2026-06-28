@@ -178,6 +178,19 @@ test('repairs published articles with empty or thin bodies before they reach SEO
   assert.equal(db.getPageById(richId).status, 'published');
 });
 
+test('repairs missing default vision model scan schedule for existing databases', () => {
+  const current = db.getDb();
+  current.schedule = current.schedule.filter(item => item.task_type !== 'vision_model_scan');
+
+  const added = db.ensureDefaultSchedules();
+  const scan = current.schedule.find(item => item.task_type === 'vision_model_scan');
+
+  assert.equal(added, 1);
+  assert.ok(scan);
+  assert.equal(scan.enabled, 1);
+  assert.equal(scan.cron_expr, '0 */6 * * *');
+});
+
 test('article outcome logs do not approve unpublished drafts', () => {
   const { buildArticleOutcomeLogs } = require('../scheduler/article-outcome');
 

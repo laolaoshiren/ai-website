@@ -94,6 +94,7 @@ const DEFAULT_DATA = {
     { id: 7, task_type: 'analyze', cron_expr: '30 22 * * *', description: '每天 22:30 数据分析', enabled: 1, last_run: null },
     { id: 8, task_type: 'user_test', cron_expr: '0 4 * * 3', description: '每周三 4:00 用户体验测评', enabled: 1, last_run: null },
     { id: 9, task_type: 'template_review', cron_expr: '0 4 * * 0', description: '每周日 4:00 模板审查', enabled: 1, last_run: null },
+    { id: 10, task_type: 'vision_model_scan', cron_expr: '0 */6 * * *', description: '每6小时静默检测文字 AI 多模态能力', enabled: 1, last_run: null },
   ],
 
   // 分析数据
@@ -114,6 +115,20 @@ const DEFAULT_DATA = {
   // ID 计数器
   _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, image_providers: 0, ads: 0, friend_links: 0 },
 };
+
+function ensureDefaultSchedules() {
+  if (!data) return 0;
+  if (!Array.isArray(data.schedule)) data.schedule = [];
+  let added = 0;
+  for (const schedule of DEFAULT_DATA.schedule) {
+    if (data.schedule.some(item => item.task_type === schedule.task_type)) continue;
+    const maxId = Math.max(0, ...data.schedule.map(item => Number(item.id || 0)));
+    data.schedule.push({ ...schedule, id: Math.max(schedule.id, maxId + 1), last_run: null });
+    added++;
+  }
+  if (added > 0) scheduleSave();
+  return added;
+}
 
 async function initDb() {
   const dataDir = path.dirname(DB_PATH);
@@ -144,10 +159,11 @@ async function initDb() {
     }
   }
 
+  const repairedSchedules = ensureDefaultSchedules();
   const repairedCategories = repairExistingPageCategories();
   const recoveredWriting = recoverExpiredWritingPages('startup');
   const repairedContent = repairPublishedContentQuality('startup');
-  if (repairedCategories + recoveredWriting + repairedContent > 0) saveDb();
+  if (repairedSchedules + repairedCategories + recoveredWriting + repairedContent > 0) saveDb();
 
   return data;
 }
@@ -329,7 +345,20 @@ function getActiveAIProvider() {
 function addAIProvider(provider) {
   return withLock(() => {
     const id = nextId('ai_providers');
-    getDb().ai_providers.push({ id, name: provider.name, base_url: provider.base_url, api_key: provider.api_key, model: provider.model, enabled: true, request_count: 0, error_count: 0, created_at: now() });
+    getDb().ai_providers.push({
+      id,
+      name: provider.name,
+      base_url: provider.base_url,
+      api_key: provider.api_key,
+      model: provider.model,
+      enabled: true,
+      request_count: 0,
+      error_count: 0,
+      vision_models: provider.vision_models || '',
+      vision_check_results: provider.vision_check_results || {},
+      vision_checked_at: provider.vision_checked_at || null,
+      created_at: now(),
+    });
     scheduleSave();
     return id;
   });
@@ -740,7 +769,7 @@ function deleteFriendLink(id) {
 }
 
 module.exports = {
-  initDb, getDb, saveDb,
+  initDb, getDb, saveDb, ensureDefaultSchedules,
   getAdmin, setAdminPassword,
   getAIProviders, getActiveAIProvider, addAIProvider, updateAIProvider, deleteAIProvider, incrementProviderUsage,
   getImageProviders, addImageProvider, updateImageProvider, deleteImageProvider, incrementImageProviderUsage,
