@@ -568,6 +568,7 @@ function reviewTextWithoutNegatedIssues(review = {}) {
   ]
     .filter(Boolean)
     .join(' ')
+    .replace(/\b(?:has no|no|without|free of|does not contain)\s+[^.;]*?(?:text|logos?|watermarks?|ui labels?|screenshots?)(?:\s*(?:,|or|and)\s*(?:text|logos?|watermarks?|ui labels?|screenshots?))*[^.;]*/gi, ' ')
     .replace(/\b(?:no|not|without|free of|does not contain|has no|no obvious)\s+(?:visible\s+|obvious\s+|readable\s+|garbled\s+|gibberish\s+|pseudo\s+)*(?:text|letters?|logos?|watermarks?|screenshots?|captions?|signboards?|brand marks?|ui labels?|broken anatomy|distorted faces?|malformed hands?|severe clutter)(?:[^.;,]*)/gi, ' ')
     .replace(/\b(?:not|not a|not an|does not look|is not|isn't|isnt|without)\s+(?:99%\s+generic|generic\/repeated|duplicated[-\s]?template|template[-\s]?like|clearly unrelated|misleading)(?:[^.;,]*)/gi, ' ')
     .replace(/(?:没有|无|未发现|不存在|不含|没有明显)[^。；;,.，]{0,40}(?:乱码|伪文字|水印|标志|logo|可读文字|明显文字|畸形|严重杂乱)/g, ' ')
@@ -580,11 +581,14 @@ function hasDisqualifyingSemanticIssue(review = {}) {
 }
 
 function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
-  const score = Number(review.score ?? review.quality_score ?? review.qualityScore ?? 0);
+  const rawScore = Number(review.score ?? review.quality_score ?? review.qualityScore ?? 0);
+  const score = Number.isFinite(rawScore) && rawScore > 0 && rawScore <= 10 ? rawScore * 10 : rawScore;
   const hasHardIssue = hasDisqualifyingSemanticIssue(review);
-  const lowIssueScore = Number.isFinite(score) && score > 0 && score < 50 && Array.isArray(review.issues) && review.issues.length > 0;
+  const issues = Array.isArray(review.issues) ? review.issues.slice(0, 8) : [];
+  const lowIssueScore = Number.isFinite(score) && score > 0 && score < 50 && issues.length > 0;
   const approved = review.approved === true || review.pass === true || review.status === 'pass' || score >= 75;
-  const rejected = review.approved === false || review.pass === false || review.status === 'failed' || review.status === 'reject' || hasHardIssue || lowIssueScore;
+  const explicitReject = review.approved === false || review.pass === false || review.status === 'failed' || review.status === 'reject';
+  const rejected = hasHardIssue || lowIssueScore || (explicitReject && (!approved || issues.length > 0));
   const status = rejected ? 'failed' : (approved ? 'pass' : (review.status === 'review' ? 'review' : 'failed'));
   const reason = String(review.reason || review.summary || (status === 'pass' ? 'semantic_review_passed' : 'semantic_review_failed')).slice(0, 500);
   return {
@@ -592,7 +596,7 @@ function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
     status,
     reason,
     semantic_score: Number.isFinite(score) && score > 0 ? score : null,
-    semantic_issues: Array.isArray(review.issues) ? review.issues.slice(0, 8) : [],
+    semantic_issues: issues,
   };
 }
 

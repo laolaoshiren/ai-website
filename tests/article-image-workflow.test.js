@@ -281,6 +281,42 @@ test('semantic review does not reject negated generic-template wording', async (
   }
 });
 
+test('semantic review accepts 10-point scores when the review text is positive', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'positive-review.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Editorial still life of a smartphone back side and translucent security shield, no text, no logos.',
+        article: {
+          title: 'Mobile AI integration safeguards',
+          summary: 'A technology article about privacy and app integration.',
+          category_name: 'Technology',
+        },
+      },
+      {
+        reviewer: async () => ({
+          status: 'failed',
+          score: 8,
+          reason: 'Image is relevant, coherent, has no readable text, logos or watermarks, and matches the article theme.',
+          issues: [],
+        }),
+      },
+    );
+
+    assert.equal(review.status, 'pass');
+    assert.equal(review.semantic_score, 80);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('article image generation retries with stricter prompt after review failure', async () => {
   const { generateArticleImage } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
