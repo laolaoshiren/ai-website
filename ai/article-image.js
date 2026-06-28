@@ -260,6 +260,10 @@ function sanitizeImageContext(text, maxLength = 520) {
     .slice(0, maxLength);
 }
 
+function containsCjk(text = '') {
+  return /[\u3400-\u9fff]/.test(String(text || ''));
+}
+
 const UNIVERSAL_IMAGE_TREATMENTS = [
   {
     name: 'editorial still life',
@@ -299,14 +303,19 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
   const visualBrief = sourceIsSafe ? sourceContext : articleContext;
   const seed = article.slug || article.id || article.title || visualBrief;
   const treatment = selectUniversalImageTreatment(seed || articleContext);
+  const useEnglishBriefAsSource = sourceIsSafe && !containsCjk(sourceContext) && containsCjk(articleContext);
+  const articleFocusLine = useEnglishBriefAsSource
+    ? 'Article focus: use the English visual brief below as the source of truth; do not render article titles, Chinese characters, English words, numbers or headlines.'
+    : `Article focus: ${articleContext || 'the core idea of the article'}.`;
+  const primaryVisualLabel = useEnglishBriefAsSource ? 'English visual brief (source of truth)' : 'Primary visual brief';
   const primaryVisualBrief = sourceIsSafe
     ? visualBrief
     : 'derive the visible subject from Article focus and the article domain itself. Choose the most relevant concrete subject, scene, person-in-context, process, place, object, food, document, landscape, atmosphere or symbolic detail; do not use a preset theme.';
 
   return [
     'Editorial cover image for a real article, modern magazine quality.',
-    `Article focus: ${articleContext || 'the core idea of the article'}.`,
-    `Primary visual brief: ${primaryVisualBrief}.`,
+    articleFocusLine,
+    `${primaryVisualLabel}: ${primaryVisualBrief}.`,
     `Editorial method: ${treatment.name}; ${treatment.method}.`,
     'Let the article decide the subject: it may be food, recipe steps, cooking atmosphere, travel scenery, local details, people in context, objects, products, documents, rooms, landscapes, culture, finance, technology, education or any other relevant scene.',
     'People are allowed only when the article naturally calls for them; prefer natural editorial context, silhouettes, back views, environmental scenes, or small groups instead of close-up faces.',
@@ -351,7 +360,7 @@ async function planArticleImage(article, options = {}) {
     const { data } = await callAIForJSON([
       {
         role: 'system',
-        content: 'You are a senior human picture editor and editorial art director for a Chinese web magazine. Read the article, choose a concrete, relevant cover-image concept, and write one safe image-generation prompt. Return JSON only.',
+        content: 'You are a senior human picture editor and editorial art director for a Chinese web magazine. Read the article, choose a concrete, relevant cover-image concept, and write one safe English image-generation prompt. Return JSON only.',
       },
       {
         role: 'user',
@@ -364,13 +373,14 @@ async function planArticleImage(article, options = {}) {
             needed: true,
             reason: 'short reason',
             alt: 'short image alt text',
-            visual_angle: 'one-sentence explanation of the editorial image idea',
-            prompt: 'specific image-generation prompt; no text, no logos, no clutter',
+            visual_angle: 'one-sentence English explanation of the editorial image idea',
+            prompt: 'specific English image-generation prompt; no text, no logos, no clutter',
           },
           rules: [
             'This system is domain-neutral. The website may be about food, travel, lifestyle, finance, technology, culture, education, health, local news or any other topic. Use the article domain itself; never force a technology style onto non-technology articles.',
             'The image must match the core idea and concrete details of the article, like a human editor selected it for this exact story.',
             'First mentally summarize the article into one visual angle, then write the prompt from that angle.',
+            'Write visual_angle and prompt in English for the image model. Translate Chinese article concepts into unambiguous English visual language; never copy the article title into the image prompt as text to render.',
             'You are free to choose food, recipe process, cooking scene, people in context, travel landscape, local object, product detail, document layout, room, street, classroom, clinic, cultural item, abstract symbol or any other subject if it best serves the article.',
             'Use concrete objects, setting, material, lighting, camera angle, composition and mood. Do not output a generic wallpaper.',
             'If the concept includes screens, phones, computers, documents, charts, menus, signs, labels, packages or books, require blank or non-legible surfaces; do not ask for visible UI, readable words, numbers, brand marks or pseudo text.',

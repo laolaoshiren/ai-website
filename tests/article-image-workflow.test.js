@@ -494,6 +494,30 @@ test('safe planner prompts can keep contextual people when relevant', async () =
   assert.doesNotMatch(plan.prompt, /headshot|selfie/i);
 });
 
+test('english planner briefs keep raw Chinese article text out of the image prompt', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: '生成式AI版权新规满月：素材库厂商的商业模式重构实录',
+      summary: '文章讨论版权授权、训练数据合规、素材库商业模式和客户合同变化。',
+      category_name: '前沿研究',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'AI copyright regulation stock library cover',
+        visual_angle: 'Use a licensing and media-library business scene, not food ingredients.',
+        prompt: 'Premium editorial still life of blank licensing contracts, contact sheets of generic stock photo thumbnails, camera lens, archive boxes and approval stamps with all paper surfaces blank, no readable text, no logos.',
+      }),
+    },
+  );
+
+  assert.match(plan.prompt, /licensing contracts|stock photo thumbnails|camera lens|archive boxes/i);
+  assert.match(plan.prompt, /English visual brief|source of truth/i);
+  assert.doesNotMatch(plan.prompt, /素材库|版权新规|生成式AI|商业模式重构|前沿研究/);
+});
+
 test('semantic image review instructions use MVP quality gate instead of over-strict taste judging', () => {
   const { buildImageReviewMessages } = require('../ai/article-image');
 
