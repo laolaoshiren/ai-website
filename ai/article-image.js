@@ -364,6 +364,16 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
 }
 
 function fallbackImagePlan(article = {}) {
+  const articleText = [article.title, article.summary, article.content_md || article.content_html || '', article.category_name].filter(Boolean).join(' ');
+  if (containsCjk(articleText)) {
+    return {
+      needed: false,
+      reason: 'english_planner_required_for_cjk_article',
+      alt: `${article.title || 'Article'} cover image`,
+      prompt: '',
+    };
+  }
+
   return {
     needed: true,
     reason: 'editorial cover image can improve article scanning and retention',

@@ -669,3 +669,20 @@ test('fallback prompt is domain-neutral for non-technology articles', async () =
   assert.match(plan.prompt, /food|dish|ingredients|tableware|kitchen/i);
   assert.doesNotMatch(plan.prompt, /GPU modules|compute cluster|contract sheets|subscription software|business evidence/i);
 });
+
+test('CJK articles skip fallback image generation when no English planner brief is available', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: '距合规大限40天：用开源工具搭一套AI合规流水线',
+      summary: '文章讨论开源工具、合规流水线和自动化检查清单。',
+      category_name: 'AI 工具箱',
+    },
+    { skipAIPlanner: true },
+  );
+
+  assert.equal(plan.needed, false);
+  assert.match(plan.reason, /english_planner_required/i);
+  assert.equal(plan.prompt, '');
+});
