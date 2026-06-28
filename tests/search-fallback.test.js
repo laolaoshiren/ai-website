@@ -5,6 +5,11 @@ const {
   collectSearchResults,
   parseSearchRSS,
   resolveRedirectUrl,
+  parseTavilyKeys,
+  resetTavilyKeyCursor,
+  searchTavily,
+  maskTavilyKey,
+  testTavilyKeys,
 } = require('../ai/search');
 
 test('collectSearchResults continues through empty and failed engines', async () => {
@@ -64,4 +69,54 @@ test('resolveRedirectUrl supports relative redirect locations', () => {
     resolveRedirectUrl('https://www.bing.com/news/search?q=ai', '/news/search?q=ai&format=rss'),
     'https://www.bing.com/news/search?q=ai&format=rss',
   );
+});
+
+test('parseTavilyKeys accepts newline and comma separated keys', () => {
+  assert.deepEqual(
+    parseTavilyKeys('tvly-a\n tvly-b, tvly-c \n\n tvly-a'),
+    ['tvly-a', 'tvly-b', 'tvly-c'],
+  );
+});
+
+test('maskTavilyKey hides the secret while keeping it recognizable', () => {
+  assert.equal(maskTavilyKey('tvly-1234567890'), 'tvly-1...7890');
+});
+
+test('testTavilyKeys validates each key independently', async () => {
+  const results = await testTavilyKeys('good-key\nbad-key', {
+    postJSON: async (url, payload) => {
+      if (payload.api_key === 'bad-key') throw new Error('unauthorized');
+      return { results: [{ title: 'ok' }] };
+    },
+  });
+
+  assert.deepEqual(results.map(item => ({ key: item.key, ok: item.ok, error: item.error })), [
+    { key: 'good-key', ok: true, error: '' },
+    { key: 'bad-key', ok: false, error: 'unauthorized' },
+  ]);
+});
+
+test('searchTavily rotates keys and retries the next key on failure', async () => {
+  resetTavilyKeyCursor();
+  const calls = [];
+  const originalError = console.error;
+  console.error = () => {};
+  const postJSON = async (url, payload) => {
+    calls.push(payload.api_key);
+    if (payload.api_key === 'bad-key') throw new Error('bad key');
+    return { results: [{ title: 'T', url: 'https://example.com/t', content: 'S' }] };
+  };
+
+  let first;
+  let second;
+  try {
+    first = await searchTavily('query one', 1, { apiKeys: 'bad-key\ngood-key', postJSON });
+    second = await searchTavily('query two', 1, { apiKeys: 'bad-key\ngood-key', postJSON });
+  } finally {
+    console.error = originalError;
+  }
+
+  assert.deepEqual(calls, ['bad-key', 'good-key', 'good-key']);
+  assert.equal(first[0].source, 'tavily');
+  assert.equal(second[0].url, 'https://example.com/t');
 });

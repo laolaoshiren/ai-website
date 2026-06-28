@@ -209,7 +209,7 @@ async function searchSearXNG(query, maxResults = 5) {
 
 // ==================== Tavily（付费加强） ====================
 
-async function searchTavily(query, maxResults = 5) {
+async function searchTavilySingle(query, maxResults = 5) {
   const apiKey = getConfig('tavily_api_key');
   if (!apiKey) return [];
   try {
@@ -229,6 +229,87 @@ async function searchTavily(query, maxResults = 5) {
 }
 
 // ==================== RSS 辅助（AI 自管理） ====================
+
+let tavilyKeyCursor = 0;
+
+function parseTavilyKeys(value = '') {
+  const seen = new Set();
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map(key => key.trim())
+    .filter(Boolean)
+    .filter((key) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function resetTavilyKeyCursor() {
+  tavilyKeyCursor = 0;
+}
+
+function maskTavilyKey(key = '') {
+  const value = String(key || '').trim();
+  if (value.length <= 8) return value ? `${value.slice(0, 2)}***` : '';
+  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+}
+
+async function searchTavily(query, maxResults = 5, options = {}) {
+  const keys = parseTavilyKeys(options.apiKeys ?? getConfig('tavily_api_key'));
+  if (keys.length === 0) return [];
+  const post = options.postJSON || postJSON;
+  const startIndex = tavilyKeyCursor % keys.length;
+  tavilyKeyCursor = (tavilyKeyCursor + 1) % keys.length;
+
+  for (let i = 0; i < keys.length; i++) {
+    const apiKey = keys[(startIndex + i) % keys.length];
+    try {
+      const result = await post('https://api.tavily.com/search', {
+        api_key: apiKey,
+        query,
+        max_results: maxResults,
+        search_depth: 'basic',
+        include_answer: false,
+      });
+      if (!result.results || !Array.isArray(result.results)) continue;
+      return result.results.map(r => ({
+        title: r.title || '',
+        url: r.url || '',
+        snippet: (r.content || '').slice(0, 300),
+        source: 'tavily',
+      }));
+    } catch (err) {
+      console.error(`Tavily 搜索失败(key ${i + 1}/${keys.length}):`, err.message);
+    }
+  }
+
+  return [];
+}
+
+async function testTavilyKeys(keysInput, options = {}) {
+  const keys = parseTavilyKeys(keysInput);
+  const post = options.postJSON || postJSON;
+  const query = options.query || 'AI news';
+  const timeoutMs = options.timeoutMs || 15000;
+  const results = [];
+  for (const key of keys) {
+    try {
+      const response = await post('https://api.tavily.com/search', {
+        api_key: key,
+        query,
+        max_results: 1,
+        search_depth: 'basic',
+        include_answer: false,
+      }, timeoutMs);
+      const ok = Array.isArray(response.results);
+      results.push({ key, ok, resultCount: ok ? response.results.length : 0, error: ok ? '' : '返回格式异常' });
+    } catch (err) {
+      results.push({ key, ok: false, resultCount: 0, error: err.message });
+    }
+  }
+  return results;
+}
 
 function parseSearchRSS(xml, source = 'rss') {
   const items = [];
@@ -449,6 +530,11 @@ module.exports = {
   getManagedFeeds,
   saveManagedFeeds,
   collectSearchResults,
+  searchTavily,
+  testTavilyKeys,
+  parseTavilyKeys,
+  resetTavilyKeyCursor,
+  maskTavilyKey,
   parseSearchRSS,
   resolveRedirectUrl,
 };

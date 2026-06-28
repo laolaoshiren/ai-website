@@ -25,6 +25,11 @@ function normalizeSettingValue(value) {
   return value;
 }
 
+function normalizeTavilyKeyInput(value) {
+  const { parseTavilyKeys } = require('../ai/search');
+  return parseTavilyKeys(normalizeSettingValue(value)).join('\n');
+}
+
 const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 分钟
 
 // ============ 会话管理（持久化到数据库） ============
@@ -216,10 +221,32 @@ router.get('/settings', (req, res) => {
 router.post('/settings', requireCsrf, (req, res) => {
   try {
     const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled'];
-    for (const field of fields) { if (req.body[field] !== undefined) db.setSetting(field, normalizeSettingValue(req.body[field])); }
+    for (const field of fields) {
+      if (req.body[field] === undefined) continue;
+      const value = field === 'tavily_api_key'
+        ? normalizeTavilyKeyInput(req.body[field])
+        : normalizeSettingValue(req.body[field]);
+      db.setSetting(field, value);
+    }
     refreshConfig();
     res.redirect('/admin/settings?success=1');
   } catch (err) { res.redirect('/admin/settings?error=' + encodeURIComponent(err.message)); }
+});
+
+router.post('/settings/tavily/test', requireCsrf, async (req, res) => {
+  try {
+    const { testTavilyKeys, maskTavilyKey } = require('../ai/search');
+    const keys = normalizeTavilyKeyInput(req.body.tavily_api_key ?? db.getSetting('tavily_api_key') ?? '');
+    const results = await testTavilyKeys(keys);
+    res.json({
+      success: true,
+      total: results.length,
+      valid: results.filter(item => item.ok).length,
+      results: results.map(item => ({ ...item, key: maskTavilyKey(item.key) })),
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // 修改密码
@@ -614,3 +641,4 @@ router.post('/friend-links/:id/delete', requireCsrf, (req, res) => {
 
 module.exports = router;
 module.exports.normalizeSettingValue = normalizeSettingValue;
+module.exports.normalizeTavilyKeyInput = normalizeTavilyKeyInput;

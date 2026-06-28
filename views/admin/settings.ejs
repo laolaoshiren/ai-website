@@ -21,8 +21,44 @@
     <div class="admin-panel" style="margin-top:1.5rem">
       <h2>🔍 Tavily 搜索引擎</h2>
       <p class="text-muted" style="margin-bottom:1rem">Tavily 是专业搜索引擎 API，配置后搜索结果更精准。不配置也不影响正常运行——系统默认使用 DuckDuckGo + Bing 等免费搜索引擎。免费额度：每月 1000 次搜索。<a href="https://tavily.com" target="_blank">获取 Key →</a></p>
-      <div class="form-grid">
-        <div class="form-group"><label>Tavily API Key</label><input type="password" name="tavily_api_key" value="<%= config.tavily_api_key || '' %>" placeholder="***" autocomplete="off"></div>
+      <%
+        var tavilyKeyText = config.tavily_api_key || '';
+        var tavilyKeyCount = tavilyKeyText.split(/[\n,]+/).map(function(k){ return k.trim(); }).filter(Boolean).length;
+      %>
+      <div class="tavily-key-card">
+        <div>
+          <div class="tavily-key-count"><strong id="tavilyKeyCount"><%= tavilyKeyCount %></strong> 个 Key</div>
+          <p class="text-muted">系统会按轮询方式自动负载均衡，单个 Key 失败时会尝试下一个。</p>
+        </div>
+        <div class="tavily-key-actions">
+          <button type="button" class="btn btn-outline" onclick="openTavilyKeysModal()">管理 Key</button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="tavilyValidateBtn"
+            data-test-url="/admin/settings/tavily/test"
+            data-csrf-token="<%= csrfToken %>"
+          >一键验证</button>
+        </div>
+      </div>
+      <div id="tavilyTestResult" class="tavily-test-result" hidden></div>
+      <div id="tavilyKeysModal" class="admin-modal" hidden>
+        <div class="admin-modal-backdrop" onclick="closeTavilyKeysModal()"></div>
+        <div class="admin-modal-panel" role="dialog" aria-modal="true" aria-labelledby="tavilyKeysTitle">
+          <div class="admin-modal-header">
+            <h3 id="tavilyKeysTitle">Tavily API Keys</h3>
+            <button type="button" class="modal-close" onclick="closeTavilyKeysModal()">×</button>
+          </div>
+          <div class="form-group">
+            <label>一行一个 Key</label>
+            <textarea class="settings-textarea tavily-key-textarea" id="tavilyKeysInput" name="tavily_api_key" rows="9" placeholder="tvly-xxx&#10;tvly-yyy"><%= tavilyKeyText %></textarea>
+            <small>可直接粘贴多行；保存设置后生效。</small>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="applyTavilyKeysModal()">应用到表单</button>
+            <button type="button" class="btn btn-outline" onclick="closeTavilyKeysModal()">取消</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -114,4 +150,72 @@ function switchToSmart() {
   document.getElementById('rage_level').value = '3';
   document.getElementById('workModeForm').submit();
 }
+function tavilyKeys() {
+  var input = document.getElementById('tavilyKeysInput');
+  if (!input) return [];
+  var seen = {};
+  return input.value.split(/[\n,]+/).map(function(k) { return k.trim(); }).filter(function(k) {
+    if (!k || seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+}
+function refreshTavilyKeyCount() {
+  var count = document.getElementById('tavilyKeyCount');
+  if (count) count.textContent = tavilyKeys().length;
+}
+function openTavilyKeysModal() {
+  var modal = document.getElementById('tavilyKeysModal');
+  if (modal) modal.hidden = false;
+  var input = document.getElementById('tavilyKeysInput');
+  if (input) input.focus();
+}
+function closeTavilyKeysModal() {
+  var modal = document.getElementById('tavilyKeysModal');
+  if (modal) modal.hidden = true;
+}
+function applyTavilyKeysModal() {
+  var input = document.getElementById('tavilyKeysInput');
+  if (input) input.value = tavilyKeys().join('\n');
+  refreshTavilyKeyCount();
+  closeTavilyKeysModal();
+}
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, function(ch) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+  });
+}
+document.getElementById('tavilyKeysInput')?.addEventListener('input', refreshTavilyKeyCount);
+document.getElementById('tavilyValidateBtn')?.addEventListener('click', async function() {
+  applyTavilyKeysModal();
+  var resultBox = document.getElementById('tavilyTestResult');
+  var button = this;
+  if (!resultBox) return;
+  resultBox.hidden = false;
+  resultBox.className = 'tavily-test-result';
+  resultBox.textContent = '正在验证...';
+  button.disabled = true;
+  try {
+    var body = new URLSearchParams();
+    body.set('csrf_token', button.dataset.csrfToken || '');
+    body.set('tavily_api_key', document.getElementById('tavilyKeysInput')?.value || '');
+    var response = await fetch(button.dataset.testUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': button.dataset.csrfToken || '' },
+      body: body.toString(),
+    });
+    var data = await response.json();
+    if (!data.success) throw new Error(data.error || '验证失败');
+    resultBox.classList.add(data.valid > 0 ? 'is-success' : 'is-error');
+    resultBox.innerHTML = '<strong>验证完成：' + data.valid + '/' + data.total + ' 可用</strong>' +
+      '<ul>' + data.results.map(function(item) {
+        return '<li><span>' + escapeHtml(item.key) + '</span><b>' + (item.ok ? '可用' : '失败') + '</b>' + (item.error ? '<small>' + escapeHtml(item.error) + '</small>' : '') + '</li>';
+      }).join('') + '</ul>';
+  } catch (err) {
+    resultBox.classList.add('is-error');
+    resultBox.textContent = err.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 </script>

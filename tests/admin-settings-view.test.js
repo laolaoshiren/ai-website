@@ -59,6 +59,33 @@ test('admin settings page exposes the MoA mode switch', async () => {
   assert.match(html, /MoA/);
 });
 
+test('admin settings page manages Tavily keys with a modal and validation action', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'settings.ejs'),
+    {
+      title: '系统设置',
+      currentPath: '/admin/settings',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      config: {
+        site_title: 'AI 纪元',
+        site_url: 'https://aiweb.bt199.com',
+        site_language: 'zh-CN',
+        tavily_api_key: 'tvly-a\ntvly-b',
+        work_mode: 'smart',
+        rage_level: '3',
+      },
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /id="tavilyKeysModal"/);
+  assert.match(html, /name="tavily_api_key"/);
+  assert.match(html, /\/admin\/settings\/tavily\/test/);
+  assert.match(html, /一键验证|验证/);
+});
+
 test('admin settings form CSS avoids cramped one-row fields and native bright scrollbars', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'admin.css'), 'utf8');
 

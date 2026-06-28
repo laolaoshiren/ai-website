@@ -8,3 +8,12 @@ test('admin settings normalizes duplicate checkbox values to the submitted check
   assert.equal(normalizeSettingValue(['0']), '0');
   assert.equal(normalizeSettingValue('1'), '1');
 });
+
+test('admin settings normalizes Tavily keys into one unique key per line', () => {
+  const { normalizeTavilyKeyInput } = require('../routes/admin');
+
+  assert.equal(
+    normalizeTavilyKeyInput(' tvly-a\r\n tvly-b, tvly-c \n tvly-a '),
+    'tvly-a\ntvly-b\ntvly-c',
+  );
+});
