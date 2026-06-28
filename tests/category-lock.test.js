@@ -65,13 +65,6 @@ test('existing planner prompt tells AI to keep category structure stable', () =>
   assert.match(text, /\"categories\": \[\]/);
 });
 
-test('planner prompt includes site type for theme-aware content planning', () => {
-  const messages = getPlannerPrompt([], [], null, []);
-  const text = messages.map((message) => message.content).join('\n');
-
-  assert.match(text, /网站类型/);
-});
-
 test('analyzer prompt does not ask AI to change categories', () => {
   const messages = getAnalyzerPrompt([], [{ name: '前沿研究', slug: 'frontier-research' }], []);
   const text = messages.map((message) => message.content).join('\n');

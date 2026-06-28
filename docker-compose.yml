@@ -1,6 +1,6 @@
 services:
   ai-website:
-    image: ghcr.io/laolaoshiren/ai-website:${IMAGE_TAG:-latest}
+    image: ghcr.io/laolaoshiren/ai-website:latest
     container_name: ai-website
     restart: unless-stopped
     ports:

@@ -5,7 +5,6 @@ const cron = require('node-cron');
 const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, recoverExpiredWritingPages, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
 const { isAIConfigured } = require('../config');
 const { logArticleOutcome } = require('./article-outcome');
-const { ensurePublishedTheme } = require('../ai/theme-workflow');
 
 const cronJobs = [];
 
@@ -97,12 +96,10 @@ async function executeTask(taskType) {
         logAgent('analyzer', '数据分析', 'success', `完成: ${result.insights} 条洞察`, aiMeta(result));
         break;
       }
-      case 'template_review': {
-        logAgent('technician', 'AI theme review', 'running', 'Checking AI theme state');
-        result = await ensurePublishedTheme();
-        logAgent('technician', 'AI theme review', 'success', result.published ? `Published ${result.themeId}` : `Skipped: ${result.reason || 'preview only'}`);
+      case 'template_review':
+        logAgent('technician', '模板审查', 'success', '模板审查暂未启用');
+        result = { skipped: true };
         break;
-      }
       case 'heartbeat': {
         // 心跳任务：检查内容是否充足，不足则自动规划+生成
         let planned = claimPlannedPages(2, workerId, 45);
@@ -225,17 +222,6 @@ async function coldStart() {
   console.log('\n🚀 冷启动...\n');
 
   logAgent('site_manager', '冷启动', 'running', '开始初始化网站...');
-
-  try {
-    const themeResult = await ensurePublishedTheme();
-    if (themeResult.published) {
-      logAgent('technician', 'AI theme cold start', 'success', `Published ${themeResult.themeId} before content planning`);
-    } else if (!themeResult.skipped) {
-      logAgent('technician', 'AI theme cold start', 'failed', `Theme generated but not published: ${themeResult.themeId || ''}`);
-    }
-  } catch (err) {
-    logAgent('technician', 'AI theme cold start', 'failed', err.message);
-  }
 
   // 1. 规划
   logAgent('planner', '结构规划', 'running', '规划网站结构和内容计划...');

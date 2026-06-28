@@ -25,8 +25,6 @@ function getSiteConfig() {
     description: config.site_description || '',
     theme: config.site_theme || '',
     direction: config.site_direction || '',
-    site_type: config.site_type || 'cms',
-    siteType: config.site_type || 'cms',
     language: config.site_language || 'zh-CN',
     url: config.site_url || 'http://localhost:3000',
     loopEnabled: config.ai_loop_enabled === '1',
