@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="sh-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="sh-error">
+      <div class="sh-container sh-error-inner">
+        <span>404</span>
+        <h1>简报信号丢失</h1>
+        <p>你访问的页面不存在，或者已经被移动。</p>
+        <div class="sh-error-actions">
+          <a class="sh-primary-link" href="/">返回首页</a>
+          <a class="sh-secondary-link" href="/archive">查看归档</a>
+        </div>
+      </div>
+    </section>
+
+    <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
+      <section class="sh-section">
+        <div class="sh-container">
+          <div class="sh-section-heading">
+            <span>继续阅读</span>
+            <h2>推荐文章</h2>
+          </div>
+          <div class="sh-card-grid">
+            <% latest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

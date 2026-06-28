@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ink-body">
+  <%- include('partials/header') %>
+  <main>
+    <% var safeArticles = typeof articles !== 'undefined' && articles ? articles : []; %>
+    <section class="ink-page-head">
+      <div class="ink-container ink-page-head-inner">
+        <div>
+          <span class="ink-kicker">栏目</span>
+          <h1><%= category.name %></h1>
+          <p><%= category.description || '该栏目下的全部文章。' %></p>
+        </div>
+        <% if (pagination && pagination.totalItems > 0) { %>
+          <div class="ink-page-count">
+            <strong><%= pagination.totalItems %></strong>
+            <span>篇文章</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="ink-section">
+      <div class="ink-container">
+        <% if (safeArticles.length > 0) { %>
+          <div class="ink-card-list">
+            <% safeArticles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: category.name + '分页' }) %>
+        <% } else { %>
+          <div class="ink-empty">
+            <h2>这个栏目还在准备中</h2>
+            <p>AI 会根据站点方向持续补充内容。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ink-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="ink-error">
+      <div class="ink-container ink-error-inner">
+        <span>404</span>
+        <h1>这一页没有落墨</h1>
+        <p>你访问的页面不存在，或者已经被移动。</p>
+        <div class="ink-error-actions">
+          <a class="ink-primary-link" href="/">返回首页</a>
+          <a class="ink-secondary-link" href="/archive">查看归档</a>
+        </div>
+      </div>
+    </section>
+
+    <% if (typeof latest !== 'undefined' && latest && latest.length > 0) { %>
+      <section class="ink-section">
+        <div class="ink-container">
+          <div class="ink-section-heading">
+            <span>推荐阅读</span>
+            <h2>继续看这些文章</h2>
+          </div>
+          <div class="ink-card-list">
+            <% latest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

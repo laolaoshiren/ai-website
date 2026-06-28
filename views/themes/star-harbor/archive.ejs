@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="sh-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var safeArchive = typeof archive !== 'undefined' && archive ? archive : [];
+      var safeTotalArticles = typeof totalArticles !== 'undefined' ? totalArticles : 0;
+      var safeTotalMonths = typeof totalMonths !== 'undefined' ? totalMonths : 0;
+    %>
+    <section class="sh-page-head">
+      <div class="sh-container sh-page-head-inner">
+        <div>
+          <span class="sh-kicker">历史索引</span>
+          <h1>文章归档</h1>
+          <p>共 <%= safeTotalArticles %> 篇文章，覆盖 <%= safeTotalMonths %> 个月。</p>
+        </div>
+        <% if (safeTotalArticles > 0) { %>
+          <div class="sh-page-count">
+            <strong><%= startArticle %>-<%= endArticle %></strong>
+            <span>当前页</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="sh-section">
+      <div class="sh-container">
+        <% if (safeArchive.length > 0) { %>
+          <div class="sh-archive">
+            <% safeArchive.forEach(function(group) { %>
+              <% var ym = group[0]; var items = group[1]; %>
+              <section class="sh-archive-month">
+                <h2><%= ym.slice(0, 4) %> 年 <%= parseInt(ym.slice(5, 7), 10) %> 月</h2>
+                <div>
+                  <% items.forEach(function(article) { %>
+                    <a class="sh-archive-item" href="/article/<%= article.slug %>">
+                      <time datetime="<%= String(article.published_at || '').replace(' ', 'T') %>"><%= article.published_at || '' %></time>
+                      <strong><%= article.title %></strong>
+                      <% if (article.category_name) { %><span><%= article.category_name %></span><% } %>
+                    </a>
+                  <% }); %>
+                </div>
+              </section>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '归档分页' }) %>
+        <% } else { %>
+          <div class="sh-empty">
+            <h2>暂无已发布文章</h2>
+            <p>文章发布后会自动进入归档。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

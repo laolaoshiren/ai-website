@@ -1,0 +1,26 @@
+<header class="sh-site-header">
+  <div class="sh-container sh-header-inner">
+    <a class="sh-brand" href="/" aria-label="<%= siteTitle %> 首页">
+      <span class="sh-brand-mark"><%= String(siteTitle || '站').slice(0, 1) %></span>
+      <span>
+        <strong><%= siteTitle %></strong>
+        <small><%= siteDescription || '智能内容简报站' %></small>
+      </span>
+    </a>
+
+    <nav class="sh-nav" aria-label="主导航">
+      <a href="/" class="<%= currentPath === '/' ? 'is-active' : '' %>">首页</a>
+      <a href="/archive" class="<%= currentPath === '/archive' ? 'is-active' : '' %>">归档</a>
+      <% if (typeof categories !== 'undefined' && categories && categories.length > 0) { %>
+        <% categories.slice(0, 5).forEach(function(cat) { %>
+          <a href="/category/<%= cat.slug %>" class="<%= currentPath === '/category/' + cat.slug ? 'is-active' : '' %>"><%= cat.name %></a>
+        <% }); %>
+      <% } %>
+    </nav>
+
+    <form class="sh-search" action="/search" method="get" role="search">
+      <input type="search" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="搜索">
+      <button type="submit">查找</button>
+    </form>
+  </div>
+</header>

@@ -249,6 +249,14 @@ a { color: var(--primary); text-decoration: none; }
 .template-preview-aurora-press span:first-child { background: #151515; }
 .template-preview-aurora-press span:nth-child(2) { background: #d94f3d; }
 .template-preview-aurora-press span:nth-child(3) { background: #0f766e; }
+.template-preview-ink-scroll { background: #fbf7ed; }
+.template-preview-ink-scroll span:first-child { background: #213d34; }
+.template-preview-ink-scroll span:nth-child(2) { background: #9b2f28; }
+.template-preview-ink-scroll span:nth-child(3) { background: #e6efe7; }
+.template-preview-star-harbor { background: #f4f7f8; }
+.template-preview-star-harbor span:first-child { background: #101820; }
+.template-preview-star-harbor span:nth-child(2) { background: #14b8a6; }
+.template-preview-star-harbor span:nth-child(3) { background: #e9ff70; }
 .template-card-title { color: var(--text); font-size: 1.02rem; font-weight: 800; line-height: 1.35; }
 .template-card-desc { color: var(--text-light); font-size: 0.84rem; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .template-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; margin-top: auto; }

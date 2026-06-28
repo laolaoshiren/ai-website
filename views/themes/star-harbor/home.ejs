@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="sh-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var safeFeatured = typeof featured !== 'undefined' && featured ? featured : [];
+      var safeLatest = typeof latest !== 'undefined' && latest ? latest : [];
+      var lead = safeFeatured[0] || safeLatest[0] || null;
+      var feed = safeLatest.filter(function(item) { return !lead || item.slug !== lead.slug; }).slice(0, 6);
+      var leadImage = lead && lead.image_review_status === 'pass' ? (lead.cover_image || lead.card_image || lead.cover_thumbnail) : '';
+      var categoryCount = typeof categories !== 'undefined' && categories ? categories.length : 0;
+    %>
+
+    <section class="sh-hero">
+      <div class="sh-container sh-hero-grid">
+        <div class="sh-hero-copy">
+          <div>
+            <span class="sh-kicker">智能简报</span>
+            <h1><%= siteTitle %></h1>
+            <p><%= siteDescription || '用更清晰的方式跟踪重要内容。' %></p>
+          </div>
+          <div class="sh-hero-stats">
+            <span><strong><%= safeLatest.length %></strong> 最新</span>
+            <span><strong><%= categoryCount %></strong> 栏目</span>
+          </div>
+        </div>
+
+        <% if (lead) { %>
+          <article class="sh-lead">
+            <a class="sh-lead-media" href="/article/<%= lead.slug %>" aria-label="<%= lead.title %>">
+              <% if (leadImage) { %>
+                <img src="<%= leadImage %>" alt="<%= lead.image_alt || lead.title %>" loading="eager">
+              <% } else { %>
+                <span><%= lead.category_name || '头条' %></span>
+              <% } %>
+            </a>
+            <div class="sh-lead-body">
+              <div class="sh-story-meta">
+                <% if (lead.category_name) { %><a href="/category/<%= lead.category_slug %>"><%= lead.category_name %></a><% } %>
+                <% if (lead.published_at) { %><time datetime="<%= String(lead.published_at).replace(' ', 'T') %>"><%= lead.published_at %></time><% } %>
+              </div>
+              <h2><a href="/article/<%= lead.slug %>"><%= lead.title %></a></h2>
+              <% if (lead.summary) { %><p><%= lead.summary %></p><% } %>
+              <a class="sh-primary-link" href="/article/<%= lead.slug %>">阅读头条</a>
+            </div>
+          </article>
+        <% } else { %>
+          <div class="sh-empty">
+            <h2>简报正在生成</h2>
+            <p>系统完成规划后，这里会展示最新头条。</p>
+          </div>
+        <% } %>
+
+        <aside class="sh-live-feed" aria-label="更新流">
+          <div class="sh-panel-title">
+            <span>更新流</span>
+            <a href="/archive">全部</a>
+          </div>
+          <% if (feed.length > 0) { %>
+            <% feed.forEach(function(item) { %>
+              <a href="/article/<%= item.slug %>">
+                <strong><%= item.title %></strong>
+                <% if (item.published_at) { %><time><%= item.published_at %></time><% } %>
+              </a>
+            <% }); %>
+          <% } else { %>
+            <p>暂无更多文章。</p>
+          <% } %>
+        </aside>
+      </div>
+    </section>
+
+    <% if (typeof categories !== 'undefined' && categories && categories.length > 0) { %>
+      <section class="sh-topic-bar">
+        <div class="sh-container">
+          <% categories.slice(0, 10).forEach(function(cat) { %>
+            <a href="/category/<%= cat.slug %>"><span><%= cat.name %></span><small><%= cat.description || '查看栏目' %></small></a>
+          <% }); %>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="sh-section">
+      <div class="sh-container">
+        <div class="sh-section-heading">
+          <span>更多报道</span>
+          <h2>最新文章</h2>
+        </div>
+        <% if (safeLatest.length > 0) { %>
+          <div class="sh-card-grid">
+            <% safeLatest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="sh-empty">
+            <h2>AI 正在准备内容</h2>
+            <p>配置完成后，系统会自动生成栏目和文章。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ink-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var coverImage = article.image_review_status === 'pass' ? article.cover_image : '';
+      var publishedAt = article.published_at ? String(article.published_at) : '';
+      var previous = typeof prevArticle !== 'undefined' ? prevArticle : null;
+      var next = typeof nextArticle !== 'undefined' ? nextArticle : null;
+      var related = typeof relatedArticles !== 'undefined' && relatedArticles ? relatedArticles : [];
+      var topicItems = typeof topicPath !== 'undefined' && topicPath ? topicPath : [];
+      var safeWordCount = typeof wordCount !== 'undefined' ? wordCount : 0;
+      var safeReadTime = typeof readTime !== 'undefined' ? readTime : 1;
+    %>
+    <article class="ink-article">
+      <header class="ink-article-head">
+        <div class="ink-container ink-article-head-inner">
+          <div class="ink-article-title">
+            <div class="ink-story-meta">
+              <% if (article.category_name) { %><a href="/category/<%= article.category_slug %>"><%= article.category_name %></a><% } %>
+              <% if (publishedAt) { %><time datetime="<%= publishedAt.replace(' ', 'T') %>"><%= publishedAt %></time><% } %>
+            </div>
+            <h1><%= article.title %></h1>
+            <% if (article.summary) { %><p><%= article.summary %></p><% } %>
+            <div class="ink-article-stats">
+              <span><%= article.view_count || 0 %> 次阅读</span>
+              <span>约 <%= safeWordCount %> 字</span>
+              <span><%= safeReadTime %> 分钟阅读</span>
+              <span>AI 生成</span>
+            </div>
+          </div>
+          <% if (coverImage) { %>
+            <figure class="ink-article-cover">
+              <img src="<%= coverImage %>" alt="<%= article.image_alt || article.title %>" loading="eager">
+              <% if (article.image_alt) { %><figcaption><%= article.image_alt %></figcaption><% } %>
+            </figure>
+          <% } %>
+        </div>
+      </header>
+
+      <div class="ink-container ink-article-layout">
+        <div class="ink-prose">
+          <%- article.content_html || '<p>内容加载中。</p>' %>
+        </div>
+
+        <aside class="ink-article-side">
+          <div class="ink-note">
+            <span>说明</span>
+            <p>本文由 AI 自动生成，基于公开信息整理，仅供参考。</p>
+          </div>
+          <% if (article.seo_keywords) { %>
+            <div class="ink-note">
+              <span>关键词</span>
+              <div class="ink-tags">
+                <% article.seo_keywords.split(',').forEach(function(tag) { %>
+                  <% var cleanTag = tag.trim(); if (cleanTag) { %>
+                    <a href="/search?q=<%= encodeURIComponent(cleanTag) %>"><%= cleanTag %></a>
+                  <% } %>
+                <% }); %>
+              </div>
+            </div>
+          <% } %>
+        </aside>
+      </div>
+    </article>
+
+    <% if (previous || next) { %>
+      <nav class="ink-container ink-article-nav" aria-label="上下篇文章">
+        <% if (previous) { %>
+          <a href="/article/<%= previous.slug %>"><span>上一篇</span><strong><%= previous.title %></strong></a>
+        <% } else { %>
+          <span></span>
+        <% } %>
+        <% if (next) { %>
+          <a href="/article/<%= next.slug %>"><span>下一篇</span><strong><%= next.title %></strong></a>
+        <% } %>
+      </nav>
+    <% } %>
+
+    <% if (related.length > 0) { %>
+      <section class="ink-section">
+        <div class="ink-container">
+          <div class="ink-section-heading">
+            <span>延伸阅读</span>
+            <h2>相关文章</h2>
+          </div>
+          <div class="ink-card-list">
+            <% related.forEach(function(item) { %>
+              <%- include('partials/article-card', { article: item }) %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (topicItems.length > 0) { %>
+      <section class="ink-section">
+        <div class="ink-container">
+          <div class="ink-section-heading">
+            <span>主题路径</span>
+            <h2>继续阅读这个主题</h2>
+          </div>
+          <ol class="ink-topic-path">
+            <% topicItems.forEach(function(item, index) { %>
+              <li>
+                <span><%= index + 1 %></span>
+                <a href="/article/<%= item.slug %>"><%= item.title %></a>
+                <% if (item.summary) { %><p><%= item.summary %></p><% } %>
+              </li>
+            <% }); %>
+          </ol>
+        </div>
+      </section>
+    <% } %>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

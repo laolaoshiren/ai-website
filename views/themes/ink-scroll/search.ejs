@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="ink-body">
+  <%- include('partials/header') %>
+  <main>
+    <%
+      var safeQ = typeof q !== 'undefined' ? q : '';
+      var safeArticles = typeof articles !== 'undefined' && articles ? articles : [];
+      var safeTotal = typeof total !== 'undefined' ? total : 0;
+    %>
+    <section class="ink-page-head">
+      <div class="ink-container ink-page-head-inner">
+        <div>
+          <span class="ink-kicker">搜索</span>
+          <h1>站内搜索</h1>
+          <p><%= safeQ ? '搜索关键词：' + safeQ : '输入关键词，查找已发布文章。' %></p>
+        </div>
+        <form class="ink-search-panel" action="/search" method="get" role="search">
+          <input type="search" name="q" value="<%= safeQ %>" placeholder="输入关键词">
+          <button type="submit">搜索</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="ink-section">
+      <div class="ink-container">
+        <% if (safeQ) { %>
+          <p class="ink-result-line">找到 <strong><%= safeTotal %></strong> 篇相关文章</p>
+        <% } %>
+        <% if (safeArticles.length > 0) { %>
+          <div class="ink-card-list">
+            <% safeArticles.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+          <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '搜索结果分页' }) %>
+        <% } else if (safeQ) { %>
+          <div class="ink-empty">
+            <h2>没有找到相关内容</h2>
+            <p>可以换一个关键词再试。</p>
+          </div>
+        <% } else { %>
+          <div class="ink-empty">
+            <h2>准备搜索</h2>
+            <p>搜索会覆盖标题、摘要和关键词。</p>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

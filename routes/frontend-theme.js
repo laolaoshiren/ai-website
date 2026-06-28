@@ -4,14 +4,26 @@ const FRONTEND_THEMES = [
   {
     id: DEFAULT_FRONTEND_THEME,
     name: '默认模板',
-    description: '当前线上使用的内置模板，稳定、兼容全部现有页面。',
+    description: '当前线上使用的内置模板，稳定兼容全部现有页面。',
     badge: '默认',
   },
   {
     id: 'aurora-press',
-    name: 'Aurora Press',
-    description: '全新高级资讯模板，采用杂志化排版、深浅对比和现代响应式布局。',
-    badge: '新模板',
+    name: '极光刊物',
+    description: '高级资讯模板，采用杂志化排版、清晰层级和现代响应式布局。',
+    badge: '杂志',
+  },
+  {
+    id: 'ink-scroll',
+    name: '墨韵长卷',
+    description: '适合深度阅读和知识沉淀的长卷式模板，强调留白、节奏和文字质感。',
+    badge: '阅读',
+  },
+  {
+    id: 'star-harbor',
+    name: '星港简报',
+    description: '面向资讯站和快讯站的现代简报模板，突出信息密度、扫描效率和醒目导读。',
+    badge: '简报',
   },
 ];
 
@@ -64,4 +76,3 @@ module.exports = {
   getFrontendThemeView,
   renderFrontendPage,
 };
-

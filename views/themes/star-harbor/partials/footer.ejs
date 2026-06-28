@@ -1,0 +1,18 @@
+<footer class="sh-site-footer">
+  <div class="sh-container sh-footer-inner">
+    <div>
+      <strong><%= siteTitle %></strong>
+      <p><%= siteDescription || '由 AI 持续维护的内容网站。' %></p>
+    </div>
+    <nav class="sh-footer-links" aria-label="页脚导航">
+      <a href="/archive">文章归档</a>
+      <a href="/rss.xml">RSS</a>
+      <a href="/sitemap.xml">Sitemap</a>
+      <% if (typeof friendLinks !== 'undefined' && friendLinks && friendLinks.length > 0) { %>
+        <% friendLinks.slice(0, 4).forEach(function(link) { %>
+          <a href="<%= link.url %>" target="_blank" rel="noopener"><%= link.name %></a>
+        <% }); %>
+      <% } %>
+    </nav>
+  </div>
+</footer>

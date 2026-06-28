@@ -1,0 +1,31 @@
+<% if (pagination && pagination.totalPages > 1) { %>
+  <% var paginationLabel = typeof itemLabel !== 'undefined' ? itemLabel : '条'; %>
+  <% var paginationAria = typeof ariaLabel !== 'undefined' ? ariaLabel : '分页'; %>
+  <nav class="ink-pagination" aria-label="<%= paginationAria %>">
+    <% if (pagination.prevHref) { %>
+      <a class="ink-page-step" href="<%= pagination.prevHref %>">上一页</a>
+    <% } else { %>
+      <span class="ink-page-step is-disabled">上一页</span>
+    <% } %>
+
+    <div class="ink-page-list">
+      <% pagination.items.forEach(function(item) { %>
+        <% if (item.type === 'ellipsis') { %>
+          <span class="ink-page-ellipsis">...</span>
+        <% } else if (item.isCurrent) { %>
+          <span class="ink-page-link is-current" aria-current="page"><%= item.page %></span>
+        <% } else { %>
+          <a class="ink-page-link" href="<%= item.href %>"><%= item.page %></a>
+        <% } %>
+      <% }); %>
+    </div>
+
+    <% if (pagination.nextHref) { %>
+      <a class="ink-page-step" href="<%= pagination.nextHref %>">下一页</a>
+    <% } else { %>
+      <span class="ink-page-step is-disabled">下一页</span>
+    <% } %>
+
+    <span class="ink-page-summary">第 <%= pagination.startItem %>-<%= pagination.endItem %> <%= paginationLabel %>，共 <%= pagination.totalItems %> <%= paginationLabel %></span>
+  </nav>
+<% } %>

@@ -1,0 +1,18 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<%
+  var pageTitle = typeof title !== 'undefined' && title ? title : siteTitle;
+  var pageDescription = typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : (siteDescription || '');
+%>
+<title><%= pageTitle && pageTitle !== siteTitle ? pageTitle + ' - ' + siteTitle : siteTitle %></title>
+<meta name="description" content="<%= pageDescription %>">
+<% if (typeof metaKeywords !== 'undefined' && metaKeywords) { %>
+  <meta name="keywords" content="<%= metaKeywords %>">
+<% } %>
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="<%= pageTitle || siteTitle %>">
+<meta property="og:description" content="<%= pageDescription %>">
+<meta property="og:site_name" content="<%= siteTitle %>">
+<link rel="alternate" type="application/rss+xml" title="<%= siteTitle %>" href="/rss.xml">
+<link rel="stylesheet" href="/css/themes/ink-scroll.css?v=1">
