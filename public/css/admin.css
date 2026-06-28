@@ -111,6 +111,9 @@ a { color: var(--primary); text-decoration: none; }
 .status-failed { background: #3b1111; color: #fca5a5; }
 .status-quality { background: #3b2f0a; color: #fcd34d; }
 .status-archived { background: #1a1a2e; color: #94a3b8; }
+.article-image-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 0.16rem 0.48rem; border-radius: 5px; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+.article-image-badge.has-image { background: rgba(96,165,250,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.28); }
+.article-image-badge.no-image { background: #1a1a2e; color: #94a3b8; border: 1px solid rgba(148,163,184,0.16); }
 
 /* Agent Badges */
 .agent-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; background: #1e1b3a; color: #c4b5fd; }
@@ -130,8 +133,12 @@ a { color: var(--primary); text-decoration: none; }
 
 /* Providers */
 .providers-hint { background: #1a2744; color: #93c5fd; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.85rem; }
+.provider-section { margin-bottom: 1.5rem; }
+.provider-section-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin: 1rem 0 0.85rem; }
+.provider-section-header h2 { font-size: 1.05rem; margin-bottom: 0.15rem; }
 .providers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1rem; }
 .provider-card { min-width: 0; overflow: hidden; background: #141420; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border-left: 4px solid var(--success); }
+.provider-card-image { border-left-color: #a78bfa; }
 .provider-card.disabled { opacity: 0.6; border-left-color: #cbd5e1; }
 .provider-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
 .provider-header h3 { font-size: 1rem; }

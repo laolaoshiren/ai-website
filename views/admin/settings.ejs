@@ -72,6 +72,28 @@
       </label>
     </div>
 
+    <div class="admin-panel" style="margin-top:1.5rem">
+      <h2>文章配图</h2>
+      <p class="text-muted" style="margin-bottom:1rem">开启后，系统会在文章通过质量审核后自动判断是否需要配图。只有生图提供商可用且图片审核通过时，才会写入文章封面；失败会自动降级为无图文章。</p>
+      <input type="hidden" name="image_generation_enabled" value="0">
+      <label class="toggle-row" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
+        <input type="checkbox" name="image_generation_enabled" value="1" <%= config.image_generation_enabled === '1' ? 'checked' : '' %>>
+        <span>启用文章自动配图</span>
+      </label>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>本地图片保留天数</label>
+          <input type="number" name="image_cleanup_keep_days" min="1" max="3650" value="<%= config.image_cleanup_keep_days || '180' %>">
+          <small>清理逻辑会保留仍被文章引用的图片。</small>
+        </div>
+        <div class="form-group">
+          <label>本地图片容量上限 MB</label>
+          <input type="number" name="image_cleanup_max_mb" min="50" max="102400" value="<%= config.image_cleanup_max_mb || '2048' %>">
+          <small>超过上限时优先清理未引用的旧图片。</small>
+        </div>
+      </div>
+    </div>
+
     <div class="form-actions"><button type="submit" class="btn btn-primary btn-lg">💾 保存设置</button></div>
   </form>
 

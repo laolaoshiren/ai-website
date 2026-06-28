@@ -1,15 +1,23 @@
 <%- include('layout-open') %>
+<%
+  imageProviders = typeof imageProviders !== 'undefined' ? imageProviders : [];
+  function splitList(value) {
+    return String(value || '').split(/[\n,]+/).map(function(item) { return item.trim(); }).filter(Boolean);
+  }
+%>
 <div class="admin-page">
   <div class="page-header-bar">
-    <h1>🤖 AI 提供商管理</h1>
-    <div class="header-actions"><button class="btn btn-primary" onclick="showAddForm()">➕ 添加提供商</button></div>
+    <h1>AI 提供商管理</h1>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="showAddForm()">添加文字模型</button>
+      <button class="btn btn-outline" onclick="showImageAddForm()">添加生图模型</button>
+    </div>
   </div>
   <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-  <!-- 添加/编辑表单 -->
   <div id="providerForm" class="admin-panel provider-form-panel" style="display:none">
-    <h2 id="formTitle">添加新提供商</h2>
+    <h2 id="formTitle">添加文字 AI 提供商</h2>
     <form method="POST" id="providerFormInner" action="/admin/providers/add">
       <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
       <input type="hidden" name="id" id="formId" value="">
@@ -19,71 +27,160 @@
       </div>
       <div class="form-grid" style="margin-top:1rem">
         <div class="form-group">
-          <label>API 密钥 <span class="text-muted">（多个用英文逗号分隔，系统自动轮询负载均衡）</span></label>
+          <label>API 密钥 <span class="text-muted">多个用英文逗号分隔</span></label>
           <textarea name="api_key" id="formKey" rows="2" placeholder="sk-key1,sk-key2,sk-key3" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
         </div>
         <div class="form-group">
-          <label>模型名称 <span class="text-muted">（多个用英文逗号分隔，每次随机选一个）</span></label>
+          <label>模型名称 <span class="text-muted">多个用英文逗号分隔</span></label>
           <textarea name="model" id="formModel" rows="2" placeholder="model-a,model-b" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
         </div>
       </div>
-      <div class="form-actions" style="margin-top:1rem">
-        <button type="submit" class="btn btn-primary">💾 保存</button>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
         <button type="button" class="btn btn-outline" onclick="hideForm()">取消</button>
       </div>
     </form>
   </div>
 
-  <div class="providers-hint">
-    <p>💡 支持多个提供商，系统自动负载均衡和故障转移。同一提供商可添加多个 API 密钥和模型，用<strong>英文逗号</strong>分隔，每次调用自动轮询。</p>
+  <div id="imageProviderForm" class="admin-panel provider-form-panel" style="display:none">
+    <h2 id="imageFormTitle">添加生图提供商</h2>
+    <form method="POST" id="imageProviderFormInner" action="/admin/image-providers/add">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <input type="hidden" name="id" id="imageFormId" value="">
+      <div class="form-grid">
+        <div class="form-group"><label>名称</label><input type="text" name="name" id="imageFormName" placeholder="如: Agnes Image" required></div>
+        <div class="form-group"><label>API 地址</label><input type="url" name="base_url" id="imageFormUrl" placeholder="https://apihub.agnes-ai.com/v1" required></div>
+      </div>
+      <div class="form-grid" style="margin-top:1rem">
+        <div class="form-group">
+          <label>API Key <span class="text-muted">一行一个，也支持逗号分隔</span></label>
+          <textarea name="api_key" id="imageFormKey" rows="4" placeholder="sk-image-key-1&#10;sk-image-key-2" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
+        </div>
+        <div class="form-group">
+          <label>生图模型</label>
+          <textarea name="model" id="imageFormModel" rows="2" placeholder="agnes-image-2.1-flash" required style="font-family:var(--font-mono);font-size:0.85rem"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">保存生图提供商</button>
+        <button type="button" class="btn btn-outline" onclick="hideImageForm()">取消</button>
+      </div>
+    </form>
   </div>
 
-  <% if (providers.length > 0) { %>
-  <div class="providers-grid">
-    <% providers.forEach(function(p) {
-      var keys = (p.api_key || '').split(',').filter(Boolean);
-      var models = (p.model || '').split(',').filter(Boolean);
-    %>
-    <div class="provider-card <%= p.enabled ? '' : 'disabled' %>">
-      <div class="provider-header">
-        <h3><%= p.name %></h3>
-        <span class="status-dot <%= p.enabled ? 'dot-green' : 'dot-gray' %>"></span>
-      </div>
-      <div class="provider-info">
-        <p><strong>模型:</strong> <%= models.length > 1 ? models.length + ' 个 (' + models[0].trim() + '...)' : p.model %></p>
-        <p><strong>密钥:</strong> <%= keys.length > 1 ? keys.length + ' 个密钥（轮询负载均衡）' : '1 个密钥' %></p>
-        <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
-        <p><strong>调用:</strong> <%= p.request_count || 0 %> 次 | <strong>错误:</strong> <%= p.error_count || 0 %> 次</p>
-      </div>
-      <div class="provider-actions">
-        <button type="button" class="btn btn-sm btn-outline" onclick='editProvider(<%= JSON.stringify({id:p.id,name:p.name,base_url:p.base_url,api_key:p.api_key,model:p.model}) %>)'>✏️ 编辑</button>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline"
-          data-provider-test-button
-          data-provider-test-url="/admin/providers/<%= p.id %>/test"
-          data-provider-test-result="provider-test-result-<%= p.id %>"
-          data-csrf-token="<%= csrfToken %>"
-        >🔌 测试</button>
-        <form method="POST" action="/admin/providers/<%= p.id %>/toggle" style="display:inline">
-          <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '⏸ 禁用' : '▶️ 启用' %></button></form>
-        <form method="POST" action="/admin/providers/<%= p.id %>/delete" style="display:inline">
-          <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-          <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">🗑️ 删除</button></form>
-        <div id="provider-test-result-<%= p.id %>" class="provider-test-result" role="status" aria-live="polite"></div>
+  <div class="providers-hint">
+    <p>文字 AI 与生图 AI 分开配置。文字模型负责写作、审核和规划；生图模型只负责文章配图。两类提供商都支持多个 provider、多 Key 和自动故障切换。</p>
+  </div>
+
+  <section class="provider-section">
+    <div class="provider-section-header">
+      <div>
+        <h2>文字 AI 提供商</h2>
+        <p class="text-muted">用于文章生成、重写、规划、分析等文本任务。</p>
       </div>
     </div>
-    <% }); %>
-  </div>
-  <% } else { %>
-  <div class="empty-state"><p>🤖 还没有添加 AI 提供商</p><p>请添加至少一个提供商才能使用 AI 功能</p></div>
-  <% } %>
+    <% if (providers.length > 0) { %>
+    <div class="providers-grid">
+      <% providers.forEach(function(p) {
+        var keys = splitList(p.api_key);
+        var models = splitList(p.model);
+      %>
+      <div class="provider-card <%= p.enabled ? '' : 'disabled' %>">
+        <div class="provider-header">
+          <h3><%= p.name %></h3>
+          <span class="status-dot <%= p.enabled ? 'dot-green' : 'dot-gray' %>"></span>
+        </div>
+        <div class="provider-info">
+          <p><strong>模型:</strong> <%= models.length > 1 ? models.length + ' 个 (' + models[0] + '...)' : p.model %></p>
+          <p><strong>密钥:</strong> <%= keys.length > 1 ? keys.length + ' 个密钥' : '1 个密钥' %></p>
+          <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
+          <p><strong>调用:</strong> <%= p.request_count || 0 %> 次 | <strong>错误:</strong> <%= p.error_count || 0 %> 次</p>
+        </div>
+        <div class="provider-actions">
+          <button type="button" class="btn btn-sm btn-outline" onclick='editProvider(<%= JSON.stringify({id:p.id,name:p.name,base_url:p.base_url,api_key:p.api_key,model:p.model}) %>)'>编辑</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            data-provider-test-button
+            data-provider-test-url="/admin/providers/<%= p.id %>/test"
+            data-provider-test-result="provider-test-result-<%= p.id %>"
+            data-csrf-token="<%= csrfToken %>"
+          >测试</button>
+          <form method="POST" action="/admin/providers/<%= p.id %>/toggle" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '禁用' : '启用' %></button>
+          </form>
+          <form method="POST" action="/admin/providers/<%= p.id %>/delete" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">删除</button>
+          </form>
+          <div id="provider-test-result-<%= p.id %>" class="provider-test-result" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+    <div class="empty-state"><p>还没有添加文字 AI 提供商</p><p>请添加至少一个文字提供商才能使用 AI 写作功能</p></div>
+    <% } %>
+  </section>
+
+  <section class="provider-section">
+    <div class="provider-section-header">
+      <div>
+        <h2>生图 AI 提供商</h2>
+        <p class="text-muted">用于文章封面图。系统只在配图通过审核后写入文章，失败会自动降级为无图文章。</p>
+      </div>
+    </div>
+    <% if (imageProviders.length > 0) { %>
+    <div class="providers-grid">
+      <% imageProviders.forEach(function(p) {
+        var keys = splitList(p.api_key);
+        var models = splitList(p.model);
+      %>
+      <div class="provider-card provider-card-image <%= p.enabled ? '' : 'disabled' %>">
+        <div class="provider-header">
+          <h3><%= p.name %></h3>
+          <span class="status-dot <%= p.enabled ? 'dot-green' : 'dot-gray' %>"></span>
+        </div>
+        <div class="provider-info">
+          <p><strong>模型:</strong> <%= models.length > 1 ? models.length + ' 个 (' + models[0] + '...)' : p.model %></p>
+          <p><strong>Key:</strong> <%= keys.length > 1 ? keys.length + ' 个 Key' : '1 个 Key' %></p>
+          <p><strong>地址:</strong> <code><%= p.base_url %></code></p>
+          <p><strong>调用:</strong> <%= p.request_count || 0 %> 次 | <strong>错误:</strong> <%= p.error_count || 0 %> 次</p>
+        </div>
+        <div class="provider-actions">
+          <button type="button" class="btn btn-sm btn-outline" onclick='editImageProvider(<%= JSON.stringify({id:p.id,name:p.name,base_url:p.base_url,api_key:p.api_key,model:p.model}) %>)'>编辑</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            data-image-provider-test-button
+            data-provider-test-url="/admin/image-providers/<%= p.id %>/test"
+            data-provider-test-result="image-provider-test-result-<%= p.id %>"
+            data-csrf-token="<%= csrfToken %>"
+          >测试</button>
+          <form method="POST" action="/admin/image-providers/<%= p.id %>/toggle" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm <%= p.enabled ? 'btn-warning' : 'btn-success' %>"><%= p.enabled ? '禁用' : '启用' %></button>
+          </form>
+          <form method="POST" action="/admin/image-providers/<%= p.id %>/delete" style="display:inline">
+            <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm btn-outline" onclick="return confirm('确认删除？')">删除</button>
+          </form>
+          <div id="image-provider-test-result-<%= p.id %>" class="provider-test-result" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+    <% } else { %>
+    <div class="empty-state"><p>还没有添加生图 AI 提供商</p><p>添加后可在系统设置里开启文章配图。</p></div>
+    <% } %>
+  </section>
 </div>
 <%- include('layout-close') %>
 <script>
 function showAddForm() {
-  document.getElementById('formTitle').textContent = '添加新提供商';
+  hideImageForm();
+  document.getElementById('formTitle').textContent = '添加文字 AI 提供商';
   document.getElementById('providerFormInner').action = '/admin/providers/add';
   document.getElementById('formId').value = '';
   document.getElementById('formName').value = '';
@@ -94,7 +191,8 @@ function showAddForm() {
   document.getElementById('formName').focus();
 }
 function editProvider(p) {
-  document.getElementById('formTitle').textContent = '编辑提供商: ' + p.name;
+  hideImageForm();
+  document.getElementById('formTitle').textContent = '编辑文字 AI 提供商：' + p.name;
   document.getElementById('providerFormInner').action = '/admin/providers/' + p.id + '/edit';
   document.getElementById('formId').value = p.id;
   document.getElementById('formName').value = p.name;
@@ -102,10 +200,37 @@ function editProvider(p) {
   document.getElementById('formKey').value = p.api_key;
   document.getElementById('formModel').value = p.model;
   document.getElementById('providerForm').style.display = 'block';
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function hideForm() {
   document.getElementById('providerForm').style.display = 'none';
+}
+function showImageAddForm() {
+  hideForm();
+  document.getElementById('imageFormTitle').textContent = '添加生图提供商';
+  document.getElementById('imageProviderFormInner').action = '/admin/image-providers/add';
+  document.getElementById('imageFormId').value = '';
+  document.getElementById('imageFormName').value = '';
+  document.getElementById('imageFormUrl').value = '';
+  document.getElementById('imageFormKey').value = '';
+  document.getElementById('imageFormModel').value = '';
+  document.getElementById('imageProviderForm').style.display = 'block';
+  document.getElementById('imageFormName').focus();
+}
+function editImageProvider(p) {
+  hideForm();
+  document.getElementById('imageFormTitle').textContent = '编辑生图提供商：' + p.name;
+  document.getElementById('imageProviderFormInner').action = '/admin/image-providers/' + p.id + '/edit';
+  document.getElementById('imageFormId').value = p.id;
+  document.getElementById('imageFormName').value = p.name;
+  document.getElementById('imageFormUrl').value = p.base_url;
+  document.getElementById('imageFormKey').value = p.api_key;
+  document.getElementById('imageFormModel').value = p.model;
+  document.getElementById('imageProviderForm').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function hideImageForm() {
+  document.getElementById('imageProviderForm').style.display = 'none';
 }
 
 function setProviderTestResult(resultEl, state, message) {
@@ -153,7 +278,7 @@ async function testProvider(event) {
   }
 }
 
-document.querySelectorAll('[data-provider-test-button]').forEach(function(button) {
+document.querySelectorAll('[data-provider-test-button], [data-image-provider-test-button]').forEach(function(button) {
   button.addEventListener('click', testProvider);
 });
 </script>

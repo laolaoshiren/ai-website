@@ -33,6 +33,8 @@ router.get('/api/more-articles', (req, res) => {
       summary: a.summary || '', category_name: a.category_name || '',
       category_slug: a.category_slug || '', view_count: a.view_count || 0,
       published_at: a.published_at || '',
+      cover_image: a.cover_image || '',
+      image_review_status: a.image_review_status || '',
     })),
     hasMore, page,
   });

@@ -30,6 +30,17 @@ function normalizeTavilyKeyInput(value) {
   return parseTavilyKeys(normalizeSettingValue(value)).join('\n');
 }
 
+function normalizeImageProviderKeyInput(value) {
+  const { parseImageProviderKeys } = require('../ai/article-image');
+  return parseImageProviderKeys(normalizeSettingValue(value)).join('\n');
+}
+
+function normalizePositiveSetting(value, fallback, min = 0, max = 100000) {
+  const num = parseInt(normalizeSettingValue(value), 10);
+  if (!Number.isFinite(num)) return String(fallback);
+  return String(Math.max(min, Math.min(max, num)));
+}
+
 const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 分钟
 
 // ============ 会话管理（持久化到数据库） ============
@@ -220,12 +231,13 @@ router.get('/settings', (req, res) => {
 
 router.post('/settings', requireCsrf, (req, res) => {
   try {
-    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled'];
+    const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled', 'image_generation_enabled', 'image_cleanup_keep_days', 'image_cleanup_max_mb'];
     for (const field of fields) {
       if (req.body[field] === undefined) continue;
-      const value = field === 'tavily_api_key'
-        ? normalizeTavilyKeyInput(req.body[field])
-        : normalizeSettingValue(req.body[field]);
+      let value = normalizeSettingValue(req.body[field]);
+      if (field === 'tavily_api_key') value = normalizeTavilyKeyInput(req.body[field]);
+      if (field === 'image_cleanup_keep_days') value = normalizePositiveSetting(req.body[field], 180, 1, 3650);
+      if (field === 'image_cleanup_max_mb') value = normalizePositiveSetting(req.body[field], 2048, 50, 102400);
       db.setSetting(field, value);
     }
     refreshConfig();
@@ -304,7 +316,8 @@ router.post('/work-mode', requireCsrf, (req, res) => {
 // ============ AI 提供商管理 ============
 router.get('/providers', (req, res) => {
   const providers = db.getAIProviders();
-  res.render('admin/providers', { title: 'AI 提供商', providers, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+  const imageProviders = db.getImageProviders();
+  res.render('admin/providers', { title: 'AI 提供商', providers, imageProviders, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
 });
 
 router.post('/providers/add', requireCsrf, async (req, res) => {
@@ -340,6 +353,44 @@ router.post('/providers/:id/test', requireCsrf, async (req, res) => {
   const provider = db.getAIProviders().find(p => p.id === parseInt(req.params.id));
   if (!provider) return res.json({ success: false, error: '提供商不存在' });
   const result = await testConnection(provider);
+  res.json(result);
+});
+
+// ============ 生图提供商管理 ============
+router.post('/image-providers/add', requireCsrf, (req, res) => {
+  const { name, base_url, api_key, model } = req.body;
+  if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整的生图提供商信息'));
+  db.addImageProvider({ name, base_url, api_key: normalizeImageProviderKeyInput(api_key), model: model.trim() });
+  refreshConfig();
+  res.redirect('/admin/providers?success=' + encodeURIComponent(`生图提供商 "${name}" 已添加`));
+});
+
+router.post('/image-providers/:id/edit', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, base_url, api_key, model } = req.body;
+  if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整的生图提供商信息'));
+  db.updateImageProvider(id, { name, base_url, api_key: normalizeImageProviderKeyInput(api_key), model: model.trim() });
+  refreshConfig();
+  res.redirect('/admin/providers?success=' + encodeURIComponent(`生图提供商 "${name}" 已更新`));
+});
+
+router.post('/image-providers/:id/toggle', requireCsrf, (req, res) => {
+  const id = parseInt(req.params.id);
+  const provider = db.getImageProviders().find(p => p.id === id);
+  if (provider) db.updateImageProvider(id, { enabled: !provider.enabled, disabled_reason: provider.enabled ? 'manual' : null });
+  res.redirect('/admin/providers');
+});
+
+router.post('/image-providers/:id/delete', requireCsrf, (req, res) => {
+  db.deleteImageProvider(parseInt(req.params.id));
+  res.redirect('/admin/providers?success=1');
+});
+
+router.post('/image-providers/:id/test', requireCsrf, async (req, res) => {
+  const provider = db.getImageProviders().find(p => p.id === parseInt(req.params.id));
+  if (!provider) return res.json({ success: false, error: '生图提供商不存在' });
+  const { testImageProvider } = require('../ai/article-image');
+  const result = await testImageProvider(provider);
   res.json(result);
 });
 
@@ -642,3 +693,4 @@ router.post('/friend-links/:id/delete', requireCsrf, (req, res) => {
 module.exports = router;
 module.exports.normalizeSettingValue = normalizeSettingValue;
 module.exports.normalizeTavilyKeyInput = normalizeTavilyKeyInput;
+module.exports.normalizeImageProviderKeyInput = normalizeImageProviderKeyInput;

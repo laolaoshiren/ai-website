@@ -51,6 +51,7 @@
           <th>标题</th>
           <th>栏目</th>
           <th>状态</th>
+          <th>配图</th>
           <th>浏览</th>
           <th>创建时间</th>
           <th>操作</th>
@@ -64,6 +65,13 @@
               <td class="td-title"><%= p.title %></td>
               <td><%= p.category_name || '-' %></td>
               <td><span class="status-badge status-<%= p.status %>"><%= statusMap[p.status] || p.status %></span></td>
+              <td>
+                <% if (p.cover_image && p.image_review_status === 'pass') { %>
+                  <a href="<%= p.cover_image %>" target="_blank" class="article-image-badge has-image" title="<%= p.image_provider ? ('提供商: ' + p.image_provider) : '已配图' %>">已配图</a>
+                <% } else { %>
+                  <span class="article-image-badge no-image">无图</span>
+                <% } %>
+              </td>
               <td><%= p.view_count || 0 %></td>
               <td class="td-time"><%= p.created_at || '' %></td>
               <td class="td-actions">
@@ -87,7 +95,7 @@
           <% }); %>
         <% } else { %>
           <tr>
-            <td colspan="6" style="text-align:center">暂无文章<% if (q) { %>，未找到 "<%= q %>" 相关结果<% } %></td>
+            <td colspan="7" style="text-align:center">暂无文章<% if (q) { %>，未找到 "<%= q %>" 相关结果<% } %></td>
           </tr>
         <% } %>
       </tbody>

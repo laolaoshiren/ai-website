@@ -91,8 +91,22 @@ function buildAIMeta(result = {}) {
   };
 }
 
+function buildArticleImageUpdates(imageResult) {
+  if (!imageResult || imageResult.skipped || !imageResult.coverImage || imageResult.review?.status !== 'pass') return {};
+  return {
+    cover_image: imageResult.coverImage,
+    image_alt: imageResult.imageAlt || null,
+    image_prompt: imageResult.imagePrompt || null,
+    image_review_status: imageResult.review.status,
+    image_review_reason: imageResult.review.reason || null,
+    image_provider: imageResult.provider || null,
+    image_model: imageResult.model || null,
+    image_generated_at: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' '),
+  };
+}
+
 async function generateArticle(page) {
-  const { getPublishedPages, updatePage, getCategories, logAgent, retryTimeAfterAttempts } = require('../db/database');
+  const { getPublishedPages, updatePage, getCategories, getImageProviders, logAgent, retryTimeAfterAttempts } = require('../db/database');
 
   let category = null;
   if (page.category_id) {
@@ -149,6 +163,39 @@ async function generateArticle(page) {
   const DOMPurify = createDOMPurify();
   const cleanHtml = DOMPurify.sanitize(rawHtml);
 
+  let imageResult = null;
+  if (prepared.publishable) {
+    try {
+      const { getConfig } = require('../config');
+      const { shouldAttemptArticleImage, generateArticleImage } = require('./article-image');
+      const imageArticle = {
+        ...page,
+        title: finalData.title || page.title,
+        summary: finalData.summary || page.summary,
+        content_md: finalData.content_md || '',
+        content_html: cleanHtml,
+        category_name: category?.name || page.category_name || '',
+      };
+      const config = getConfig();
+      const imageProviders = getImageProviders();
+      const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders);
+      if (imageDecision.ok) {
+        logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, aiMeta);
+        imageResult = await generateArticleImage(imageArticle, { config });
+        if (imageResult.skipped) {
+          const role = /review/i.test(imageResult.reason || '') ? 'image_reviewer' : 'image_designer';
+          const status = /review/i.test(imageResult.reason || '') ? 'failed' : 'success';
+          logAgent(role, role === 'image_reviewer' ? '审核文章配图' : '生成文章配图', status, `跳过配图: ${imageArticle.title} (${imageResult.reason || 'skipped'})`, { provider: imageResult.provider || '', model: imageResult.model || '' });
+        } else {
+          logAgent('image_reviewer', '审核文章配图', 'success', `通过: ${imageArticle.title}`, { provider: imageResult.provider || '', model: imageResult.model || '' });
+        }
+      }
+    } catch (err) {
+      logAgent('image_designer', '生成文章配图', 'failed', `跳过配图: ${(finalData.title || page.title)} - ${err.message}`);
+    }
+  }
+  const imageUpdates = buildArticleImageUpdates(imageResult);
+
   const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
   updatePage(page.id, {
     title: finalData.title || page.title,
@@ -174,6 +221,7 @@ async function generateArticle(page) {
     ai_moa_failed_candidates: aiMeta.moa_failed_candidates || 0,
     ai_moa_error: aiMeta.moa_error || null,
     ...prepared.meta,
+    ...imageUpdates,
   });
 
   return {
@@ -188,7 +236,10 @@ async function generateArticle(page) {
     searchUsed: searchResults.length > 0,
     styleScore: prepared.meta.style_score,
     published: prepared.publishable,
+    imageGenerated: !!imageUpdates.cover_image,
+    imageProvider: imageUpdates.image_provider || '',
+    imageModel: imageUpdates.image_model || '',
   };
 }
 
-module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta };
+module.exports = { generateArticle, prepareArticleForPublication, buildQualityRetryGuidance, buildAIMeta, buildArticleImageUpdates };
