@@ -264,6 +264,23 @@ function containsCjk(text = '') {
   return /[\u3400-\u9fff]/.test(String(text || ''));
 }
 
+function sanitizeUnsafePlannerBrief(text = '') {
+  return String(text || '')
+    .replace(/\bno\s+(?:readable\s+|pseudo\s+|visible\s+)?text\b/gi, 'blank surfaces only')
+    .replace(/\bno\s+(?:logos?|watermarks?|screenshots?|ui labels?)\b/gi, 'unbranded')
+    .replace(/\bno\s+(?:close[-\s]?up\s+|prominent\s+)?hands?\b/gi, 'natural body framing')
+    .replace(/\bin a laboratory wearing a lab coat\b/gi, 'in a neutral business workspace')
+    .replace(/\b(?:heroic\s+)?close[-\s]?up\s+(?:portrait|headshot|selfie|face|faces?)\b/gi, 'environmental editorial scene')
+    .replace(/\b(?:portrait|headshot|selfie)\b/gi, 'environmental editorial scene')
+    .replace(/\b(?:right|left)\s+hands?\b/gi, 'near the person')
+    .replace(/\b(?:close[-\s]?up|prominent|malformed|distorted)\s+hands?\b/gi, 'natural body posture')
+    .replace(/\bhands?\b/gi, 'natural body posture')
+    .replace(/\b(?:dashboard\s+text|background\s+text|readable\s+text|pseudo\s+text|ui labels?|letters?|captions?|signboards?|brand marks?|logos?|watermarks?|screenshots?)\b/gi, 'blank non-legible surfaces')
+    .replace(/\b(?:text|logo)\b/gi, 'blank non-legible surface')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const UNIVERSAL_IMAGE_TREATMENTS = [
   {
     name: 'editorial still life',
@@ -300,15 +317,17 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
   ].filter(Boolean).join(' | '), 520);
   const sourceContext = sanitizeImageContext(sourcePrompt, 760);
   const sourceIsSafe = !!sourceContext && !hasUnsafeImageSubject(sourcePrompt);
-  const visualBrief = sourceIsSafe ? sourceContext : articleContext;
+  const safeSourceContext = sourceIsSafe ? sourceContext : sanitizeUnsafePlannerBrief(sourceContext);
+  const hasSourceBrief = !!safeSourceContext;
+  const visualBrief = hasSourceBrief ? safeSourceContext : articleContext;
   const seed = article.slug || article.id || article.title || visualBrief;
   const treatment = selectUniversalImageTreatment(seed || articleContext);
-  const useEnglishBriefAsSource = sourceIsSafe && !containsCjk(sourceContext) && containsCjk(articleContext);
+  const useEnglishBriefAsSource = hasSourceBrief && !containsCjk(safeSourceContext) && containsCjk(articleContext);
   const articleFocusLine = useEnglishBriefAsSource
     ? 'Article focus: use the English visual brief below as the source of truth; do not render article titles, Chinese characters, English words, numbers or headlines.'
     : `Article focus: ${articleContext || 'the core idea of the article'}.`;
   const primaryVisualLabel = useEnglishBriefAsSource ? 'English visual brief (source of truth)' : 'Primary visual brief';
-  const primaryVisualBrief = sourceIsSafe
+  const primaryVisualBrief = hasSourceBrief
     ? visualBrief
     : 'derive the visible subject from Article focus and the article domain itself. Choose the most relevant concrete subject, scene, person-in-context, process, place, object, food, document, landscape, atmosphere or symbolic detail; do not use a preset theme.';
 

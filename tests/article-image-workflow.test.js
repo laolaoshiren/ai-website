@@ -518,6 +518,32 @@ test('english planner briefs keep raw Chinese article text out of the image prom
   assert.doesNotMatch(plan.prompt, /素材库|版权新规|生成式AI|商业模式重构|前沿研究/);
 });
 
+test('unsafe English planner briefs are sanitized instead of falling back to raw Chinese context', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: 'Sora关停后，视频生成模型开始较真“物理课”',
+      summary: '文章讨论视频生成模型的物理一致性、水杯消失和车辆转弯穿帮。',
+      category_name: '前沿研究',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'AI video physics cover',
+        visual_angle: 'Show physical consistency testing without rendering any model name.',
+        prompt: 'Split-screen editorial scene: a cup fading near a person in the left panel, a car turning with realistic shadows in the right panel, no text, no logos, no close-up hands.',
+      }),
+    },
+  );
+
+  assert.match(plan.prompt, /Split-screen editorial scene|cup fading|car turning|realistic shadows/i);
+  assert.match(plan.prompt, /source of truth/i);
+  assert.doesNotMatch(plan.prompt, /Sora关停|物理课|前沿研究|水杯消失|车辆转弯穿帮/);
+  const sourceBrief = plan.prompt.match(/English visual brief[^.]+(?:\.[^.]+){0,2}/i)?.[0] || '';
+  assert.doesNotMatch(sourceBrief, /close-up hands|right hand|prominent hands|no natural body posture/i);
+});
+
 test('semantic image review instructions use MVP quality gate instead of over-strict taste judging', () => {
   const { buildImageReviewMessages } = require('../ai/article-image');
 
