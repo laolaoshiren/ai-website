@@ -8,8 +8,9 @@ test('more articles payload and client renderer preserve cover images', () => {
   const homeView = fs.readFileSync(path.join(__dirname, '..', 'views', 'pages', 'home.ejs'), 'utf8');
 
   assert.match(publicRoute, /cover_image/);
+  assert.match(publicRoute, /card_image/);
   assert.match(publicRoute, /image_review_status/);
-  assert.match(homeView, /a\.cover_image/);
+  assert.match(homeView, /a\.card_image/);
   assert.match(homeView, /card-media/);
 });
 

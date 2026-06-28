@@ -1,11 +1,12 @@
 <%
   var visualLabel = article.category_name ? String(article.category_name).slice(0, 2) : 'AI';
   var visualClass = article.category_slug ? ' visual-' + String(article.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
+  var cardImage = article.image_review_status === 'pass' ? (article.card_image || article.cover_thumbnail || article.cover_image) : '';
 %>
 <article class="article-card fade-in">
-  <% if (article.cover_image) { %>
+  <% if (cardImage) { %>
     <a href="/article/<%= article.slug %>" class="card-media">
-        <img src="<%= article.cover_image %>" alt="<%= article.title %>" loading="lazy">
+        <img src="<%= cardImage %>" alt="<%= article.image_alt || article.title %>" loading="lazy" decoding="async">
     </a>
   <% } else { %>
     <a href="/article/<%= article.slug %>" class="card-media card-media-fallback" aria-label="<%= article.title %>">

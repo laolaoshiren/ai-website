@@ -7,6 +7,7 @@ test('writer stores reviewed article image metadata only when generation passes'
   const updates = buildArticleImageUpdates({
     skipped: false,
     coverImage: '/images/articles/example.png',
+    coverThumbnail: '/images/articles/example-thumb.png',
     imageAlt: 'Article cover',
     imagePrompt: 'Clean editorial image, no text.',
     imageReason: 'visual improves scanning',
@@ -16,6 +17,7 @@ test('writer stores reviewed article image metadata only when generation passes'
   });
 
   assert.equal(updates.cover_image, '/images/articles/example.png');
+  assert.equal(updates.cover_thumbnail, '/images/articles/example-thumb.png');
   assert.equal(updates.image_review_status, 'pass');
   assert.equal(updates.image_provider, 'Agnes');
   assert.equal(updates.image_model, 'agnes-image-2.1-flash');

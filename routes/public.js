@@ -8,11 +8,12 @@ const { getConfig } = require('../config');
 const { buildArchivePagination, ARCHIVE_ARTICLES_PER_PAGE } = require('./archive-pagination');
 const { buildPagination } = require('./pagination');
 const { buildArticleRelations } = require('./article-relations');
+const { prepareArticleImageForView, prepareArticlesForView } = require('../ai/article-image');
 
 // 首页
 router.get('/', (req, res) => {
-  const featured = getPublishedPages(5, 0).filter(p => p.featured);
-  const latest = getPublishedPages(12);
+  const featured = prepareArticlesForView(getPublishedPages(5, 0).filter(p => p.featured));
+  const latest = prepareArticlesForView(getPublishedPages(12));
   const categories = getCategories();
   res.render('pages/home', {
     title: getConfig().site_title || 'AI 智能网站',
@@ -25,7 +26,7 @@ router.get('/', (req, res) => {
 router.get('/api/more-articles', (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 2);
   const limit = 12;
-  const articles = getPublishedPages(limit, (page - 1) * limit);
+  const articles = prepareArticlesForView(getPublishedPages(limit, (page - 1) * limit));
   const hasMore = articles.length === limit;
   res.json({
     articles: articles.map(a => ({
@@ -34,6 +35,8 @@ router.get('/api/more-articles', (req, res) => {
       category_slug: a.category_slug || '', view_count: a.view_count || 0,
       published_at: a.published_at || '',
       cover_image: a.cover_image || '',
+      cover_thumbnail: a.cover_thumbnail || '',
+      card_image: a.card_image || '',
       image_review_status: a.image_review_status || '',
     })),
     hasMore, page,
@@ -53,7 +56,7 @@ router.get('/category/:slug', (req, res) => {
     perPage: limit,
     basePath: `/category/${encodeSlug(category.slug)}`,
   });
-  const articles = allArticles.slice(pagination.offset, pagination.offset + pagination.perPage);
+  const articles = prepareArticlesForView(allArticles.slice(pagination.offset, pagination.offset + pagination.perPage));
   res.render('pages/category', {
     title: category.name,
     category, articles, pagination,
@@ -84,7 +87,7 @@ router.get('/search', (req, res) => {
     basePath: '/search',
     query: { q },
   });
-  const articles = results.slice(pagination.offset, pagination.offset + pagination.perPage);
+  const articles = prepareArticlesForView(results.slice(pagination.offset, pagination.offset + pagination.perPage));
   res.render('pages/search', { title: q ? '搜索: ' + q : '搜索', q, articles, pagination, total });
 });
 
@@ -105,31 +108,34 @@ router.get('/article/:slug', (req, res) => {
   if (!article || article.status !== 'published') {
     return res.status(404).render('pages/404', { title: '文章不存在' });
   }
+  const safeArticle = prepareArticleImageForView(article);
   const config = getConfig();
 
   // 获取所有已发布文章，计算上下篇和相关推荐
   const allArticles = getPublishedPages(1000);
-  const currentIndex = allArticles.findIndex(a => a.id === article.id);
-  const prevArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
-  const nextArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
+  const currentIndex = allArticles.findIndex(a => a.id === safeArticle.id);
+  const prevArticle = currentIndex > 0 ? prepareArticleImageForView(allArticles[currentIndex - 1]) : null;
+  const nextArticle = currentIndex < allArticles.length - 1 ? prepareArticleImageForView(allArticles[currentIndex + 1]) : null;
 
   // 相关文章与同主题阅读路径：同栏目、关键词重合和阅读量综合排序
-  const { relatedArticles, topicPath } = buildArticleRelations(article, allArticles, {
+  const relations = buildArticleRelations(safeArticle, allArticles, {
     relatedLimit: 3,
     pathLimit: 4,
   });
+  const relatedArticles = prepareArticlesForView(relations.relatedArticles);
+  const topicPath = prepareArticlesForView(relations.topicPath);
 
   // 字数统计与阅读时间
-  const plainText = (article.content_html || article.content_md || '').replace(/<[^>]*>/g, '');
+  const plainText = (safeArticle.content_html || safeArticle.content_md || '').replace(/<[^>]*>/g, '');
   const wordCount = plainText.length;
   const readTime = Math.max(1, Math.round(wordCount / 500));
 
   res.render('pages/article', {
-    title: article.seo_title || article.title,
-    article,
+    title: safeArticle.seo_title || safeArticle.title,
+    article: safeArticle,
     siteUrl: config.site_url || 'http://localhost:3000',
-    metaDescription: article.seo_description || article.summary,
-    metaKeywords: article.seo_keywords,
+    metaDescription: safeArticle.seo_description || safeArticle.summary,
+    metaKeywords: safeArticle.seo_keywords,
     prevArticle, nextArticle, relatedArticles, topicPath, wordCount, readTime,
   });
 });
