@@ -250,6 +250,21 @@ router.post('/settings', requireCsrf, (req, res) => {
   } catch (err) { res.redirect('/admin/settings?error=' + encodeURIComponent(err.message)); }
 });
 
+router.post('/settings/tavily/save', requireCsrf, (req, res) => {
+  try {
+    const keys = normalizeTavilyKeyInput(req.body.tavily_api_key ?? '');
+    db.setSetting('tavily_api_key', keys);
+    refreshConfig();
+    res.json({
+      success: true,
+      count: keys ? keys.split('\n').filter(Boolean).length : 0,
+      keys,
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
 router.post('/settings/tavily/test', requireCsrf, async (req, res) => {
   try {
     const { testTavilyKeys, maskTavilyKey } = require('../ai/search');

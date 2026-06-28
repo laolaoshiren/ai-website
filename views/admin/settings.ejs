@@ -52,10 +52,17 @@
           <div class="form-group">
             <label>一行一个 Key</label>
             <textarea class="settings-textarea tavily-key-textarea" id="tavilyKeysInput" name="tavily_api_key" rows="9" placeholder="tvly-xxx&#10;tvly-yyy"><%= tavilyKeyText %></textarea>
-            <small>可直接粘贴多行；保存设置后生效。</small>
+            <small>可直接粘贴多行；点击保存 Key 后立即生效。</small>
           </div>
           <div class="form-actions">
-            <button type="button" class="btn btn-primary" onclick="applyTavilyKeysModal()">应用到表单</button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="tavilyApplyBtn"
+              data-save-url="/admin/settings/tavily/save"
+              data-csrf-token="<%= csrfToken %>"
+              onclick="applyTavilyKeysModal()"
+            >保存 Key</button>
             <button type="button" class="btn btn-outline" onclick="closeTavilyKeysModal()">取消</button>
           </div>
         </div>
@@ -196,11 +203,54 @@ function closeTavilyKeysModal() {
   var modal = document.getElementById('tavilyKeysModal');
   if (modal) modal.hidden = true;
 }
-function applyTavilyKeysModal() {
+async function applyTavilyKeysModal() {
+  try {
+    return await persistTavilyKeys(true);
+  } catch (err) {
+    return null;
+  }
+}
+async function persistTavilyKeys(closeAfterSave) {
   var input = document.getElementById('tavilyKeysInput');
   if (input) input.value = tavilyKeys().join('\n');
   refreshTavilyKeyCount();
-  closeTavilyKeysModal();
+  var button = document.getElementById('tavilyApplyBtn');
+  var resultBox = document.getElementById('tavilyTestResult');
+  if (!button) return;
+  if (resultBox) {
+    resultBox.hidden = false;
+    resultBox.className = 'tavily-test-result';
+    resultBox.textContent = '正在保存 Key...';
+  }
+  button.disabled = true;
+  try {
+    var body = new URLSearchParams();
+    body.set('csrf_token', button.dataset.csrfToken || '');
+    body.set('tavily_api_key', input ? input.value : '');
+    var response = await fetch(button.dataset.saveUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': button.dataset.csrfToken || '' },
+      body: body.toString(),
+    });
+    var data = await response.json();
+    if (!data.success) throw new Error(data.error || '保存失败');
+    if (input && typeof data.keys === 'string') input.value = data.keys;
+    refreshTavilyKeyCount();
+    if (resultBox) {
+      resultBox.classList.add('is-success');
+      resultBox.textContent = '已保存 ' + (data.count || 0) + ' 个 Key';
+    }
+    if (closeAfterSave) closeTavilyKeysModal();
+    return data;
+  } catch (err) {
+    if (resultBox) {
+      resultBox.classList.add('is-error');
+      resultBox.textContent = err.message;
+    }
+    throw err;
+  } finally {
+    button.disabled = false;
+  }
 }
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, function(ch) {
@@ -209,7 +259,9 @@ function escapeHtml(value) {
 }
 document.getElementById('tavilyKeysInput')?.addEventListener('input', refreshTavilyKeyCount);
 document.getElementById('tavilyValidateBtn')?.addEventListener('click', async function() {
-  applyTavilyKeysModal();
+  var input = document.getElementById('tavilyKeysInput');
+  if (input) input.value = tavilyKeys().join('\n');
+  refreshTavilyKeyCount();
   var resultBox = document.getElementById('tavilyTestResult');
   var button = this;
   if (!resultBox) return;
