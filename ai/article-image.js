@@ -229,6 +229,7 @@ const HUMAN_CONTEXT_REPLACEMENTS = [
   [/\bllms?\b/gi, 'large language model systems'],
   [/\bai\b/gi, 'machine intelligence'],
   [/\bsaas\b/gi, 'subscription software'],
+  [/\blab(?:s)?\b|\blaborator(?:y|ies)\b/gi, 'prototype evidence'],
   [/\b(investors?|venture capitalists?|founders?|entrepreneurs?|ceos?|executives?|leaders?|workers?|employees?|users?|readers?|customers?|people|persons|humans|teams?|researchers?|scientists?|doctors?|patients?|teachers?|students?)\b/gi, 'market signals and organization evidence'],
   [/(投资人|投资者|创投|创始人|企业家|高管|用户|读者|客户|人群|人物|团队|员工|专家|科学家|研究员|医生|患者|老师|学生|主播|演员)/g, '市场信号和组织证据'],
   [/(肖像|人像|面孔|脸|手|白大褂|实验室|试管|烧杯|文字|水印|标志|截图)/g, '抽象业务物件'],
@@ -262,8 +263,9 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
   return [
     'Object-only editorial cover image.',
     `Visual brief: ${visualBrief || 'the core idea of the article'}.`,
-    'Show abstract capital flows, market-map layers, renewal loops, unlabeled metric blocks, server racks, geometric software modules, architecture blocks, signal nodes or symbolic business objects.',
-    'Use a modern magazine-quality technology and business style, clean composition, one clear focal subject, refined lighting, landscape 1024x768, polished and uncluttered.',
+    'Compose a single centered abstract 3D still life on an empty studio background.',
+    'Use one symbolic core object, clean data-flow ribbons, blank geometric blocks and subtle capital-flow arcs to express the idea.',
+    'Use a modern magazine-quality technology and business style, spacious composition, refined lighting, landscape 1024x768, polished and uncluttered.',
     'No people, no faces, no hands, no bodies. Keep all surfaces blank and typography-free; avoid brand marks, interface captures, signboards, captions, watermarks and messy details.',
   ].join(' ');
 }

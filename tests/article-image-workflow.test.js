@@ -212,9 +212,9 @@ test('fallback article image prompt avoids generic portrait covers', async () =>
 
   assert.match(plan.prompt, /no people/i);
   assert.match(plan.prompt, /object-only|abstract/i);
-  assert.match(plan.prompt, /capital flows|market-map|product/i);
+  assert.match(plan.prompt, /single centered|data-flow ribbons|geometric blocks|symbolic core/i);
   assert.doesNotMatch(plan.prompt, /\binvestors?\b/i);
-  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels/i);
+  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels|server racks|market-map|\bmetric blocks\b|\bscreens\b|\bcharts\b/i);
   assert.doesNotMatch(plan.prompt, /portrait|scientist|laboratory|lab coat/i);
 });
 
@@ -238,7 +238,7 @@ test('unsafe planner prompts are rewritten into non-human editorial covers', asy
 
   assert.match(plan.prompt, /object-only/i);
   assert.match(plan.prompt, /no people/i);
-  assert.match(plan.prompt, /capital flows|renewal loops|product/i);
-  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels/i);
+  assert.match(plan.prompt, /single centered|data-flow ribbons|geometric blocks|symbolic core/i);
+  assert.doesNotMatch(plan.prompt, /\bSaaS\b|product cards|sealed documents|readable labels|server racks|market-map|\bmetric blocks\b|\bscreens\b|\bcharts\b/i);
   assert.doesNotMatch(plan.prompt, /heroic|close-up|portrait|founder|laboratory|lab coat|dashboard text/i);
 });
