@@ -572,6 +572,7 @@ function insertPage(page) {
       template: page.template || 'article', summary: page.summary || '',
       content_md: page.content_md || '', content_html: page.content_html || '',
       cover_image: page.cover_image || null,
+      cover_thumbnail: page.cover_thumbnail || null,
       image_alt: page.image_alt || null,
       image_prompt: page.image_prompt || null,
       image_review_status: page.image_review_status || null,

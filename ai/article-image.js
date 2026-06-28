@@ -8,6 +8,8 @@ const MIN_IMAGE_BYTES = 12 * 1024;
 const MIN_IMAGE_WIDTH = 512;
 const MIN_IMAGE_HEIGHT = 384;
 const GENERATED_IMAGES_PUBLIC_PREFIX = '/generated-images';
+const CARD_THUMBNAIL_WIDTH = 480;
+const CARD_THUMBNAIL_HEIGHT = 206;
 
 const keyCursor = new Map();
 const modelCursor = new Map();
@@ -471,6 +473,289 @@ function imageExtension(buffer, mimeType = '') {
   return 'png';
 }
 
+function defaultPublicDir() {
+  return path.join(__dirname, '..', 'public');
+}
+
+function publicImageFilePath(publicPath, options = {}) {
+  const normalized = normalizePublicImagePath(publicPath).replace(/^\/+/, '');
+  if (normalized.startsWith('generated-images/')) {
+    return path.join(generatedImageStorageDir(options), normalized.slice('generated-images/'.length));
+  }
+  return path.join(options.publicDir || defaultPublicDir(), normalized);
+}
+
+function thumbnailPublicPathForCover(coverPublicPath) {
+  const normalized = normalizePublicImagePath(coverPublicPath);
+  const match = normalized.match(/^\/generated-images\/articles\/(.+)$/);
+  if (!match) return null;
+  const parsed = path.posix.parse(match[1].replace(/\\/g, '/'));
+  return `${GENERATED_IMAGES_PUBLIC_PREFIX}/thumbnails/articles/${parsed.name}-thumb.png`;
+}
+
+function pngCrcTable() {
+  if (pngCrcTable.table) return pngCrcTable.table;
+  pngCrcTable.table = Array.from({ length: 256 }, (_, index) => {
+    let c = index;
+    for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    return c >>> 0;
+  });
+  return pngCrcTable.table;
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const body = Buffer.concat([typeBuffer, data]);
+  let crc = 0xffffffff;
+  for (const byte of body) crc = pngCrcTable()[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  crc = (crc ^ 0xffffffff) >>> 0;
+  const out = Buffer.alloc(12 + data.length);
+  out.writeUInt32BE(data.length, 0);
+  typeBuffer.copy(out, 4);
+  data.copy(out, 8);
+  out.writeUInt32BE(crc, 8 + data.length);
+  return out;
+}
+
+function paethPredictor(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function decodePngToRgba(buffer) {
+  const zlib = require('zlib');
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (!buffer.slice(0, 8).equals(signature)) throw new Error('not_png');
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  let interlace = 0;
+  const idat = [];
+
+  while (offset + 12 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.slice(offset + 4, offset + 8).toString('ascii');
+    const data = buffer.slice(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+      interlace = data[12];
+    } else if (type === 'IDAT') {
+      idat.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+  }
+
+  if (!width || !height || bitDepth !== 8 || interlace !== 0 || ![2, 6].includes(colorType) || idat.length === 0) {
+    throw new Error('unsupported_png');
+  }
+
+  const channels = colorType === 6 ? 4 : 3;
+  const bytesPerPixel = channels;
+  const stride = width * channels;
+  const inflated = zlib.inflateSync(Buffer.concat(idat));
+  const rgba = Buffer.alloc(width * height * 4);
+  const prev = Buffer.alloc(stride);
+  const current = Buffer.alloc(stride);
+  let inputOffset = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    const filter = inflated[inputOffset++];
+    inflated.copy(current, 0, inputOffset, inputOffset + stride);
+    inputOffset += stride;
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= bytesPerPixel ? current[i - bytesPerPixel] : 0;
+      const up = prev[i] || 0;
+      const upLeft = i >= bytesPerPixel ? prev[i - bytesPerPixel] : 0;
+      if (filter === 1) current[i] = (current[i] + left) & 0xff;
+      else if (filter === 2) current[i] = (current[i] + up) & 0xff;
+      else if (filter === 3) current[i] = (current[i] + Math.floor((left + up) / 2)) & 0xff;
+      else if (filter === 4) current[i] = (current[i] + paethPredictor(left, up, upLeft)) & 0xff;
+      else if (filter !== 0) throw new Error('unsupported_png_filter');
+    }
+    for (let x = 0; x < width; x += 1) {
+      const src = x * channels;
+      const dst = (y * width + x) * 4;
+      rgba[dst] = current[src];
+      rgba[dst + 1] = current[src + 1];
+      rgba[dst + 2] = current[src + 2];
+      rgba[dst + 3] = channels === 4 ? current[src + 3] : 255;
+    }
+    current.copy(prev);
+  }
+
+  return { width, height, rgba };
+}
+
+function resizeRgbaCover(image, targetWidth = CARD_THUMBNAIL_WIDTH, targetHeight = CARD_THUMBNAIL_HEIGHT) {
+  const scale = Math.max(targetWidth / image.width, targetHeight / image.height);
+  const sourceWidth = targetWidth / scale;
+  const sourceHeight = targetHeight / scale;
+  const offsetX = Math.max(0, (image.width - sourceWidth) / 2);
+  const offsetY = Math.max(0, (image.height - sourceHeight) / 2);
+  const out = Buffer.alloc(targetWidth * targetHeight * 4);
+
+  for (let y = 0; y < targetHeight; y += 1) {
+    const sy = Math.min(image.height - 1, Math.floor(offsetY + (y + 0.5) / scale));
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sx = Math.min(image.width - 1, Math.floor(offsetX + (x + 0.5) / scale));
+      const src = (sy * image.width + sx) * 4;
+      const dst = (y * targetWidth + x) * 4;
+      image.rgba.copy(out, dst, src, src + 4);
+    }
+  }
+
+  return { width: targetWidth, height: targetHeight, rgba: out };
+}
+
+function encodeRgbaPng(image) {
+  const zlib = require('zlib');
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(image.width, 0);
+  ihdr.writeUInt32BE(image.height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const stride = image.width * 4 + 1;
+  const raw = Buffer.alloc(stride * image.height);
+  for (let y = 0; y < image.height; y += 1) {
+    const row = y * stride;
+    raw[row] = 0;
+    image.rgba.copy(raw, row + 1, y * image.width * 4, (y + 1) * image.width * 4);
+  }
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(raw, { level: 7 })),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+function createArticleImageThumbnail(sourceFilePath, thumbnailFilePath, options = {}) {
+  const source = fs.readFileSync(sourceFilePath);
+  const decoded = decodePngToRgba(source);
+  const resized = resizeRgbaCover(
+    decoded,
+    options.width || CARD_THUMBNAIL_WIDTH,
+    options.height || CARD_THUMBNAIL_HEIGHT,
+  );
+  fs.mkdirSync(path.dirname(thumbnailFilePath), { recursive: true });
+  fs.writeFileSync(thumbnailFilePath, encodeRgbaPng(resized));
+  return thumbnailFilePath;
+}
+
+function ensureArticleImageThumbnail(coverPublicPath, options = {}) {
+  const thumbnailPublicPath = thumbnailPublicPathForCover(coverPublicPath);
+  if (!thumbnailPublicPath) return null;
+  const sourceFilePath = publicImageFilePath(coverPublicPath, options);
+  if (!fs.existsSync(sourceFilePath)) return null;
+  const thumbnailFilePath = publicImageFilePath(thumbnailPublicPath, options);
+  if (fs.existsSync(thumbnailFilePath)) return thumbnailPublicPath;
+
+  try {
+    createArticleImageThumbnail(sourceFilePath, thumbnailFilePath, options.thumbnail || {});
+    return thumbnailPublicPath;
+  } catch {
+    return null;
+  }
+}
+
+function clearArticleImageForView(article = {}) {
+  return {
+    ...article,
+    cover_image: null,
+    cover_thumbnail: null,
+    card_image: null,
+    image_review_status: null,
+    image_missing: true,
+  };
+}
+
+function prepareArticleImageForView(article = {}, options = {}) {
+  if (!article.cover_image || article.image_review_status !== 'pass') {
+    return { ...article, card_image: null, cover_thumbnail: article.cover_thumbnail || null };
+  }
+
+  const coverImage = normalizePublicImagePath(article.cover_image);
+  if (!fs.existsSync(publicImageFilePath(coverImage, options))) {
+    return clearArticleImageForView(article);
+  }
+
+  let coverThumbnail = article.cover_thumbnail ? normalizePublicImagePath(article.cover_thumbnail) : null;
+  if (coverThumbnail && !fs.existsSync(publicImageFilePath(coverThumbnail, options))) coverThumbnail = null;
+  if (!coverThumbnail) coverThumbnail = ensureArticleImageThumbnail(coverImage, options);
+
+  return {
+    ...article,
+    cover_image: coverImage,
+    cover_thumbnail: coverThumbnail,
+    card_image: coverThumbnail || coverImage,
+  };
+}
+
+function prepareArticlesForView(articles = [], options = {}) {
+  return articles.map(article => prepareArticleImageForView(article, options));
+}
+
+function clearArticleImageRecord(page) {
+  page.cover_image = null;
+  page.cover_thumbnail = null;
+  page.image_alt = null;
+  page.image_prompt = null;
+  page.image_review_status = null;
+  page.image_review_reason = 'missing_image_file';
+  page.image_provider = null;
+  page.image_model = null;
+  page.image_generated_at = null;
+}
+
+function repairArticleImageRecords(options = {}) {
+  const db = options.db || require('../db/database');
+  const store = db.getDb();
+  const pages = Array.isArray(store.pages) ? store.pages : [];
+  let missingCleared = 0;
+  let thumbnailsBackfilled = 0;
+  let changed = false;
+
+  for (const page of pages) {
+    if (!page.cover_image || page.image_review_status !== 'pass') continue;
+    const coverImage = normalizePublicImagePath(page.cover_image);
+    if (!fs.existsSync(publicImageFilePath(coverImage, options))) {
+      clearArticleImageRecord(page);
+      missingCleared += 1;
+      changed = true;
+      continue;
+    }
+
+    let coverThumbnail = page.cover_thumbnail ? normalizePublicImagePath(page.cover_thumbnail) : null;
+    if (coverThumbnail && !fs.existsSync(publicImageFilePath(coverThumbnail, options))) coverThumbnail = null;
+    if (!coverThumbnail) coverThumbnail = ensureArticleImageThumbnail(coverImage, options);
+    if (coverThumbnail && page.cover_thumbnail !== coverThumbnail) {
+      page.cover_thumbnail = coverThumbnail;
+      thumbnailsBackfilled += 1;
+      changed = true;
+    }
+  }
+
+  if (changed && typeof db.saveDb === 'function') db.saveDb();
+  return { missingCleared, thumbnailsBackfilled, changed };
+}
+
 function safeSlug(value) {
   return String(value || 'article')
     .toLowerCase()
@@ -502,9 +787,12 @@ function saveGeneratedArticleImage(article, imageResult, options = {}) {
   const filename = `${safeSlug(article.slug || article.title)}-${hash}.${ext}`;
   const filePath = path.join(targetDir, filename);
   fs.writeFileSync(filePath, imageResult.buffer);
+  const publicPath = `${GENERATED_IMAGES_PUBLIC_PREFIX}/${path.posix.join('articles', filename)}`;
+  const thumbnailPath = ensureArticleImageThumbnail(publicPath, options);
   return {
     filePath,
-    publicPath: `${GENERATED_IMAGES_PUBLIC_PREFIX}/${path.posix.join('articles', filename)}`,
+    publicPath,
+    thumbnailPath,
   };
 }
 
@@ -793,6 +1081,7 @@ async function generateArticleImage(article, options = {}) {
       return {
         skipped: false,
         coverImage: saved.publicPath,
+        coverThumbnail: saved.thumbnailPath,
         imageAlt: plan.alt,
         imagePrompt: attemptPlan.prompt,
         imageReason: plan.reason,
@@ -898,6 +1187,11 @@ module.exports = {
   reviewGeneratedImage,
   buildImageReviewMessages,
   reviewArticleImage,
+  ensureArticleImageThumbnail,
+  prepareArticleImageForView,
+  prepareArticlesForView,
+  repairArticleImageRecords,
+  createArticleImageThumbnail,
   cleanupArticleImages,
   readImageDimensions,
 };

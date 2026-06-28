@@ -159,8 +159,9 @@
             var catHtml = a.category_name ? '<a href="/category/' + a.category_slug + '" class="card-category">' + escapeHtml(a.category_name) + '</a>' : '';
             var visualLabel = escapeHtml((a.category_name || 'AI').slice(0, 2));
             var visualClass = a.category_slug ? ' visual-' + String(a.category_slug).replace(/[^a-zA-Z0-9-]/g, '') : '';
-            var mediaHtml = (a.cover_image && a.image_review_status === 'pass')
-              ? '<a href="/article/' + a.slug + '" class="card-media"><img src="' + escapeHtml(a.cover_image) + '" alt="' + escapeHtml(a.title) + '" loading="lazy"></a>'
+            var cardImage = a.card_image || a.cover_thumbnail || a.cover_image;
+            var mediaHtml = (cardImage && a.image_review_status === 'pass')
+              ? '<a href="/article/' + a.slug + '" class="card-media"><img src="' + escapeHtml(cardImage) + '" alt="' + escapeHtml(a.title) + '" loading="lazy" decoding="async"></a>'
               : '<a href="/article/' + a.slug + '" class="card-media card-media-fallback" aria-label="' + escapeHtml(a.title) + '"><div class="card-visual' + visualClass + '" aria-hidden="true"><span class="visual-kicker">AI Insight</span><span class="visual-mark">' + visualLabel + '</span><span class="visual-line line-a"></span><span class="visual-line line-b"></span></div></a>';
             var html = '<article class="article-card fade-in visible">' +
               mediaHtml +

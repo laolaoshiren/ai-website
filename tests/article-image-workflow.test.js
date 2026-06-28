@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const zlib = require('node:zlib');
 
 function pngBase64(width = 1024, height = 768, payloadSize = 40000) {
   const buffer = Buffer.alloc(payloadSize, 23);
@@ -17,6 +18,54 @@ function pngBase64(width = 1024, height = 768, payloadSize = 40000) {
   buffer[27] = 0;
   buffer[28] = 0;
   return buffer.toString('base64');
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const crcTable = pngChunk.crcTable || (pngChunk.crcTable = Array.from({ length: 256 }, (_, index) => {
+    let c = index;
+    for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    return c >>> 0;
+  }));
+  let crc = 0xffffffff;
+  for (const byte of Buffer.concat([typeBuffer, data])) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  crc = (crc ^ 0xffffffff) >>> 0;
+  const out = Buffer.alloc(12 + data.length);
+  out.writeUInt32BE(data.length, 0);
+  typeBuffer.copy(out, 4);
+  data.copy(out, 8);
+  out.writeUInt32BE(crc, 8 + data.length);
+  return out;
+}
+
+function realPngBuffer(width = 1024, height = 768) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+  const stride = width * 4 + 1;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = y * stride;
+    raw[row] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = row + 1 + x * 4;
+      raw[offset] = (x + y) % 256;
+      raw[offset + 1] = (x * 3) % 256;
+      raw[offset + 2] = (y * 5) % 256;
+      raw[offset + 3] = 255;
+    }
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
 }
 
 function makeTempPublicDir() {
@@ -109,6 +158,132 @@ test('image reviewer flags prompts that request text-like visual assets', () => 
 
     assert.equal(review.status, 'review');
     assert.equal(review.reason, 'prompt_may_request_text');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('article image workflow stores a generated thumbnail for list pages', async () => {
+  const { generateArticleImage, readImageDimensions } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+
+  try {
+    const result = await generateArticleImage(
+      {
+        id: 22,
+        slug: 'restaurant-menu-profit',
+        title: 'Restaurant menu engineering turns seasonal dishes into higher margins',
+        summary: 'A practical food business story about menu layout and kitchen timing.',
+        content_md: 'A detailed article about food, kitchen workflows and seasonal dishes.',
+        category_name: 'Food',
+      },
+      {
+        config: { image_generation_enabled: '1' },
+        providers: [
+          {
+            id: 1,
+            name: 'Agnes',
+            base_url: 'https://apihub.agnes-ai.com/v1',
+            api_key: 'ok-key',
+            model: 'agnes-image-2.1-flash',
+            enabled: true,
+          },
+        ],
+        publicDir,
+        semanticReview: false,
+        planner: async () => ({
+          needed: true,
+          prompt: 'Premium editorial image of seasonal restaurant dishes and a calm kitchen pass, no text.',
+          alt: 'Restaurant menu editorial image',
+        }),
+        fetchImpl: async () => ({
+          ok: true,
+          json: async () => ({ data: [{ b64_json: realPngBuffer().toString('base64') }] }),
+        }),
+      },
+    );
+
+    assert.equal(result.skipped, false);
+    assert.match(result.coverImage, /^\/generated-images\/articles\/.+\.png$/);
+    assert.match(result.coverThumbnail, /^\/generated-images\/thumbnails\/articles\/.+\.png$/);
+    const thumbnailPath = path.join(publicDir, result.coverThumbnail.replace(/^\//, ''));
+    assert.equal(fs.existsSync(thumbnailPath), true);
+    const dimensions = readImageDimensions(fs.readFileSync(thumbnailPath));
+    assert.ok(dimensions.width <= 480);
+    assert.ok(dimensions.height <= 320);
+    assert.ok(fs.statSync(thumbnailPath).size < fs.statSync(path.join(publicDir, result.coverImage.replace(/^\//, ''))).size);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('article image view preparation hides missing covers and prefers thumbnails for cards', () => {
+  const { prepareArticleImageForView } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const articleDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(articleDir, { recursive: true });
+  fs.writeFileSync(path.join(articleDir, 'keep.png'), realPngBuffer());
+
+  try {
+    const missing = prepareArticleImageForView(
+      { title: 'Missing cover', cover_image: '/generated-images/articles/missing.png', image_review_status: 'pass' },
+      { publicDir },
+    );
+    assert.equal(missing.cover_image, null);
+    assert.equal(missing.card_image, null);
+    assert.equal(missing.image_review_status, null);
+
+    const present = prepareArticleImageForView(
+      { title: 'Present cover', cover_image: '/generated-images/articles/keep.png', image_review_status: 'pass' },
+      { publicDir },
+    );
+    assert.equal(present.cover_image, '/generated-images/articles/keep.png');
+    assert.match(present.cover_thumbnail, /^\/generated-images\/thumbnails\/articles\/keep-thumb\.png$/);
+    assert.equal(present.card_image, present.cover_thumbnail);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('article image metadata repair clears missing covers and backfills thumbnails', () => {
+  const { repairArticleImageRecords } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const articleDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(articleDir, { recursive: true });
+  fs.writeFileSync(path.join(articleDir, 'keep.png'), realPngBuffer());
+  let saved = false;
+  const data = {
+    pages: [
+      {
+        id: 1,
+        cover_image: '/generated-images/articles/missing.png',
+        cover_thumbnail: null,
+        image_review_status: 'pass',
+      },
+      {
+        id: 2,
+        cover_image: '/generated-images/articles/keep.png',
+        cover_thumbnail: null,
+        image_review_status: 'pass',
+      },
+    ],
+  };
+
+  try {
+    const result = repairArticleImageRecords({
+      publicDir,
+      db: {
+        getDb: () => data,
+        saveDb: () => { saved = true; },
+      },
+    });
+
+    assert.equal(result.missingCleared, 1);
+    assert.equal(result.thumbnailsBackfilled, 1);
+    assert.equal(data.pages[0].cover_image, null);
+    assert.equal(data.pages[0].image_review_status, null);
+    assert.match(data.pages[1].cover_thumbnail, /^\/generated-images\/thumbnails\/articles\/keep-thumb\.png$/);
+    assert.equal(saved, true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

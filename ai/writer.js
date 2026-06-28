@@ -95,6 +95,7 @@ function buildArticleImageUpdates(imageResult) {
   if (!imageResult || imageResult.skipped || !imageResult.coverImage || imageResult.review?.status !== 'pass') return {};
   return {
     cover_image: imageResult.coverImage,
+    cover_thumbnail: imageResult.coverThumbnail || null,
     image_alt: imageResult.imageAlt || null,
     image_prompt: imageResult.imagePrompt || null,
     image_review_status: imageResult.review.status,

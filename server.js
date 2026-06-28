@@ -22,7 +22,10 @@ app.use(express.text({ type: 'text/plain' }));
   const p = path.join(__dirname, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
-app.use('/generated-images', express.static(path.join(__dirname, 'data', 'generated-images')));
+app.use('/generated-images', express.static(path.join(__dirname, 'data', 'generated-images'), {
+  maxAge: '30d',
+  immutable: true,
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -62,7 +65,8 @@ app.get('/favicon.svg', (req, res) => {
 
 app.use((req, res) => {
   const { getPublishedPages } = require('./db/database');
-  const latest = getPublishedPages(4);
+  let latest = getPublishedPages(4);
+  try { latest = require('./ai/article-image').prepareArticlesForView(latest); } catch {}
   res.status(404).render('pages/404', { title: '页面未找到', latest });
 });
 app.use((err, req, res, next) => {
@@ -82,6 +86,16 @@ app.use((err, req, res, next) => {
   // 一键初始化（密码、迁移、提供商检查）
   const { bootstrap } = require('./db/bootstrap');
   await bootstrap();
+
+  try {
+    const { repairArticleImageRecords } = require('./ai/article-image');
+    const imageRepair = repairArticleImageRecords();
+    if (imageRepair.changed) {
+      console.log(`Article image metadata repaired: ${imageRepair.missingCleared} missing cleared, ${imageRepair.thumbnailsBackfilled} thumbnails backfilled`);
+    }
+  } catch (err) {
+    console.log('Article image metadata repair skipped:', err.message);
+  }
 
   const { isAIConfigured, getConfig } = require('./config');
   const config = getConfig();
