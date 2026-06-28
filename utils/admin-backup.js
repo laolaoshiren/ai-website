@@ -143,6 +143,18 @@ function readBackupInput(filename, buffer) {
   throw new Error('只支持导入 .zip 或 .json 文件');
 }
 
+function inspectBackupInput(filename, buffer) {
+  const seen = new Set();
+  return readBackupInput(filename, buffer)
+    .map(file => SECTION_BY_ID.get(file.sectionId))
+    .filter(section => {
+      if (!section || seen.has(section.id)) return false;
+      seen.add(section.id);
+      return true;
+    })
+    .map(section => ({ id: section.id, label: section.label, filename: section.filename }));
+}
+
 function restoreBackup(filename, buffer, selectedSections) {
   const selected = new Set(normalizeSections(selectedSections));
   if (selected.size === 0) throw new Error('请至少选择一个还原项');
@@ -166,6 +178,7 @@ module.exports = {
   BACKUP_SECTIONS,
   normalizeSections,
   buildBackupZip,
+  inspectBackupInput,
   readBackupInput,
   restoreBackup,
 };

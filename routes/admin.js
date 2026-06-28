@@ -15,7 +15,7 @@ const { enrichAgentLogsAI } = require('./agent-log-ai');
 const { buildActivityBrief } = require('./admin-activity-brief');
 const { validateCategoryInput } = require('../ai/category-policy');
 const { listFrontendThemes, resolveFrontendTheme, isValidFrontendTheme } = require('./frontend-theme');
-const { BACKUP_SECTIONS, buildBackupZip, normalizeSections, restoreBackup } = require('../utils/admin-backup');
+const { BACKUP_SECTIONS, buildBackupZip, inspectBackupInput, normalizeSections, restoreBackup } = require('../utils/admin-backup');
 const { parseMultipartForm } = require('../utils/multipart-form');
 
 // ============ 常量 ============
@@ -351,6 +351,21 @@ router.post('/backup/export', requireCsrf, (req, res) => {
     res.send(zip);
   } catch (err) {
     res.redirect('/admin/backup?error=' + encodeURIComponent(err.message));
+  }
+});
+
+router.post('/backup/inspect', async (req, res) => {
+  try {
+    const form = await parseMultipartForm(req, { limitBytes: 20 * 1024 * 1024 });
+    const token = form.fields.csrf_token;
+    if (!req.session?.csrf || token !== req.session.csrf) return res.status(401).json({ success: false, error: '登录已过期，请重新登录' });
+    const upload = form.files.backup_file;
+    if (!upload || !upload.filename || !upload.data.length) throw new Error('请选择要识别的备份文件');
+    const sections = inspectBackupInput(upload.filename, upload.data);
+    if (sections.length === 0) throw new Error('没有识别到可还原项目');
+    res.json({ success: true, sections });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
   }
 });
 

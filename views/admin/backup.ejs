@@ -36,32 +36,104 @@
     <section class="admin-panel backup-panel">
       <h2>导入还原</h2>
       <p class="text-muted">可上传完整 ZIP 备份包，也可以上传其中任意一个 JSON 文件。还原只会覆盖勾选的项目。</p>
-      <form method="POST" action="/admin/backup/restore" enctype="multipart/form-data">
+      <form method="POST" action="/admin/backup/restore" enctype="multipart/form-data" data-inspect-url="/admin/backup/inspect">
         <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
         <div class="form-group">
           <label>备份文件</label>
           <input type="file" name="backup_file" accept=".zip,.json,application/zip,application/json" required>
           <small>支持完整备份包或单个 JSON 文件。</small>
         </div>
-        <div class="backup-option-grid">
-          <% sections.forEach(function(section) { %>
-            <label class="backup-option">
-              <input type="checkbox" name="sections" value="<%= section.id %>" checked>
-              <span>
-                <strong><%= section.label %></strong>
-                <small>匹配 <%= section.filename %></small>
-              </span>
-            </label>
-          <% }); %>
+        <div class="backup-detect-status" data-backup-detect-status>
+          选择备份文件后，系统会自动识别可还原项目。
+        </div>
+        <div class="backup-option-grid" data-backup-detected-sections hidden>
         </div>
         <div class="backup-warning">
           还原会覆盖所选项目的现有数据。建议先下载当前备份，再执行还原。
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-warning" onclick="return confirm('确认按勾选项还原？现有对应数据会被覆盖。')">导入并还原</button>
+          <button type="submit" class="btn btn-warning" disabled onclick="return confirm('确认按勾选项还原？现有对应数据会被覆盖。')">导入并还原</button>
         </div>
       </form>
     </section>
   </div>
 </div>
+<script>
+(() => {
+  const form = document.querySelector('form[data-inspect-url]');
+  if (!form) return;
+  const fileInput = form.querySelector('input[name="backup_file"]');
+  const status = form.querySelector('[data-backup-detect-status]');
+  const sectionList = form.querySelector('[data-backup-detected-sections]');
+  const submitButton = form.querySelector('button[type="submit"]');
+  const csrf = form.querySelector('input[name="csrf_token"]')?.value || '';
+
+  function setStatus(message, type = 'muted') {
+    status.textContent = message;
+    status.dataset.state = type;
+  }
+
+  function resetDetectedSections(message = '选择备份文件后，系统会自动识别可还原项目。') {
+    sectionList.innerHTML = '';
+    sectionList.hidden = true;
+    submitButton.disabled = true;
+    setStatus(message);
+  }
+
+  function renderSections(sections) {
+    sectionList.innerHTML = '';
+    sections.forEach(section => {
+      const label = document.createElement('label');
+      label.className = 'backup-option';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'sections';
+      input.value = section.id;
+      input.checked = true;
+
+      const text = document.createElement('span');
+      const name = document.createElement('strong');
+      name.textContent = section.label;
+      const file = document.createElement('small');
+      file.textContent = `识别到 ${section.filename}`;
+
+      text.append(name, file);
+      label.append(input, text);
+      sectionList.append(label);
+    });
+    sectionList.hidden = false;
+    submitButton.disabled = sections.length === 0;
+    setStatus(`已识别 ${sections.length} 个可还原项目，请勾选需要导入的内容。`, 'success');
+  }
+
+  fileInput?.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) {
+      resetDetectedSections();
+      return;
+    }
+    resetDetectedSections('正在识别备份文件...');
+    const body = new FormData();
+    body.append('csrf_token', csrf);
+    body.append('backup_file', file);
+    try {
+      const response = await fetch(form.dataset.inspectUrl, { method: 'POST', body });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || '识别失败');
+      renderSections(result.sections || []);
+    } catch (err) {
+      resetDetectedSections(err.message || '识别失败，请检查备份文件。');
+      status.dataset.state = 'error';
+    }
+  });
+
+  form.addEventListener('submit', event => {
+    if (!form.querySelector('input[name="sections"]:checked')) {
+      event.preventDefault();
+      setStatus('请先选择备份文件，并勾选至少一个可还原项目。', 'error');
+    }
+  });
+})();
+</script>
 <%- include('layout-close') %>

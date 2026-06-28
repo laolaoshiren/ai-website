@@ -6,6 +6,7 @@ const { extractZip } = require('../utils/zip-store');
 const {
   BACKUP_SECTIONS,
   buildBackupZip,
+  inspectBackupInput,
   readBackupInput,
   restoreBackup,
 } = require('../utils/admin-backup');
@@ -91,5 +92,18 @@ test('restore accepts a single section JSON file', async () => {
     const restored = restoreBackup('tavily-keys.json', payload, ['tavily_keys']);
     assert.deepEqual(restored, ['tavily_keys']);
     assert.equal(data.settings.tavily_api_key, 'tvly-one\ntvly-two');
+  });
+});
+
+test('inspectBackupInput reports only importable sections from the selected file', async () => {
+  await withDbSnapshot(async data => {
+    data.ads = [{ id: 10, title: 'Exported Ad' }];
+    data.settings.tavily_api_key = 'tvly-one\ntvly-two';
+    const zip = buildBackupZip(['ads', 'tavily_keys']);
+
+    const detected = inspectBackupInput('backup.zip', zip);
+
+    assert.deepEqual(detected.map(section => section.id), ['ads', 'tavily_keys']);
+    assert.deepEqual(detected.map(section => section.filename), ['ads.json', 'tavily-keys.json']);
   });
 });

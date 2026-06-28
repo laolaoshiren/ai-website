@@ -6,7 +6,7 @@ const ejs = require('ejs');
 
 const { BACKUP_SECTIONS } = require('../utils/admin-backup');
 
-test('admin backup page renders export and restore controls for every section', async () => {
+test('admin backup page renders export controls and waits to detect restore sections', async () => {
   const html = await ejs.renderFile(
     path.join(__dirname, '..', 'views', 'admin', 'backup.ejs'),
     {
@@ -30,6 +30,15 @@ test('admin backup page renders export and restore controls for every section', 
     assert.match(html, new RegExp(`value="${section.id}"`));
     assert.match(html, new RegExp(section.filename.replace('.', '\\.')));
   }
+
+  const restoreForm = html.match(/<form method="POST" action="\/admin\/backup\/restore"[\s\S]*?<\/form>/)?.[0] || '';
+  assert.match(restoreForm, /data-inspect-url="\/admin\/backup\/inspect"/);
+  assert.match(restoreForm, /选择备份文件后，系统会自动识别可还原项目/);
+  assert.match(restoreForm, /<button[^>]*disabled[^>]*>导入并还原/);
+  for (const section of BACKUP_SECTIONS) {
+    assert.doesNotMatch(restoreForm, new RegExp(`value="${section.id}" checked`));
+    assert.doesNotMatch(restoreForm, new RegExp(`匹配 ${section.filename.replace('.', '\\.')}`));
+  }
 });
 
 test('admin backup routes and sidebar entry are registered', () => {
@@ -39,6 +48,7 @@ test('admin backup routes and sidebar entry are registered', () => {
 
   assert.match(adminRoute, /router\.get\('\/backup'/);
   assert.match(adminRoute, /router\.post\('\/backup\/export'/);
+  assert.match(adminRoute, /router\.post\('\/backup\/inspect'/);
   assert.match(adminRoute, /router\.post\('\/backup\/restore'/);
   assert.match(adminRoute, /parseMultipartForm/);
   assert.match(sidebar, /\/admin\/backup/);
