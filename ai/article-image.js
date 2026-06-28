@@ -310,6 +310,7 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
     `Editorial method: ${treatment.name}; ${treatment.method}.`,
     'Let the article decide the subject: it may be food, recipe steps, cooking atmosphere, travel scenery, local details, people in context, objects, products, documents, rooms, landscapes, culture, finance, technology, education or any other relevant scene.',
     'People are allowed only when the article naturally calls for them; prefer natural editorial context, silhouettes, back views, environmental scenes, or small groups instead of close-up faces.',
+    'If the chosen subject includes phones, computers, tablets, documents, books, menus, signs, labels, dashboards, packaging, charts or any screen, keep text-bearing surfaces blank, turned away, out of focus, cropped away, or represented only by abstract non-legible shapes.',
     'Avoid close-up portraits, distorted faces, prominent hands, readable text, logos, watermarks, screenshots, captions, signboards and messy clutter.',
     'Make the image feel specific to this article through concrete subject matter, objects, materials, composition, lighting and mood; avoid generic AI abstract art.',
     'Do not substitute a technology aesthetic unless the article is actually about technology. Avoid repeated template-like abstract visuals unless the article specifically demands them.',
@@ -372,6 +373,7 @@ async function planArticleImage(article, options = {}) {
             'First mentally summarize the article into one visual angle, then write the prompt from that angle.',
             'You are free to choose food, recipe process, cooking scene, people in context, travel landscape, local object, product detail, document layout, room, street, classroom, clinic, cultural item, abstract symbol or any other subject if it best serves the article.',
             'Use concrete objects, setting, material, lighting, camera angle, composition and mood. Do not output a generic wallpaper.',
+            'If the concept includes screens, phones, computers, documents, charts, menus, signs, labels, packages or books, require blank or non-legible surfaces; do not ask for visible UI, readable words, numbers, brand marks or pseudo text.',
             'Avoid text, letters, numbers, watermarks, logos, UI screenshots and messy compositions.',
             'People are allowed when useful, but avoid close-up faces, prominent hands, celebrity-like portraits and distorted anatomy.',
             'Avoid repeated AI-cliche visuals such as generic glowing cores, random glass orbs, neural-network wallpaper and meaningless data ribbons.',
@@ -386,6 +388,25 @@ async function planArticleImage(article, options = {}) {
   } catch {
     return fallbackImagePlan(article);
   }
+}
+
+function buildRetryArticleImagePrompt(article = {}, basePrompt = '', review = {}, attempt = 2) {
+  const issueText = [
+    review.reason,
+    ...(Array.isArray(review.semantic_issues) ? review.semantic_issues : []),
+    ...(Array.isArray(review.issues) ? review.issues : []),
+  ].filter(Boolean).join('; ').slice(0, 360);
+  const alternateTreatment = selectUniversalImageTreatment(`${article.slug || article.id || article.title}:retry:${attempt}`);
+
+  return [
+    basePrompt,
+    `Previous attempt failed image quality review${issueText ? `: ${issueText}` : ''}. Create a different version, not a slight variation.`,
+    `Use a safer alternate editorial method: ${alternateTreatment.name}; ${alternateTreatment.method}.`,
+    'Hard correction: no readable text, no pseudo text, no UI labels, no numbers, no logos, no watermarks, no screenshots, no visible dashboards with labels.',
+    'For phones, computers, tablets, documents, menus, signs, packaging, charts, books or any other text-bearing object, make the surface blank, turned away, out of focus, cropped away, or abstract non-legible.',
+    'Prefer a back or side view of devices, object still life, environment scene, material detail, process scene, or symbolic scene that still clearly matches the article.',
+    'Keep one clear focal subject, natural editorial lighting, and a clean composition.',
+  ].join(' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
 }
 
 function imageExtension(buffer, mimeType = '') {
@@ -493,11 +514,32 @@ function reviewGeneratedImage({ filePath, prompt }) {
   return { status: 'pass', reason: 'technical_review_passed', dimensions };
 }
 
+function reviewTextWithoutNegatedIssues(review = {}) {
+  return [
+    review.reason,
+    review.summary,
+    ...(Array.isArray(review.issues) ? review.issues : []),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\b(?:no|not|without|free of|does not contain|has no|no obvious)\s+(?:visible\s+|obvious\s+|readable\s+|garbled\s+|gibberish\s+|pseudo\s+)*(?:text|letters?|logos?|watermarks?|screenshots?|captions?|signboards?|brand marks?|ui labels?|broken anatomy|distorted faces?|malformed hands?|severe clutter)(?:[^.;,]*)/gi, ' ')
+    .replace(/\b(?:not|not a|not an|does not look|is not|isn't|isnt|without)\s+(?:99%\s+generic|generic\/repeated|duplicated[-\s]?template|template[-\s]?like|clearly unrelated|misleading)(?:[^.;,]*)/gi, ' ')
+    .replace(/(?:没有|无|未发现|不存在|不含|没有明显)[^。；;,.，]{0,40}(?:乱码|伪文字|水印|标志|logo|可读文字|明显文字|畸形|严重杂乱)/g, ' ')
+    .toLowerCase();
+}
+
+function hasDisqualifyingSemanticIssue(review = {}) {
+  const text = reviewTextWithoutNegatedIssues(review);
+  return /(?:garbled|gibberish|pseudo[-\s]?text|readable text|visible text|text on|ui labels?|watermarks?|logos?|brand marks?|screenshots?|broken anatomy|distorted faces?|malformed hands?|severe clutter|clearly unrelated|misleading|duplicated[-\s]?template|99% generic|乱码|伪文字|水印|标志|可读文字|明显文字|屏幕文字|畸形|严重杂乱|明显无关)/i.test(text);
+}
+
 function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
   const score = Number(review.score ?? review.quality_score ?? review.qualityScore ?? 0);
+  const hasHardIssue = hasDisqualifyingSemanticIssue(review);
+  const lowIssueScore = Number.isFinite(score) && score > 0 && score < 50 && Array.isArray(review.issues) && review.issues.length > 0;
   const approved = review.approved === true || review.pass === true || review.status === 'pass' || score >= 75;
-  const rejected = review.approved === false || review.pass === false || review.status === 'failed' || review.status === 'reject';
-  const status = approved && !rejected ? 'pass' : (review.status === 'review' ? 'review' : 'failed');
+  const rejected = review.approved === false || review.pass === false || review.status === 'failed' || review.status === 'reject' || hasHardIssue || lowIssueScore;
+  const status = rejected ? 'failed' : (approved ? 'pass' : (review.status === 'review' ? 'review' : 'failed'));
   const reason = String(review.reason || review.summary || (status === 'pass' ? 'semantic_review_passed' : 'semantic_review_failed')).slice(0, 500);
   return {
     ...technicalReview,
@@ -545,6 +587,7 @@ function buildImageReviewMessages({ article, prompt, dataUrl }) {
               'MVP gate: judge whether the image is basically usable for this article, not whether it is award-winning art.',
               'The website may be food, travel, lifestyle, finance, technology, culture, education, health, local news or any other topic. Review against the article domain itself.',
               'Pass if the image is basically relevant to the article, visually coherent, not 99% generic/repeated, and has no obvious gibberish text, watermarks, logos, broken anatomy or severe clutter.',
+              'Fail if the image contains visible readable text, pseudo text, garbled text, UI labels, logos, watermarks or screenshots, even if the overall subject is relevant.',
               'People are allowed when contextually relevant, especially in travel, food, lifestyle, education, health or local scenes. Fail only for obvious distorted faces, prominent malformed hands, celebrity-like fake portraits, or irrelevant people.',
               'Do not fail merely because the image model quality is ordinary. Fail only if the image is clearly unrelated, mostly unreadable/garbled, duplicated-template-like, visually broken, or misleading for the article.',
             ],
@@ -675,31 +718,47 @@ async function generateArticleImage(article, options = {}) {
   const plan = await planArticleImage(article, options);
   if (!plan.needed) return { skipped: true, reason: plan.reason || 'planner_skipped', plan };
 
-  const imageResult = await generateImageWithProviders(plan.prompt, options);
-  const saved = saveGeneratedArticleImage(article, imageResult, options);
-  const review = await reviewArticleImage({ filePath: saved.filePath, prompt: plan.prompt, article }, options);
-  if (review.status !== 'pass') {
+  const maxAttempts = Math.max(1, Math.min(3, Number(options.maxImageAttempts || 3) || 3));
+  let lastFailure = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const attemptPlan = {
+      ...plan,
+      prompt: attempt === 1 ? plan.prompt : buildRetryArticleImagePrompt(article, plan.prompt, lastFailure?.review || {}, attempt),
+    };
+    const imageResult = await generateImageWithProviders(attemptPlan.prompt, options);
+    const saved = saveGeneratedArticleImage(article, imageResult, options);
+    const review = await reviewArticleImage({ filePath: saved.filePath, prompt: attemptPlan.prompt, article }, options);
+    if (review.status === 'pass') {
+      return {
+        skipped: false,
+        coverImage: saved.publicPath,
+        imageAlt: plan.alt,
+        imagePrompt: attemptPlan.prompt,
+        imageReason: plan.reason,
+        review,
+        provider: imageResult.provider,
+        model: imageResult.model,
+        sourceUrl: imageResult.sourceUrl,
+        attempts: attempt,
+      };
+    }
+
     try { fs.unlinkSync(saved.filePath); } catch {}
-    return {
+    lastFailure = {
       skipped: true,
       reason: `image_review_${review.status}`,
-      plan,
+      plan: attemptPlan,
       review,
       provider: imageResult.provider,
       model: imageResult.model,
+      attempts: attempt,
     };
   }
 
   return {
-    skipped: false,
-    coverImage: saved.publicPath,
-    imageAlt: plan.alt,
-    imagePrompt: plan.prompt,
-    imageReason: plan.reason,
-    review,
-    provider: imageResult.provider,
-    model: imageResult.model,
-    sourceUrl: imageResult.sourceUrl,
+    ...(lastFailure || { reason: 'image_review_failed', plan }),
+    skipped: true,
   };
 }
 

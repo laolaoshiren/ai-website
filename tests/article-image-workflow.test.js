@@ -170,6 +170,149 @@ test('semantic image reviewer can reject generated images before metadata is ret
   }
 });
 
+test('semantic review fails when the reviewer reports garbled text despite pass status', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'phone-screen.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Editorial photo of a phone used for AI performance testing, no text, no logos.',
+        article: {
+          title: 'iPhone local AI tests hit thermal limits',
+          summary: 'A test article about phone performance, heat and local models.',
+          category_name: 'Technology',
+        },
+      },
+      {
+        reviewer: async () => ({
+          status: 'pass',
+          score: 4,
+          reason: 'Contextually relevant, but the phone screen contains garbled text and UI labels.',
+          issues: ['garbled text on screen'],
+        }),
+      },
+    );
+
+    assert.equal(review.status, 'failed');
+    assert.match(review.reason, /garbled text/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('semantic review does not reject negated generic-template wording', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'food-cover.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Warm bowl of miso ramen on a dinner table, no text, no logos.',
+        article: {
+          title: 'Winter miso ramen guide',
+          summary: 'A food article about broth, noodles and toppings.',
+          category_name: 'Food',
+        },
+      },
+      {
+        reviewer: async () => ({
+          status: 'pass',
+          score: 82,
+          reason: 'Relevant, visually coherent, not 99% generic, and has no obvious gibberish text or logos.',
+          issues: [],
+        }),
+      },
+    );
+
+    assert.equal(review.status, 'pass');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('article image generation retries with stricter prompt after review failure', async () => {
+  const { generateArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  let imageAttempts = 0;
+  let reviewAttempts = 0;
+  const prompts = [];
+
+  try {
+    const result = await generateArticleImage(
+      {
+        id: 14,
+        slug: 'iphone-thermal-ai-test',
+        title: 'iPhone local AI tests hit thermal limits',
+        summary: 'A substantial article about phone performance, heat and local model latency.',
+        content_md: 'A detailed article about device-side AI inference, thermal throttling and benchmark tradeoffs.',
+        category_name: 'Technology',
+      },
+      {
+        config: { image_generation_enabled: '1' },
+        providers: [
+          {
+            id: 3,
+            name: 'Agnes',
+            base_url: 'https://apihub.agnes-ai.com/v1',
+            api_key: 'ok-key',
+            model: 'agnes-image-2.1-flash',
+            enabled: true,
+          },
+        ],
+        publicDir,
+        planner: async () => ({
+          needed: true,
+          prompt: 'Editorial phone performance test scene with a device and lab table, no text.',
+          alt: 'Phone performance test cover',
+        }),
+        fetchImpl: async (url, init) => {
+          imageAttempts += 1;
+          prompts.push(JSON.parse(init.body).prompt);
+          return {
+            ok: true,
+            json: async () => ({ data: [{ b64_json: pngBase64(1024 + imageAttempts, 768) }] }),
+          };
+        },
+        reviewer: async () => {
+          reviewAttempts += 1;
+          if (reviewAttempts === 1) {
+            return {
+              status: 'failed',
+              score: 20,
+              reason: 'The image contains garbled text on a visible screen.',
+              issues: ['garbled text'],
+            };
+          }
+          return { status: 'pass', score: 82, reason: 'Relevant and coherent', issues: [] };
+        },
+      },
+    );
+
+    const articleImageDir = path.join(publicDir, 'generated-images', 'articles');
+    const remainingFiles = fs.existsSync(articleImageDir) ? fs.readdirSync(articleImageDir) : [];
+
+    assert.equal(result.skipped, false);
+    assert.equal(imageAttempts, 2);
+    assert.equal(reviewAttempts, 2);
+    assert.match(prompts[1], /previous attempt failed/i);
+    assert.match(prompts[1], /blank|turned away|out of focus|non-legible/i);
+    assert.equal(remainingFiles.length, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('article image cleanup removes unreferenced old local images and keeps referenced files', () => {
   const { cleanupArticleImages } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
