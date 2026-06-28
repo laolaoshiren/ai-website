@@ -399,11 +399,11 @@ function buildRetryArticleImagePrompt(article = {}, basePrompt = '', review = {}
   const alternateTreatment = selectUniversalImageTreatment(`${article.slug || article.id || article.title}:retry:${attempt}`);
 
   return [
-    basePrompt,
     `Previous attempt failed image quality review${issueText ? `: ${issueText}` : ''}. Create a different version, not a slight variation.`,
-    `Use a safer alternate editorial method: ${alternateTreatment.name}; ${alternateTreatment.method}.`,
     'Hard correction: no readable text, no pseudo text, no UI labels, no numbers, no logos, no watermarks, no screenshots, no visible dashboards with labels.',
     'For phones, computers, tablets, documents, menus, signs, packaging, charts, books or any other text-bearing object, make the surface blank, turned away, out of focus, cropped away, or abstract non-legible.',
+    `Use a safer alternate editorial method: ${alternateTreatment.name}; ${alternateTreatment.method}.`,
+    `Article-specific base brief: ${basePrompt}`,
     'Prefer a back or side view of devices, object still life, environment scene, material detail, process scene, or symbolic scene that still clearly matches the article.',
     'Keep one clear focal subject, natural editorial lighting, and a clean composition.',
   ].join(' ').replace(/\s+/g, ' ').trim().slice(0, 1800);
@@ -487,7 +487,7 @@ function promptRequestsTextLikeAssets(prompt = '') {
   if (!/(鏂囧瓧|text|logo|watermark|姘村嵃|typography|caption|signboard|brand mark)/i.test(value)) {
     return false;
   }
-  return !/(no\s+(?:readable\s+)?(?:text|logo|watermarks?)|without\s+readable\s+labels|typography-free|all\s+surfaces\s+blank|avoid[^.]{0,100}(?:brand marks?|watermarks?|captions?|signboards?|logos?|text)|涓嶈鏂囧瓧|no logo|鏃犳枃瀛?)/i.test(value);
+  return !/(no\s+(?:readable\s+|pseudo\s+|visible\s+)?(?:text|ui labels?|numbers?|logo|logos|watermarks?|screenshots?)|without\s+readable\s+labels|typography-free|all\s+surfaces\s+blank|text-bearing\s+surfaces?\s+blank|surfaces?\s+(?:blank|turned away|out of focus)|abstract\s+non-legible|non-legible\s+shapes?|cropped away|avoid[^.]{0,140}(?:brand marks?|watermarks?|captions?|signboards?|logos?|text|screenshots?|ui labels?)|do not[^.]{0,120}(?:visible ui|readable words?|pseudo text|text|logos?|watermarks?|screenshots?)|涓嶈鏂囧瓧|no logo|鏃犳枃瀛?)/i.test(value);
 }
 
 function reviewGeneratedImage({ filePath, prompt }) {

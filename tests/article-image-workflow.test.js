@@ -114,6 +114,46 @@ test('image reviewer flags prompts that request text-like visual assets', () => 
   }
 });
 
+test('image reviewer allows prompts that forbid text-like visual assets', () => {
+  const { reviewGeneratedImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'safe-valid.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = reviewGeneratedImage({
+      filePath,
+      prompt: 'Editorial cover image. Hard correction: no readable text, no pseudo text, no UI labels, no numbers, no logos, no watermarks. For documents, charts, signs or any screen, make text-bearing surfaces blank, turned away, out of focus, or abstract non-legible.',
+    });
+
+    assert.equal(review.status, 'pass');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('image reviewer allows blank-surface wording even when no-text wording is truncated away', () => {
+  const { reviewGeneratedImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'blank-surface-valid.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = reviewGeneratedImage({
+      filePath,
+      prompt: 'If the chosen subject includes phones, computers, documents, books, menus, signs, labels, dashboards, packaging, charts or any screen, keep text-bearing surfaces blank, turned away, out of focus, cropped away, or represented only by abstract non-legible shapes.',
+    });
+
+    assert.equal(review.status, 'pass');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('semantic image reviewer can reject generated images before metadata is returned', async () => {
   const { generateArticleImage } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
@@ -305,6 +345,7 @@ test('article image generation retries with stricter prompt after review failure
     assert.equal(result.skipped, false);
     assert.equal(imageAttempts, 2);
     assert.equal(reviewAttempts, 2);
+    assert.match(prompts[1].slice(0, 260), /previous attempt failed/i);
     assert.match(prompts[1], /previous attempt failed/i);
     assert.match(prompts[1], /blank|turned away|out of focus|non-legible/i);
     assert.equal(remainingFiles.length, 1);
