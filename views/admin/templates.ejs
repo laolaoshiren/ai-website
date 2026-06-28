@@ -1,47 +1,169 @@
 <%- include('layout-open') %>
-<div class="admin-page">
-  <div class="page-header-bar">
-    <h1>模板设置</h1>
+<%
+  var activeTheme = themes.find(function(theme) { return theme.id === currentThemeId; }) || themes[0];
+  var totalThemes = themes.length;
+%>
+<div class="admin-page template-admin-page">
+  <div class="page-header-bar template-page-header">
+    <div>
+      <h1>模板设置</h1>
+      <p class="text-muted">从模板库里搜索、预览并切换前台模板。模板只影响前台视觉，不改变文章、栏目和 Agent 数据。</p>
+    </div>
     <a href="/" class="btn btn-outline" target="_blank" rel="noopener">查看前台</a>
   </div>
 
   <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
   <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-  <div class="admin-panel template-admin-hero">
+  <section class="admin-panel template-active-summary">
     <div>
-      <p class="template-admin-kicker">Frontend Templates</p>
-      <h2>前台模板切换</h2>
-      <p class="text-muted">模板只影响前台页面视觉与排版，不改变文章、栏目、Agent、AI 提供商等核心数据。默认模板始终保留，可随时切回。</p>
+      <p class="template-admin-kicker">Current Template</p>
+      <h2><%= activeTheme.name %></h2>
+      <p class="text-muted"><%= activeTheme.description %></p>
     </div>
-    <div class="template-admin-current">
-      <span>当前启用</span>
-      <strong><%= (themes.find(function(theme) { return theme.id === currentThemeId; }) || themes[0]).name %></strong>
+    <div class="template-active-actions">
+      <span class="template-active-id"><%= activeTheme.id %></span>
+      <a href="/" class="btn btn-outline" target="_blank" rel="noopener">预览当前模板</a>
     </div>
-  </div>
+  </section>
 
   <form method="POST" action="/admin/templates/select" class="template-select-form">
     <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
-    <div class="template-card-grid">
-      <% themes.forEach(function(theme) { %>
-        <label class="template-card <%= theme.id === currentThemeId ? 'is-active' : '' %>">
-          <input type="radio" name="frontend_theme" value="<%= theme.id %>" <%= theme.id === currentThemeId ? 'checked' : '' %>>
-          <span class="template-card-badge"><%= theme.badge %></span>
-          <span class="template-card-preview template-preview-<%= theme.id %>">
-            <span></span><span></span><span></span>
-          </span>
-          <span class="template-card-title"><%= theme.name %></span>
-          <span class="template-card-desc"><%= theme.description %></span>
-          <span class="template-card-id"><%= theme.id %></span>
-        </label>
-      <% }); %>
-    </div>
 
-    <div class="form-actions template-form-actions">
-      <button type="submit" class="btn btn-primary btn-lg">保存模板设置</button>
-      <a href="/" class="btn btn-outline btn-lg" target="_blank" rel="noopener">查看前台效果</a>
+    <section class="admin-panel template-library-panel" data-template-library data-total="<%= totalThemes %>">
+      <div class="template-library-heading">
+        <div>
+          <p class="template-admin-kicker">Template Library</p>
+          <h2>模板库</h2>
+          <p class="text-muted"><span data-template-count><%= totalThemes %></span> / <%= totalThemes %> 套模板可用</p>
+        </div>
+        <div class="template-library-tools">
+          <label class="template-search">
+            <span>搜索</span>
+            <input type="search" id="templateSearchInput" placeholder="输入名称、ID 或说明" autocomplete="off" oninput="filterTemplates()">
+          </label>
+        </div>
+      </div>
+
+      <div class="template-library-toolbar" aria-label="模板筛选">
+        <button type="button" class="template-filter is-active" data-template-filter="all" onclick="setTemplateFilter('all', this)">全部</button>
+        <button type="button" class="template-filter" data-template-filter="active" onclick="setTemplateFilter('active', this)">当前启用</button>
+        <button type="button" class="template-filter" data-template-filter="default" onclick="setTemplateFilter('default', this)">默认模板</button>
+        <button type="button" class="template-filter" data-template-filter="custom" onclick="setTemplateFilter('custom', this)">其他模板</button>
+      </div>
+
+      <div class="template-library-scroll">
+        <div class="template-card-grid">
+          <% themes.forEach(function(theme) { %>
+            <label
+              class="template-card <%= theme.id === currentThemeId ? 'is-active' : '' %>"
+              data-template-card
+              data-template-id="<%= theme.id %>"
+              data-template-name="<%= theme.name %>"
+              data-template-desc="<%= theme.description %>"
+              data-template-badge="<%= theme.badge %>"
+              data-template-active="<%= theme.id === currentThemeId ? '1' : '0' %>"
+              data-template-default="<%= theme.id === 'builtin-default' ? '1' : '0' %>"
+            >
+              <input type="radio" name="frontend_theme" value="<%= theme.id %>" <%= theme.id === currentThemeId ? 'checked' : '' %> onchange="selectTemplateCard(this)">
+              <span class="template-card-topline">
+                <span class="template-card-badge"><%= theme.badge %></span>
+                <% if (theme.id === currentThemeId) { %><span class="template-card-current">当前</span><% } %>
+              </span>
+              <span class="template-card-preview template-preview-<%= theme.id %>">
+                <span></span><span></span><span></span>
+              </span>
+              <span class="template-card-title"><%= theme.name %></span>
+              <span class="template-card-desc"><%= theme.description %></span>
+              <span class="template-card-meta">
+                <code><%= theme.id %></code>
+                <a href="/" target="_blank" rel="noopener" onclick="event.stopPropagation()">预览</a>
+              </span>
+            </label>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="template-empty-state" id="templateEmptyState" hidden>
+        <strong>没有找到匹配模板</strong>
+        <span>换个关键词或清空筛选条件。</span>
+      </div>
+    </section>
+
+    <div class="template-sticky-actions">
+      <div>
+        <span>将要启用</span>
+        <strong id="selectedTemplateName"><%= activeTheme.name %></strong>
+      </div>
+      <div class="template-sticky-buttons">
+        <button type="submit" class="btn btn-primary btn-lg">应用所选模板</button>
+        <a href="/" class="btn btn-outline btn-lg" target="_blank" rel="noopener">查看前台效果</a>
+      </div>
     </div>
   </form>
 </div>
+
+<script>
+var activeTemplateFilter = 'all';
+
+function normalizeTemplateText(value) {
+  return String(value || '').toLowerCase();
+}
+
+function templateMatchesFilter(card) {
+  if (activeTemplateFilter === 'active') return card.dataset.templateActive === '1';
+  if (activeTemplateFilter === 'default') return card.dataset.templateDefault === '1';
+  if (activeTemplateFilter === 'custom') return card.dataset.templateDefault !== '1';
+  return true;
+}
+
+function filterTemplates() {
+  var input = document.getElementById('templateSearchInput');
+  var query = normalizeTemplateText(input ? input.value : '');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('[data-template-card]'));
+  var visibleCount = 0;
+
+  cards.forEach(function(card) {
+    var haystack = normalizeTemplateText([
+      card.dataset.templateId,
+      card.dataset.templateName,
+      card.dataset.templateDesc,
+      card.dataset.templateBadge,
+    ].join(' '));
+    var visible = templateMatchesFilter(card) && (!query || haystack.indexOf(query) !== -1);
+    card.hidden = !visible;
+    if (visible) visibleCount++;
+  });
+
+  var count = document.querySelector('[data-template-count]');
+  if (count) count.textContent = String(visibleCount);
+  var empty = document.getElementById('templateEmptyState');
+  if (empty) empty.hidden = visibleCount !== 0;
+}
+
+function setTemplateFilter(filter, button) {
+  activeTemplateFilter = filter;
+  document.querySelectorAll('[data-template-filter]').forEach(function(item) {
+    item.classList.toggle('is-active', item === button);
+  });
+  filterTemplates();
+}
+
+function selectTemplateCard(input) {
+  var card = input.closest('[data-template-card]');
+  if (!card) return;
+  document.querySelectorAll('[data-template-card]').forEach(function(item) {
+    item.classList.toggle('is-selected', item === card);
+  });
+  var label = document.getElementById('selectedTemplateName');
+  if (label) label.textContent = card.dataset.templateName || input.value;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  filterTemplates();
+  var checked = document.querySelector('input[name="frontend_theme"]:checked');
+  if (checked) selectTemplateCard(checked);
+});
+</script>
 <%- include('layout-close') %>
 
