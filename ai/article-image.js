@@ -266,6 +266,13 @@ function containsCjk(text = '') {
 
 function sanitizeUnsafePlannerBrief(text = '') {
   return String(text || '')
+    .replace(/\bwithout showing a real interface\b/gi, 'with no interface elements')
+    .replace(/\breal interface\b/gi, 'interface-free abstract objects')
+    .replace(/\b(?:screen\s+displaying|displaying)\b[^,.]*/gi, 'blank non-ui screen')
+    .replace(/\bface up\b/gi, 'back side up or with the screen turned away')
+    .replace(/\bmanual confirmation slider\b/gi, 'abstract translucent shape without controls')
+    .replace(/\bslider\b/gi, 'abstract translucent shape without controls')
+    .replace(/\b(?:app icons?|list items|navigation elements|ui components?|interface)\b/gi, 'non-ui abstract shapes')
     .replace(/\bno\s+(?:readable\s+|pseudo\s+|visible\s+)?text\b/gi, 'blank surfaces only')
     .replace(/\bno\s+(?:logos?|watermarks?|screenshots?|ui labels?)\b/gi, 'unbranded')
     .replace(/\bno\s+(?:close[-\s]?up\s+|prominent\s+)?hands?\b/gi, 'natural body framing')
@@ -316,8 +323,7 @@ function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
     article.category_name ? `Category: ${article.category_name}` : '',
   ].filter(Boolean).join(' | '), 520);
   const sourceContext = sanitizeImageContext(sourcePrompt, 760);
-  const sourceIsSafe = !!sourceContext && !hasUnsafeImageSubject(sourcePrompt);
-  const safeSourceContext = sourceIsSafe ? sourceContext : sanitizeUnsafePlannerBrief(sourceContext);
+  const safeSourceContext = sanitizeUnsafePlannerBrief(sourceContext);
   const hasSourceBrief = !!safeSourceContext;
   const visualBrief = hasSourceBrief ? safeSourceContext : articleContext;
   const seed = article.slug || article.id || article.title || visualBrief;

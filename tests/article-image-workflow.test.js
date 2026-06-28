@@ -544,6 +544,31 @@ test('unsafe English planner briefs are sanitized instead of falling back to raw
   assert.doesNotMatch(sourceBrief, /close-up hands|right hand|prominent hands|no natural body posture/i);
 });
 
+test('planner briefs with visible phone screens are rewritten to blank non-ui surfaces', async () => {
+  const { planArticleImage } = require('../ai/article-image');
+
+  const plan = await planArticleImage(
+    {
+      title: '苹果AI入华三周，微信读书、支付宝、抖音踩了哪些坑',
+      summary: '文章讨论国内 App 适配 Apple Intelligence 时遇到的隐私、权限和交互风险。',
+      category_name: '技术应用',
+    },
+    {
+      planner: async () => ({
+        needed: true,
+        alt: 'Apple Intelligence app integration cover',
+        visual_angle: 'Show app integration safeguards without showing a real interface.',
+        prompt: 'A sleek smartphone lies face up, its screen displaying a soft abstract apple-shaped light pattern, with a translucent manual confirmation slider in the foreground, no readable text.',
+      }),
+    },
+  );
+
+  const sourceBrief = plan.prompt.match(/English visual brief[^.]+(?:\.[^.]+){0,3}/i)?.[0] || plan.prompt;
+  assert.match(sourceBrief, /blank|turned away|non-legible|non-ui|abstract translucent shape/i);
+  assert.doesNotMatch(sourceBrief, /face up|screen displaying|manual confirmation slider|real interface/i);
+  assert.doesNotMatch(plan.prompt, /苹果AI|微信读书|支付宝|抖音/);
+});
+
 test('semantic image review instructions use MVP quality gate instead of over-strict taste judging', () => {
   const { buildImageReviewMessages } = require('../ai/article-image');
 
