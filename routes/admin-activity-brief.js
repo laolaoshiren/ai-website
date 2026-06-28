@@ -1,3 +1,5 @@
+const { normalizeAgentLogDisplay } = require('./agent-log-ai');
+
 function toTime(log = {}) {
   const value = log.created_at || log.updated_at || '';
   const time = Date.parse(String(value).replace(' ', 'T'));
@@ -89,14 +91,19 @@ function buildActions(logs = [], limit = 8) {
     .sort((a, b) => toTime(b) - toTime(a))
     .filter((log) => cleanText(log.action || log.detail))
     .slice(0, limit)
-    .map((log) => ({
-      time: log.created_at || '',
-      role: cleanText(log.agent_role, 'system'),
-      status: cleanText(log.display_status || log.status, 'unknown'),
-      statusClass: cleanText(log.display_status_class || log.status, 'planned'),
-      summary: actionSummary(log),
-      method: buildMethod(log),
-    }));
+    .map((log) => {
+      const display = log.display_status
+        ? { label: log.display_status, className: log.display_status_class || 'planned' }
+        : normalizeAgentLogDisplay(log);
+      return {
+        time: log.created_at || '',
+        role: cleanText(log.agent_role, 'system'),
+        status: cleanText(display.label, '未知'),
+        statusClass: cleanText(display.className, 'planned'),
+        summary: actionSummary(log),
+        method: buildMethod(log),
+      };
+    });
 }
 
 function buildHealth(stats = {}, logs = []) {

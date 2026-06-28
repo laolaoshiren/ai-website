@@ -25,9 +25,14 @@ function normalizeSettingValue(value) {
   return value;
 }
 
+function normalizeMultiLineSecretInput(value) {
+  if (Array.isArray(value)) return value.join('\n');
+  return value;
+}
+
 function normalizeTavilyKeyInput(value) {
   const { parseTavilyKeys } = require('../ai/search');
-  return parseTavilyKeys(normalizeSettingValue(value)).join('\n');
+  return parseTavilyKeys(normalizeMultiLineSecretInput(value)).join('\n');
 }
 
 function normalizeImageProviderKeyInput(value) {

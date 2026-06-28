@@ -135,3 +135,65 @@ test('admin dashboard recent logs render AI provider and model columns', async (
   assert.match(html, /OpenRouter/);
   assert.match(html, /gpt-4\.1-mini/);
 });
+
+test('admin agent status views render image agents with Chinese names', async () => {
+  const { AGENT_ROLES, AGENT_ROLE_NAMES, buildAgentStatuses } = require('../routes/agent-status');
+  const agentStatuses = buildAgentStatuses({}, []);
+
+  const commonLocals = {
+    currentPath: '/admin',
+    csrfToken: 'token',
+    agentLogs: [],
+    agentStatuses,
+    agentRoles: AGENT_ROLES,
+    agentRoleNames: AGENT_ROLE_NAMES,
+    pagination: {
+      totalItems: 0,
+      totalPages: 1,
+      currentPage: 1,
+      startItem: 0,
+      endItem: 0,
+      items: [],
+    },
+    total: 0,
+  };
+
+  const dashboardHtml = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'dashboard.ejs'),
+    {
+      ...commonLocals,
+      title: 'Dashboard',
+      stats: {
+        totalArticles: 0,
+        totalPlanned: 0,
+        totalCategories: 0,
+        totalPageviews: 0,
+        activeProviders: 1,
+        totalProviders: 1,
+      },
+      schedules: [],
+      outage: { active: false },
+      rageStatus: { active: false, level: 3 },
+      workMode: 'smart',
+      getConfig: () => ({ ai_loop_enabled: '0' }),
+      success: '',
+      error: '',
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  const logsHtml = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'logs.ejs'),
+    {
+      ...commonLocals,
+      title: 'Agent 日志',
+      logs: [],
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(dashboardHtml, /配图设计师/);
+  assert.match(dashboardHtml, /配图审核员/);
+  assert.match(logsHtml, /配图设计师/);
+  assert.match(logsHtml, /配图审核员/);
+});

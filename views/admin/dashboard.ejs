@@ -148,9 +148,9 @@
 
     <div class="admin-panel">
       <h2>🤖 Agent 状态</h2>
-      <% var roleNames = {site_manager:'🏢 站长',editor:'✏️ 编辑',reviewer:'🔍 审核',technician:'🔧 技术员',news_collector:'📡 新闻采集',writer:'✍️ 写手',planner:'🧠 规划师',seo_expert:'📊 SEO专家',analyzer:'📈 分析师',user_tester:'👤 测评员'}; %>
+      <% var roleNames = {site_manager:'站长',planner:'规划师',news_collector:'新闻采集员',writer:'写手',reviewer:'内容审核员',editor:'编辑',image_designer:'配图设计师',image_reviewer:'配图审核员',seo_expert:'SEO 专家',user_tester:'用户测评员',analyzer:'数据分析师',technician:'技术员',polisher:'润色师'}; %>
       <% roleNames = typeof agentRoleNames !== 'undefined' ? agentRoleNames : roleNames; %>
-      <% var allRoles = typeof agentRoles !== 'undefined' ? agentRoles : ['site_manager','planner','news_collector','writer','reviewer','editor','seo_expert','user_tester','analyzer','technician']; %>
+      <% var allRoles = typeof agentRoles !== 'undefined' ? agentRoles : ['site_manager','planner','news_collector','writer','reviewer','editor','image_designer','image_reviewer','seo_expert','user_tester','analyzer','technician','polisher']; %>
       <div class="agent-status-list">
         <% allRoles.forEach(function(role) { %>
         <% var s = agentStatuses[role] || { status: 'idle', dotClass: 'dot-gray', displayText: '空闲' }; %>

@@ -51,6 +51,8 @@ test('builds a concise dashboard brief from historical agent logs', () => {
   assert.equal(brief.moa.latest.candidateCount, 3);
   assert.equal(brief.moa.latest.failedCandidates, 1);
   assert.equal(brief.actions[0].summary, 'SEO优化：完成: 12 个页面');
+  assert.equal(brief.actions[0].status, '成功');
+  assert.equal(brief.actions[0].statusClass, 'published');
   assert.equal(brief.actions[1].method, 'MoA 聚合 / gpt-4.1-mini');
   assert.equal(brief.health[0].value, 12);
 });
