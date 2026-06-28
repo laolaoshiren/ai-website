@@ -86,6 +86,35 @@ test('admin settings page manages Tavily keys with a modal and validation action
   assert.match(html, /一键验证|验证/);
 });
 
+test('admin settings page exposes the article image generation switch', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'settings.ejs'),
+    {
+      title: '绯荤粺璁剧疆',
+      currentPath: '/admin/settings',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      config: {
+        site_title: 'AI 绾厓',
+        site_url: 'https://aiweb.bt199.com',
+        site_language: 'zh-CN',
+        image_generation_enabled: '1',
+        image_cleanup_keep_days: '180',
+        image_cleanup_max_mb: '2048',
+        work_mode: 'smart',
+        rage_level: '3',
+      },
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /name="image_generation_enabled"/);
+  assert.match(html, /value="1" checked/);
+  assert.match(html, /image_cleanup_keep_days/);
+  assert.match(html, /image_cleanup_max_mb/);
+});
+
 test('admin settings form CSS avoids cramped one-row fields and native bright scrollbars', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'admin.css'), 'utf8');
 

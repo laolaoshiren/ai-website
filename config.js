@@ -1,7 +1,7 @@
 /**
  * 配置管理 v2 - 适配多提供商数据库
  */
-const { getAllSettings, getSetting, setSetting, getActiveAIProvider } = require('./db/database');
+const { getAllSettings, getSetting, setSetting, getActiveAIProvider, getImageProviders } = require('./db/database');
 
 let cachedConfig = null;
 let cacheTime = 0;
@@ -36,4 +36,10 @@ function isAIConfigured() {
   return !!(provider && provider.api_key && provider.base_url && provider.model);
 }
 
-module.exports = { getConfig, refreshConfig, getSiteConfig, isAIConfigured, getSetting, setSetting };
+function isImageGenerationConfigured() {
+  const config = getConfig();
+  if (config.image_generation_enabled !== '1') return false;
+  return getImageProviders().some(provider => provider.enabled && provider.api_key && provider.base_url && provider.model);
+}
+
+module.exports = { getConfig, refreshConfig, getSiteConfig, isAIConfigured, isImageGenerationConfigured, getSetting, setSetting };

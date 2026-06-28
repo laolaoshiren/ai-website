@@ -8,7 +8,7 @@ test('admin providers view tests providers inline without navigating away', asyn
   const html = await ejs.renderFile(
     path.join(__dirname, '..', 'views', 'admin', 'providers.ejs'),
     {
-      title: 'AI 提供商',
+      title: 'AI Providers',
       currentPath: '/admin/providers',
       csrfToken: 'token',
       success: '',
@@ -25,6 +25,7 @@ test('admin providers view tests providers inline without navigating away', asyn
           error_count: 0,
         },
       ],
+      imageProviders: [],
     },
     { views: [path.join(__dirname, '..', 'views', 'admin')] },
   );
@@ -50,7 +51,7 @@ test('admin provider cards keep long API addresses inside the card', async () =>
   const html = await ejs.renderFile(
     path.join(__dirname, '..', 'views', 'admin', 'providers.ejs'),
     {
-      title: 'AI 提供商',
+      title: 'AI Providers',
       currentPath: '/admin/providers',
       csrfToken: 'token',
       success: '',
@@ -67,6 +68,7 @@ test('admin provider cards keep long API addresses inside the card', async () =>
           error_count: 38,
         },
       ],
+      imageProviders: [],
     },
     { views: [path.join(__dirname, '..', 'views', 'admin')] },
   );
@@ -76,4 +78,37 @@ test('admin provider cards keep long API addresses inside the card', async () =>
   assert.match(css, /\.provider-card \{[^}]*min-width:\s*0/s);
   assert.match(css, /\.provider-info code \{[^}]*max-width:\s*100%/s);
   assert.match(css, /\.provider-info code \{[^}]*overflow-wrap:\s*anywhere/s);
+});
+
+test('admin providers view manages image providers separately from text providers', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'providers.ejs'),
+    {
+      title: 'AI Providers',
+      currentPath: '/admin/providers',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      providers: [],
+      imageProviders: [
+        {
+          id: 5,
+          name: 'Agnes Image',
+          base_url: 'https://apihub.agnes-ai.com/v1',
+          api_key: 'sk-img-a\nsk-img-b',
+          model: 'agnes-image-2.1-flash',
+          enabled: 1,
+          request_count: 2,
+          error_count: 0,
+        },
+      ],
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /id="imageProviderForm"/);
+  assert.match(html, /\/admin\/image-providers\/add/);
+  assert.match(html, /data-image-provider-test-button/);
+  assert.match(html, /data-provider-test-url="\/admin\/image-providers\/5\/test"/);
+  assert.doesNotMatch(html, /action="\/admin\/image-providers\/5\/test"/);
 });

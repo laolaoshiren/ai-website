@@ -18,6 +18,11 @@ try {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.text({ type: 'text/plain' }));
+['data', 'data/generated-images', 'data/generated-images/articles', 'logs', 'public/images'].forEach(dir => {
+  const p = path.join(__dirname, dir);
+  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+});
+app.use('/generated-images', express.static(path.join(__dirname, 'data', 'generated-images')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -70,8 +75,6 @@ app.use((err, req, res, next) => {
     res.status(500).render('pages/404', { title: '服务器错误', latest: [] });
   } catch { res.status(500).send('服务器内部错误'); }
 });
-
-['data', 'logs', 'public/images'].forEach(dir => { const p = path.join(__dirname, dir); if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); });
 
 (async () => {
   await initDb();

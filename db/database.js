@@ -54,6 +54,9 @@ const DEFAULT_DATA = {
   // AI 提供商列表（支持多个、备用、负载均衡）
   ai_providers: [],
 
+  // 生图提供商列表（独立于文字 AI 提供商）
+  image_providers: [],
+
   // 网站设置
   settings: {
     site_title: 'AI 智能网站',
@@ -64,6 +67,9 @@ const DEFAULT_DATA = {
     site_url: 'http://localhost:3000',
     ai_loop_enabled: '0',
     moa_enabled: '0',
+    image_generation_enabled: '0',
+    image_cleanup_keep_days: '180',
+    image_cleanup_max_mb: '2048',
     content_plan: '',
     last_strategy_notes: '',
   },
@@ -106,7 +112,7 @@ const DEFAULT_DATA = {
   friend_links: [],
 
   // ID 计数器
-  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, ads: 0, friend_links: 0 },
+  _counters: { categories: 0, pages: 0, agent_logs: 0, analytics: 0, template_history: 0, ai_providers: 0, image_providers: 0, ads: 0, friend_links: 0 },
 };
 
 async function initDb() {
@@ -122,12 +128,16 @@ async function initDb() {
     if (!(key in data)) data[key] = DEFAULT_DATA[key];
   }
   if (!data._counters) data._counters = DEFAULT_DATA._counters;
+  for (const key of Object.keys(DEFAULT_DATA._counters)) {
+    if (!(key in data._counters)) data._counters[key] = DEFAULT_DATA._counters[key];
+  }
   if (!data.admin) data.admin = { password: '', setup: false };
   if (!data.ai_providers) data.ai_providers = [];
+  if (!data.image_providers) data.image_providers = [];
   if (!data.agent_logs) data.agent_logs = [];
   if (!data.agent_status) data.agent_status = {};
   // 初始化所有 Agent 状态（确保面板显示完整）
-  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'seo_expert', 'user_tester', 'analyzer', 'technician'];
+  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'image_designer', 'image_reviewer', 'seo_expert', 'user_tester', 'analyzer', 'technician'];
   for (const role of ALL_AGENTS) {
     if (!data.agent_status[role]) {
       data.agent_status[role] = { status: 'idle', current_task: null, updated_at: null };
@@ -341,6 +351,47 @@ function incrementProviderUsage(id, success) {
   if (p) { p.request_count = (p.request_count || 0) + 1; if (!success) p.error_count = (p.error_count || 0) + 1; scheduleSave(); }
 }
 
+// ============ 生图提供商 ============
+function getImageProviders() { return getDb().image_providers || []; }
+function addImageProvider(provider) {
+  return withLock(() => {
+    const id = nextId('image_providers');
+    getDb().image_providers.push({
+      id,
+      name: provider.name,
+      base_url: provider.base_url,
+      api_key: provider.api_key,
+      model: provider.model,
+      enabled: true,
+      request_count: 0,
+      error_count: 0,
+      created_at: now(),
+    });
+    scheduleSave();
+    return id;
+  });
+}
+function updateImageProvider(id, updates) {
+  return withLock(() => {
+    const p = getImageProviders().find(p => p.id === id);
+    if (p) { Object.assign(p, updates); scheduleSave(); }
+  });
+}
+function deleteImageProvider(id) {
+  return withLock(() => {
+    getDb().image_providers = getImageProviders().filter(p => p.id !== id);
+    scheduleSave();
+  });
+}
+function incrementImageProviderUsage(id, success) {
+  const p = getImageProviders().find(p => p.id === id);
+  if (p) {
+    p.request_count = (p.request_count || 0) + 1;
+    if (!success) p.error_count = (p.error_count || 0) + 1;
+    scheduleSave();
+  }
+}
+
 // ============ 设置 ============
 function getSetting(key) { return getDb().settings[key] ?? null; }
 function setSetting(key, value) {
@@ -491,7 +542,15 @@ function insertPage(page) {
       id, slug: page.slug, title: page.title, category_id: categoryId,
       template: page.template || 'article', summary: page.summary || '',
       content_md: page.content_md || '', content_html: page.content_html || '',
-      cover_image: page.cover_image || null, status: page.status || 'draft',
+      cover_image: page.cover_image || null,
+      image_alt: page.image_alt || null,
+      image_prompt: page.image_prompt || null,
+      image_review_status: page.image_review_status || null,
+      image_review_reason: page.image_review_reason || null,
+      image_provider: page.image_provider || null,
+      image_model: page.image_model || null,
+      image_generated_at: page.image_generated_at || null,
+      status: page.status || 'draft',
       featured: page.featured || 0, view_count: 0,
       seo_title: page.seo_title || null, seo_description: page.seo_description || null,
       seo_keywords: page.seo_keywords || null, schema_json: page.schema_json || null,
@@ -684,6 +743,7 @@ module.exports = {
   initDb, getDb, saveDb,
   getAdmin, setAdminPassword,
   getAIProviders, getActiveAIProvider, addAIProvider, updateAIProvider, deleteAIProvider, incrementProviderUsage,
+  getImageProviders, addImageProvider, updateImageProvider, deleteImageProvider, incrementImageProviderUsage,
   getSetting, setSetting, getAllSettings,
   logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
