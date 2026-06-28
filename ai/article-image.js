@@ -197,6 +197,12 @@ function deterministicBucket(value) {
   return hash[0] / 255;
 }
 
+function deterministicIndex(value, length, salt = '') {
+  if (!length) return 0;
+  const hash = crypto.createHash('sha1').update(`${salt}:${String(value || '')}`).digest();
+  return hash[0] % length;
+}
+
 function shouldAttemptArticleImage(article = {}, config = {}, providers = [], options = {}) {
   if (!isImageGenerationAvailable(config, providers)) return { ok: false, reason: 'not_configured' };
   if (article.cover_image) return { ok: false, reason: 'already_has_image' };
@@ -229,13 +235,18 @@ const HUMAN_CONTEXT_REPLACEMENTS = [
   [/\bllms?\b/gi, 'large language model systems'],
   [/\bai\b/gi, 'machine intelligence'],
   [/\bsaas\b/gi, 'subscription software'],
-  [/\blab(?:s)?\b|\blaborator(?:y|ies)\b/gi, 'prototype evidence'],
-  [/\b(investors?|venture capitalists?|founders?|entrepreneurs?|ceos?|executives?|leaders?|workers?|employees?|users?|readers?|customers?|people|persons|humans|teams?|researchers?|scientists?|doctors?|patients?|teachers?|students?)\b/gi, 'market signals and organization evidence'],
-  [/(投资人|投资者|创投|创始人|企业家|高管|用户|读者|客户|人群|人物|团队|员工|专家|科学家|研究员|医生|患者|老师|学生|主播|演员)/g, '市场信号和组织证据'],
-  [/(肖像|人像|面孔|脸|手|白大褂|实验室|试管|烧杯|文字|水印|标志|截图)/g, '抽象业务物件'],
+  [/(肖像|人像|面孔|脸部特写|手部特写|文字|水印|标志|截图)/g, '安全的编辑画面元素'],
 ];
 
-const UNSAFE_IMAGE_SUBJECT_RE = /\b(close[-\s]?up|portrait|headshot|selfie|founders?|investors?|people|persons?|humans?|faces?|hands?|bodies?|scientists?|researchers?|doctors?|patients?|laborator(?:y|ies)|lab coats?|beakers?|test tubes?|text|letters?|logos?|watermarks?|screenshots?)\b|肖像|人像|人物|面孔|白大褂|实验室|试管|烧杯|文字|水印|标志|截图/i;
+const UNSAFE_IMAGE_SUBJECT_RE = /\b(close[-\s]?up|portrait|headshot|selfie|faces?|hands?|readable text|letters?|logos?|watermarks?|screenshots?)\b|肖像|人像|面孔|脸部特写|手部特写|文字|水印|标志|截图/i;
+
+function hasUnsafeImageSubject(prompt = '') {
+  const withoutNegatedSafetyTerms = String(prompt || '').replace(
+    /\b(?:no|without|avoid)\s+(?:readable\s+)?(?:text|letters?|logos?|watermarks?|screenshots?|captions?|signboards?|brand marks?|ui screenshots?)(?:\b|[,.;])/gi,
+    ' ',
+  );
+  return UNSAFE_IMAGE_SUBJECT_RE.test(withoutNegatedSafetyTerms);
+}
 
 function sanitizeImageContext(text, maxLength = 520) {
   let cleaned = compactText(text, maxLength * 2);
@@ -249,23 +260,60 @@ function sanitizeImageContext(text, maxLength = 520) {
     .slice(0, maxLength);
 }
 
+const UNIVERSAL_IMAGE_TREATMENTS = [
+  {
+    name: 'editorial still life',
+    method: 'arrange the article-specific objects, ingredients, products, tools, documents, materials or symbols as a premium magazine still life',
+  },
+  {
+    name: 'place and atmosphere scene',
+    method: 'show the article-specific place, season, environment, people in context or atmosphere as a clean scene using the actual subject matter implied by the article',
+  },
+  {
+    name: 'process or transformation scene',
+    method: 'show the article-specific before-and-after, route, workflow, recipe step, repair, growth, decline or comparison through whatever relevant subjects best explain the article',
+  },
+  {
+    name: 'detail-focused feature image',
+    method: 'focus on the most concrete subject from the article with tactile material detail, natural light and a simple background',
+  },
+  {
+    name: 'curated evidence layout',
+    method: 'lay out concrete clues from the article as a clean editorial composition, using blank surfaces where text would otherwise appear',
+  },
+];
+
+function selectUniversalImageTreatment(seed) {
+  return UNIVERSAL_IMAGE_TREATMENTS[deterministicIndex(seed, UNIVERSAL_IMAGE_TREATMENTS.length, 'article-image-treatment')];
+}
+
 function buildSafeArticleImagePrompt(article = {}, sourcePrompt = '') {
   const articleContext = sanitizeImageContext([
     article.title,
     article.summary,
+    article.content_md || article.content_html ? `Excerpt: ${compactText(article.content_md || article.content_html, 420)}` : '',
     article.category_name ? `Category: ${article.category_name}` : '',
   ].filter(Boolean).join(' | '), 520);
   const sourceContext = sanitizeImageContext(sourcePrompt, 760);
-  const visualBrief = sourceContext && !UNSAFE_IMAGE_SUBJECT_RE.test(sourcePrompt)
-    ? sourceContext
-    : articleContext;
+  const sourceIsSafe = !!sourceContext && !hasUnsafeImageSubject(sourcePrompt);
+  const visualBrief = sourceIsSafe ? sourceContext : articleContext;
+  const seed = article.slug || article.id || article.title || visualBrief;
+  const treatment = selectUniversalImageTreatment(seed || articleContext);
+  const primaryVisualBrief = sourceIsSafe
+    ? visualBrief
+    : 'derive the visible subject from Article focus and the article domain itself. Choose the most relevant concrete subject, scene, person-in-context, process, place, object, food, document, landscape, atmosphere or symbolic detail; do not use a preset theme.';
 
   return [
-    'Non-figurative object-only editorial cover image.',
-    'The visible subject must be a luminous blue-white glass core inside a circular ring, floating above blank white cubes, with clean data-flow ribbons and subtle gold-blue flow arcs.',
-    `Use this concept only for mood, never literally: ${visualBrief || 'the core idea of the article'}.`,
-    'Use an empty seamless studio background, spacious composition, refined lighting, landscape 1024x768, polished and uncluttered.',
-    'No people, no faces, no hands, no bodies. Keep all surfaces blank and typography-free; avoid brand marks, interface captures, signboards, captions, watermarks and messy details.',
+    'Editorial cover image for a real article, modern magazine quality.',
+    `Article focus: ${articleContext || 'the core idea of the article'}.`,
+    `Primary visual brief: ${primaryVisualBrief}.`,
+    `Editorial method: ${treatment.name}; ${treatment.method}.`,
+    'Let the article decide the subject: it may be food, recipe steps, cooking atmosphere, travel scenery, local details, people in context, objects, products, documents, rooms, landscapes, culture, finance, technology, education or any other relevant scene.',
+    'People are allowed only when the article naturally calls for them; prefer natural editorial context, silhouettes, back views, environmental scenes, or small groups instead of close-up faces.',
+    'Avoid close-up portraits, distorted faces, prominent hands, readable text, logos, watermarks, screenshots, captions, signboards and messy clutter.',
+    'Make the image feel specific to this article through concrete subject matter, objects, materials, composition, lighting and mood; avoid generic AI abstract art.',
+    'Do not substitute a technology aesthetic unless the article is actually about technology. Avoid repeated template-like abstract visuals unless the article specifically demands them.',
+    'Landscape 1024x768, one clear focal subject, refined lighting, polished finish, believable editorial art direction, uncluttered composition.',
   ].join(' ');
 }
 
@@ -281,11 +329,15 @@ function fallbackImagePlan(article = {}) {
 function normalizeImagePlan(plan, article) {
   const fallback = fallbackImagePlan(article);
   const needed = plan?.needed;
+  const plannerPrompt = [
+    plan?.visual_angle ? `Visual angle: ${plan.visual_angle}` : '',
+    plan?.prompt || '',
+  ].filter(Boolean).join(' | ');
   return {
     needed: needed === false ? false : true,
     reason: String(plan?.reason || fallback.reason).slice(0, 300),
     alt: String(plan?.alt || fallback.alt).slice(0, 160),
-    prompt: buildSafeArticleImagePrompt(article, plan?.prompt || '').slice(0, 1600),
+    prompt: buildSafeArticleImagePrompt(article, plannerPrompt).slice(0, 1600),
   };
 }
 
@@ -298,7 +350,7 @@ async function planArticleImage(article, options = {}) {
     const { data } = await callAIForJSON([
       {
         role: 'system',
-        content: 'You are an editorial art director. Decide whether a Chinese article needs a cover image and write a safe image-generation prompt. Return JSON only.',
+        content: 'You are a senior human picture editor and editorial art director for a Chinese web magazine. Read the article, choose a concrete, relevant cover-image concept, and write one safe image-generation prompt. Return JSON only.',
       },
       {
         role: 'user',
@@ -311,14 +363,19 @@ async function planArticleImage(article, options = {}) {
             needed: true,
             reason: 'short reason',
             alt: 'short image alt text',
-            prompt: 'visual prompt; no text, no logos, no clutter',
+            visual_angle: 'one-sentence explanation of the editorial image idea',
+            prompt: 'specific image-generation prompt; no text, no logos, no clutter',
           },
           rules: [
-            'The image must match the core idea of the article.',
+            'This system is domain-neutral. The website may be about food, travel, lifestyle, finance, technology, culture, education, health, local news or any other topic. Use the article domain itself; never force a technology style onto non-technology articles.',
+            'The image must match the core idea and concrete details of the article, like a human editor selected it for this exact story.',
+            'First mentally summarize the article into one visual angle, then write the prompt from that angle.',
+            'You are free to choose food, recipe process, cooking scene, people in context, travel landscape, local object, product detail, document layout, room, street, classroom, clinic, cultural item, abstract symbol or any other subject if it best serves the article.',
+            'Use concrete objects, setting, material, lighting, camera angle, composition and mood. Do not output a generic wallpaper.',
             'Avoid text, letters, numbers, watermarks, logos, UI screenshots and messy compositions.',
-            'Avoid close-up human portraits unless the article is about a named person.',
-            'Default to no people, no faces, no hands and no laboratory glassware.',
-            'Prefer conceptual scenes, funding flows, product evidence, data dashboards or symbolic objects over stock-photo portraits.',
+            'People are allowed when useful, but avoid close-up faces, prominent hands, celebrity-like portraits and distorted anatomy.',
+            'Avoid repeated AI-cliche visuals such as generic glowing cores, random glass orbs, neural-network wallpaper and meaningless data ribbons.',
+            'Prefer editorial still life, place atmosphere, process scenes, detail-focused feature images, or carefully designed symbolic scenes with one clear subject from the article.',
             'Prefer modern editorial photography or polished illustration with one focal subject.',
             'Return needed=false for brief announcements or articles where a generic image would be misleading.',
           ],
@@ -460,14 +517,11 @@ function imageMimeType(filePath, buffer) {
   return 'image/png';
 }
 
-async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
-  const buffer = fs.readFileSync(filePath);
-  const dataUrl = `data:${imageMimeType(filePath, buffer)};base64,${buffer.toString('base64')}`;
-  const { callAIForJSON } = require('./client');
-  const { data } = await callAIForJSON([
+function buildImageReviewMessages({ article, prompt, dataUrl }) {
+  return [
     {
       role: 'system',
-      content: 'You are a strict image reviewer for editorial article covers. Return JSON only.',
+      content: 'You are an MVP quality gate for editorial article cover images. Return JSON only.',
     },
     {
       role: 'user',
@@ -488,16 +542,28 @@ async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
               issues: [],
             },
             rules: [
-              'Pass only if the cover is relevant to the article core idea.',
-              'Fail if it contains people, faces, hands, messy composition, obvious gibberish text, readable labels, logos, watermarks or a rough low-quality look.',
-              'Pass clean abstract business or technology visuals with one clear focal subject.',
+              'MVP gate: judge whether the image is basically usable for this article, not whether it is award-winning art.',
+              'The website may be food, travel, lifestyle, finance, technology, culture, education, health, local news or any other topic. Review against the article domain itself.',
+              'Pass if the image is basically relevant to the article, visually coherent, not 99% generic/repeated, and has no obvious gibberish text, watermarks, logos, broken anatomy or severe clutter.',
+              'People are allowed when contextually relevant, especially in travel, food, lifestyle, education, health or local scenes. Fail only for obvious distorted faces, prominent malformed hands, celebrity-like fake portraits, or irrelevant people.',
+              'Do not fail merely because the image model quality is ordinary. Fail only if the image is clearly unrelated, mostly unreadable/garbled, duplicated-template-like, visually broken, or misleading for the article.',
             ],
           }),
         },
         { type: 'image_url', image_url: { url: dataUrl } },
       ],
     },
-  ], { taskType: 'image_review', maxTokens: 800, temperature: 0, moa: false, timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS });
+  ];
+}
+
+async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
+  const buffer = fs.readFileSync(filePath);
+  const dataUrl = `data:${imageMimeType(filePath, buffer)};base64,${buffer.toString('base64')}`;
+  const { callAIForJSON } = require('./client');
+  const { data } = await callAIForJSON(
+    buildImageReviewMessages({ article, prompt, dataUrl }),
+    { taskType: 'image_review', maxTokens: 800, temperature: 0, moa: false, timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS },
+  );
 
   return data;
 }
@@ -711,6 +777,7 @@ module.exports = {
   testImageProvider,
   generateArticleImage,
   reviewGeneratedImage,
+  buildImageReviewMessages,
   reviewArticleImage,
   cleanupArticleImages,
   readImageDimensions,
