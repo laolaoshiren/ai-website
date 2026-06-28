@@ -562,7 +562,7 @@ async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
   const { callAIForJSON } = require('./client');
   const { data } = await callAIForJSON(
     buildImageReviewMessages({ article, prompt, dataUrl }),
-    { taskType: 'image_review', maxTokens: 800, temperature: 0, moa: false, timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS },
+    { taskType: 'image_review', maxTokens: 800, temperature: 0, moa: false, requireVision: true, timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS },
   );
 
   return data;

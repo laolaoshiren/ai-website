@@ -46,6 +46,18 @@ function normalizePositiveSetting(value, fallback, min = 0, max = 100000) {
   return String(Math.max(min, Math.min(max, num)));
 }
 
+function queueVisionCapabilityRefresh(providers = null, options = {}) {
+  setTimeout(async () => {
+    try {
+      const { ensureVisionProviderCapabilities } = require('../ai/client');
+      const targets = providers || db.getAIProviders().filter(p => p.enabled);
+      await ensureVisionProviderCapabilities(targets, { timeoutMs: 60 * 1000, ...options });
+    } catch (err) {
+      try { db.logAgent('technician', '视觉模型能力检测', 'failed', err.message); } catch {}
+    }
+  }, 0);
+}
+
 const LOGIN_LOCKOUT = 15 * 60 * 1000; // 15 分钟
 
 // ============ 会话管理（持久化到数据库） ============
@@ -237,15 +249,18 @@ router.get('/settings', (req, res) => {
 router.post('/settings', requireCsrf, (req, res) => {
   try {
     const fields = ['site_title', 'site_description', 'site_theme', 'site_direction', 'site_language', 'site_url', 'tavily_api_key', 'moa_enabled', 'image_generation_enabled', 'image_cleanup_keep_days', 'image_cleanup_max_mb'];
+    let shouldRefreshVision = false;
     for (const field of fields) {
       if (req.body[field] === undefined) continue;
       let value = normalizeSettingValue(req.body[field]);
       if (field === 'tavily_api_key') value = normalizeTavilyKeyInput(req.body[field]);
       if (field === 'image_cleanup_keep_days') value = normalizePositiveSetting(req.body[field], 180, 1, 3650);
       if (field === 'image_cleanup_max_mb') value = normalizePositiveSetting(req.body[field], 2048, 50, 102400);
+      if (field === 'image_generation_enabled' && value === '1') shouldRefreshVision = true;
       db.setSetting(field, value);
     }
     refreshConfig();
+    if (shouldRefreshVision) queueVisionCapabilityRefresh();
     res.redirect('/admin/settings?success=1');
   } catch (err) { res.redirect('/admin/settings?error=' + encodeURIComponent(err.message)); }
 });
@@ -343,7 +358,9 @@ router.get('/providers', (req, res) => {
 router.post('/providers/add', requireCsrf, async (req, res) => {
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整信息'));
-  db.addAIProvider({ name, base_url, api_key: api_key.trim(), model: model.trim() });
+  const id = db.addAIProvider({ name, base_url, api_key: api_key.trim(), model: model.trim() });
+  const provider = db.getAIProviders().find(p => p.id === id);
+  if (provider) queueVisionCapabilityRefresh([provider], { forceVisionCheck: true });
   refreshConfig();
   res.redirect('/admin/providers?success=' + encodeURIComponent(`提供商 "${name}" 已添加`));
 });
@@ -352,7 +369,9 @@ router.post('/providers/:id/edit', requireCsrf, (req, res) => {
   const id = parseInt(req.params.id);
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整信息'));
-  db.updateAIProvider(id, { name, base_url, api_key: api_key.trim(), model: model.trim() });
+  db.updateAIProvider(id, { name, base_url, api_key: api_key.trim(), model: model.trim(), vision_models: '', vision_check_results: {}, vision_checked_at: null });
+  const provider = db.getAIProviders().find(p => p.id === id);
+  if (provider) queueVisionCapabilityRefresh([provider], { forceVisionCheck: true });
   refreshConfig();
   res.redirect('/admin/providers?success=' + encodeURIComponent(`提供商 "${name}" 已更新`));
 });
@@ -360,7 +379,11 @@ router.post('/providers/:id/edit', requireCsrf, (req, res) => {
 router.post('/providers/:id/toggle', requireCsrf, (req, res) => {
   const id = parseInt(req.params.id);
   const provider = db.getAIProviders().find(p => p.id === id);
-  if (provider) db.updateAIProvider(id, { enabled: !provider.enabled });
+  if (provider) {
+    const enabled = !provider.enabled;
+    db.updateAIProvider(id, { enabled });
+    if (enabled) queueVisionCapabilityRefresh([{ ...provider, enabled: true }]);
+  }
   res.redirect('/admin/providers');
 });
 
@@ -381,6 +404,7 @@ router.post('/image-providers/add', requireCsrf, (req, res) => {
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整的生图提供商信息'));
   db.addImageProvider({ name, base_url, api_key: normalizeImageProviderKeyInput(api_key), model: model.trim() });
+  queueVisionCapabilityRefresh();
   refreshConfig();
   res.redirect('/admin/providers?success=' + encodeURIComponent(`生图提供商 "${name}" 已添加`));
 });
@@ -390,6 +414,7 @@ router.post('/image-providers/:id/edit', requireCsrf, (req, res) => {
   const { name, base_url, api_key, model } = req.body;
   if (!name || !base_url || !api_key || !model) return res.redirect('/admin/providers?error=' + encodeURIComponent('请填写完整的生图提供商信息'));
   db.updateImageProvider(id, { name, base_url, api_key: normalizeImageProviderKeyInput(api_key), model: model.trim() });
+  queueVisionCapabilityRefresh();
   refreshConfig();
   res.redirect('/admin/providers?success=' + encodeURIComponent(`生图提供商 "${name}" 已更新`));
 });
@@ -397,7 +422,11 @@ router.post('/image-providers/:id/edit', requireCsrf, (req, res) => {
 router.post('/image-providers/:id/toggle', requireCsrf, (req, res) => {
   const id = parseInt(req.params.id);
   const provider = db.getImageProviders().find(p => p.id === id);
-  if (provider) db.updateImageProvider(id, { enabled: !provider.enabled, disabled_reason: provider.enabled ? 'manual' : null });
+  if (provider) {
+    const enabled = !provider.enabled;
+    db.updateImageProvider(id, { enabled, disabled_reason: provider.enabled ? 'manual' : null });
+    if (enabled) queueVisionCapabilityRefresh();
+  }
   res.redirect('/admin/providers');
 });
 

@@ -21,6 +21,7 @@ const AGENT_ROLES = {
   template_review: 'technician',
   seo_expert_audit: 'seo_expert',
   user_test: 'user_tester',
+  vision_model_scan: 'technician',
 };
 
 async function executeTask(taskType) {
@@ -100,6 +101,17 @@ async function executeTask(taskType) {
         logAgent('technician', '模板审查', 'success', '模板审查暂未启用');
         result = { skipped: true };
         break;
+      case 'vision_model_scan': {
+        const { ensureVisionProviderCapabilities, visionCapableProviderCandidates, parseAIProviderModels } = require('../ai/client');
+        const activeProviders = getAIProviders().filter(p => p.enabled);
+        await ensureVisionProviderCapabilities(activeProviders, { forceVisionCheck: true });
+        const totalModels = activeProviders.reduce((sum, provider) => sum + parseAIProviderModels(provider.model).length, 0);
+        const visionModels = visionCapableProviderCandidates(activeProviders)
+          .reduce((sum, provider) => sum + parseAIProviderModels(provider.model).length, 0);
+        logAgent('technician', '视觉模型能力扫描', 'success', `完成: ${visionModels}/${totalModels} 个文字模型可用于图片审核`);
+        result = { providers: activeProviders.length, totalModels, visionModels };
+        break;
+      }
       case 'heartbeat': {
         // 心跳任务：检查内容是否充足，不足则自动规划+生成
         let planned = claimPlannedPages(2, workerId, 45);

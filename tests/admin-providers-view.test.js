@@ -112,3 +112,36 @@ test('admin providers view manages image providers separately from text provider
   assert.match(html, /data-provider-test-url="\/admin\/image-providers\/5\/test"/);
   assert.doesNotMatch(html, /action="\/admin\/image-providers\/5\/test"/);
 });
+
+test('admin providers view shows multimodal vision-check status for text models', async () => {
+  const html = await ejs.renderFile(
+    path.join(__dirname, '..', 'views', 'admin', 'providers.ejs'),
+    {
+      title: 'AI Providers',
+      currentPath: '/admin/providers',
+      csrfToken: 'token',
+      success: '',
+      error: '',
+      providers: [
+        {
+          id: 31,
+          name: 'Mixed AI',
+          base_url: 'https://api.example.com/v1',
+          api_key: 'sk-demo',
+          model: 'text-only,vision-model',
+          vision_models: 'vision-model',
+          vision_checked_at: '2026-06-28 20:30:00',
+          enabled: 1,
+          request_count: 0,
+          error_count: 0,
+        },
+      ],
+      imageProviders: [],
+    },
+    { views: [path.join(__dirname, '..', 'views', 'admin')] },
+  );
+
+  assert.match(html, /视觉审核/);
+  assert.match(html, /1 \/ 2 个模型可用/);
+  assert.match(html, /vision-model/);
+});
