@@ -4,6 +4,22 @@
 
 **🌐 在线演示：** https://aiweb.bt199.com
 
+## 🚀 一键安装
+
+在一台新 Linux 服务器上执行下面一条命令，即可用 Docker 自动部署项目：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/install.sh | sudo bash -s -- --domain your-domain.com
+```
+
+安装脚本会自动安装/检查 Docker，创建 `/opt/ai-website`，生成 `.env`、`docker-compose.yml` 和 Caddy HTTPS 反向代理配置，拉取 `ghcr.io/laolaoshiren/ai-website:latest` 并启动服务。域名需要先解析到服务器 IP。
+
+如需首次启动时顺便写入文字 AI 提供商，可以追加参数：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/install.sh | sudo bash -s -- --domain your-domain.com --ai-key sk-xxx --ai-base-url https://api.openai.com/v1 --ai-model gpt-4o
+```
+
 ## ✨ 核心特性
 
 ### 🧠 多 Agent 协同系统（13 个角色）
@@ -115,7 +131,9 @@
 - 域名已解析到服务器 IP
 - Caddy 或 Nginx 做反向代理（可选，脚本自动配置 Caddy）
 
-### 方式一：一键脚本部署（推荐）
+新服务器优先使用本文开头的 `install.sh` 一键安装命令；下面的 `deploy.sh` 更适合已经克隆本仓库、需要从本地推送并发布到指定 SSH 服务器的场景。
+
+### 方式一：从本地仓库发布到服务器（deploy.sh）
 
 ```bash
 # 1. 克隆仓库
