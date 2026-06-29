@@ -1,0 +1,22 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+!function(){try{var m=localStorage.getItem('frontend-theme-mode');if(!m){m='dark'}document.documentElement.setAttribute('data-theme',m)}catch(e){document.documentElement.setAttribute('data-theme','dark')}}();
+</script>
+<%
+  var nbPageTitle = typeof title !== 'undefined' && title ? title : siteTitle;
+  var nbPageDescription = typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : (siteDescription || '');
+%>
+<title><%= nbPageTitle && nbPageTitle !== siteTitle ? nbPageTitle + ' - ' + siteTitle : siteTitle %></title>
+<meta name="description" content="<%= nbPageDescription %>">
+<% if (typeof metaKeywords !== 'undefined' && metaKeywords) { %>
+  <meta name="keywords" content="<%= metaKeywords %>">
+<% } %>
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#18171d">
+<meta property="og:type" content="website">
+<meta property="og:title" content="<%= nbPageTitle || siteTitle %>">
+<meta property="og:description" content="<%= nbPageDescription %>">
+<meta property="og:site_name" content="<%= siteTitle %>">
+<link rel="alternate" type="application/rss+xml" title="<%= siteTitle %>" href="/rss.xml">
+<link rel="stylesheet" href="/css/themes/neo-blog.css?v=1">

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="nb-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="nb-page-hero nb-mini-hero">
+      <div class="nb-container">
+        <nav class="nb-crumbs" aria-label="位置">
+          <a href="/">首页</a><span>/</span><span>404</span>
+        </nav>
+        <h1>页面没有找到</h1>
+        <p>这个地址可能已经移动，或者文章还没有发布。</p>
+        <div class="nb-hero-actions">
+          <a href="/">返回首页</a>
+          <a href="/archive">查看归档</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="nb-container nb-list-page">
+      <% if (latest && latest.length > 0) { %>
+        <div class="nb-section-title"><span>Try These</span><h2>推荐阅读</h2></div>
+        <div class="nb-post-list">
+          <% latest.forEach(function(article) { %>
+            <%- include('partials/article-card', { article: article }) %>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="nb-empty">
+          <h2>暂时没有可推荐内容</h2>
+          <p>你可以返回首页等待系统继续生成内容。</p>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

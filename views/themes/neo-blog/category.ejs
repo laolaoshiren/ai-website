@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="nb-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="nb-page-hero nb-mini-hero">
+      <div class="nb-container">
+        <nav class="nb-crumbs" aria-label="位置">
+          <a href="/">首页</a><span>/</span><a href="/archive">栏目</a><span>/</span><span><%= category.name %></span>
+        </nav>
+        <h1><%= category.name %></h1>
+        <p><%= category.description || '该栏目下的全部文章。' %></p>
+        <% if (pagination && pagination.totalItems > 0) { %>
+          <div class="nb-page-count"><strong><%= pagination.totalItems %></strong><span>篇文章</span></div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="nb-container nb-list-page">
+      <% if (articles && articles.length > 0) { %>
+        <div class="nb-post-list">
+          <% articles.forEach(function(article) { %>
+            <%- include('partials/article-card', { article: article }) %>
+          <% }); %>
+        </div>
+        <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: category.name + '分页' }) %>
+      <% } else { %>
+        <div class="nb-empty">
+          <h2>这个栏目还在准备中</h2>
+          <p>AI 会根据站点方向持续补充内容。</p>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

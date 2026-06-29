@@ -37,6 +37,8 @@ test('admin template settings page can switch between built-in frontend template
   assert.match(html, /href="\/\?preview_theme=ink-scroll"/);
   assert.match(html, /href="\/\?preview_theme=star-harbor"/);
   assert.match(html, /href="\/\?preview_theme=lumen-flow"/);
+  assert.match(html, /href="\/\?preview_theme=neo-blog"/);
+  assert.match(html, /霓光博客|闇撳厜鍗氬/);
   assert.match(html, /GLM5\.2/);
   assert.match(html, /checked/);
   assert.match(html, /模板设置/);
