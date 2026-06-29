@@ -249,6 +249,10 @@ html { scroll-behavior: smooth; }
   text-shadow: 0 12px 32px rgba(0,0,0,0.44);
   overflow-wrap: anywhere;
 }
+.nb-billboard-card h1,
+.nb-billboard-card p {
+  max-width: min(680px, calc(100% - 190px));
+}
 .nb-spotlight-card h2 { font-size: 1.75rem; }
 .nb-billboard-card p,
 .nb-spotlight-card p {
@@ -795,6 +799,8 @@ html { scroll-behavior: smooth; }
   }
   .nb-billboard-card h1,
   .nb-spotlight-card h2 { font-size: 1.52rem; }
+  .nb-billboard-card h1,
+  .nb-billboard-card p { max-width: 100%; }
   .nb-floating-badges { display: none; }
   .nb-quick-tiles { grid-template-columns: 1fr; }
   .nb-quick-tile { min-height: 66px; }
