@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="nb-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="nb-page-hero nb-mini-hero">
+      <div class="nb-container">
+        <nav class="nb-crumbs" aria-label="位置">
+          <a href="/">首页</a><span>/</span><span>归档</span>
+        </nav>
+        <h1>文章归档</h1>
+        <p>共 <%= totalArticles || 0 %> 篇文章，覆盖 <%= totalMonths || 0 %> 个月份。</p>
+        <% if (typeof startArticle !== 'undefined' && typeof endArticle !== 'undefined' && totalArticles > 0) { %>
+          <div class="nb-page-count"><strong><%= startArticle %>-<%= endArticle %></strong><span>当前显示</span></div>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="nb-container nb-archive-page">
+      <% if (archive && archive.length > 0) { %>
+        <div class="nb-archive-timeline">
+          <% archive.forEach(function(group) { %>
+            <section class="nb-archive-month">
+              <h2><%= group[0] %></h2>
+              <div>
+                <% group[1].forEach(function(article) { %>
+                  <a href="/article/<%= article.slug %>">
+                    <time><%= article.published_at || article.created_at || '' %></time>
+                    <strong><%= article.title %></strong>
+                    <% if (article.category_name) { %><span><%= article.category_name %></span><% } %>
+                  </a>
+                <% }); %>
+              </div>
+            </section>
+          <% }); %>
+        </div>
+        <%- include('partials/pagination', { pagination: pagination, itemLabel: '篇', ariaLabel: '归档分页' }) %>
+      <% } else { %>
+        <div class="nb-empty">
+          <h2>归档还没有内容</h2>
+          <p>发布文章后这里会自动生成时间线。</p>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

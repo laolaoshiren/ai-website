@@ -1,0 +1,36 @@
+<%
+  var nbCardArticle = article || {};
+  var nbCardImage = nbCardArticle.image_review_status === 'pass'
+    ? (nbCardArticle.card_image || nbCardArticle.cover_thumbnail || nbCardArticle.cover_image)
+    : '';
+  var nbPublishedAt = nbCardArticle.published_at ? String(nbCardArticle.published_at) : '';
+%>
+<article class="nb-post-card">
+  <a class="nb-post-cover" href="/article/<%= nbCardArticle.slug %>" aria-label="<%= nbCardArticle.title %>">
+    <% if (nbCardImage) { %>
+      <img src="<%= nbCardImage %>" alt="<%= nbCardArticle.image_alt || nbCardArticle.title %>" loading="lazy">
+    <% } else { %>
+      <span><%= nbCardArticle.category_name || 'AI' %></span>
+    <% } %>
+  </a>
+  <div class="nb-post-info">
+    <div class="nb-post-meta">
+      <% if (nbCardArticle.category_name) { %>
+        <a href="/category/<%= nbCardArticle.category_slug %>">置顶 <%= nbCardArticle.category_name %></a>
+      <% } %>
+      <% if (nbPublishedAt) { %>
+        <time datetime="<%= nbPublishedAt.replace(' ', 'T') %>"><%= nbPublishedAt %></time>
+      <% } %>
+    </div>
+    <h2><a href="/article/<%= nbCardArticle.slug %>"><%= nbCardArticle.title %></a></h2>
+    <% if (nbCardArticle.summary) { %><p><%= nbCardArticle.summary %></p><% } %>
+    <div class="nb-card-footer">
+      <% if (nbCardArticle.view_count) { %><span># 阅读 <%= nbCardArticle.view_count %></span><% } %>
+      <% if (nbCardArticle.seo_keywords) { %>
+        <% nbCardArticle.seo_keywords.split(',').slice(0, 2).forEach(function(tag) { var cleanTag = tag.trim(); if (cleanTag) { %>
+          <span># <%= cleanTag %></span>
+        <% } }); %>
+      <% } %>
+    </div>
+  </div>
+</article>

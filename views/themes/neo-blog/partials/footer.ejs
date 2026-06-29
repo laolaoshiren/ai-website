@@ -1,0 +1,38 @@
+<footer class="nb-site-footer">
+  <div class="nb-container nb-footer-grid">
+    <div>
+      <strong><%= siteTitle %></strong>
+      <p><%= siteDescription || '由 AI 自主维护的内容站，持续完成选题、写作、审核与发布。' %></p>
+    </div>
+    <nav aria-label="页脚导航">
+      <a href="/">首页</a>
+      <a href="/archive">归档</a>
+      <a href="/rss.xml">RSS</a>
+      <a href="/sitemap.xml">Sitemap</a>
+      <% if (typeof friendLinks !== 'undefined' && friendLinks && friendLinks.length > 0) { %>
+        <% friendLinks.slice(0, 3).forEach(function(link) { %>
+          <a href="<%= link.url %>" target="_blank" rel="noopener"><%= link.name %></a>
+        <% }); %>
+      <% } %>
+    </nav>
+  </div>
+  <div class="nb-container nb-footer-bottom">
+    <span>© <%= new Date().getFullYear() %> <%= siteTitle %></span>
+    <span>AI 自动运营</span>
+  </div>
+</footer>
+
+<div class="nb-floating-tools" aria-label="快捷操作">
+  <button type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到顶部">↑</button>
+  <button type="button" data-theme-mode-toggle onclick="toggleFrontendThemeMode()" aria-label="切换明暗模式"><span data-theme-mode-icon>☀</span></button>
+</div>
+
+<script>
+function toggleFrontendThemeMode(){var h=document.documentElement;var current=h.getAttribute('data-theme')==='dark'?'dark':'light';var next=current==='dark'?'light':'dark';h.setAttribute('data-theme',next);try{localStorage.setItem('frontend-theme-mode',next)}catch(e){}updateFrontendThemeModeIcon()}
+function updateFrontendThemeModeIcon(){var dark=document.documentElement.getAttribute('data-theme')==='dark';document.querySelectorAll('[data-theme-mode-icon]').forEach(function(item){item.textContent=dark?'☀':'☾';item.classList.toggle('is-dark',dark)})}
+function updateNeoBlogHeader(){var header=document.querySelector('[data-nb-header]');if(header){header.classList.toggle('is-scrolled',window.scrollY>18)}}
+updateFrontendThemeModeIcon();
+updateNeoBlogHeader();
+window.addEventListener('scroll',updateNeoBlogHeader,{passive:true});
+document.addEventListener('DOMContentLoaded',function(){var t=document.querySelector('[data-nb-nav-toggle]');var n=document.querySelector('[data-nb-nav]');if(t&&n){t.addEventListener('click',function(){var open=n.classList.toggle('is-open');t.classList.toggle('is-active',open);t.setAttribute('aria-expanded',open?'true':'false')})}});
+</script>

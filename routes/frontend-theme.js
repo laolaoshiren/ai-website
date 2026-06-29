@@ -31,6 +31,12 @@ const FRONTEND_THEMES = [
     description: '靛蓝青渐变、玻璃质感与柔和光晕的现代科技媒体模板，GLM5.2 出品。首屏全宽 Hero 舞台配合时间线信息流，强调科技感与流畅阅读。',
     badge: '科技',
   },
+  {
+    id: 'neo-blog',
+    name: '霓光博客',
+    description: '仿 AnZhiYu 风格的深色门户博客模板，黑色顶栏、双推荐卡、彩色入口、栏目胶囊和双列文章流。',
+    badge: '博客',
+  },
 ];
 
 const THEME_IDS = new Set(FRONTEND_THEMES.map(theme => theme.id));

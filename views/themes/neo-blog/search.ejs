@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="nb-body">
+  <%- include('partials/header') %>
+  <main>
+    <section class="nb-page-hero nb-mini-hero">
+      <div class="nb-container">
+        <nav class="nb-crumbs" aria-label="位置">
+          <a href="/">首页</a><span>/</span><span>搜索</span>
+        </nav>
+        <h1>搜索文章</h1>
+        <p><%= q ? '找到 ' + total + ' 条与「' + q + '」相关的内容。' : '输入关键词查找站内文章。' %></p>
+        <form class="nb-page-search" action="/search" method="get" role="search">
+          <input type="search" name="q" value="<%= q || '' %>" placeholder="输入关键词">
+          <button type="submit">搜索</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="nb-container nb-list-page">
+      <% if (articles && articles.length > 0) { %>
+        <div class="nb-post-list">
+          <% articles.forEach(function(article) { %>
+            <%- include('partials/article-card', { article: article }) %>
+          <% }); %>
+        </div>
+        <%- include('partials/pagination', { pagination: pagination, itemLabel: '条', ariaLabel: '搜索结果分页' }) %>
+      <% } else { %>
+        <div class="nb-empty">
+          <h2><%= q ? '没有找到匹配内容' : '等待搜索关键词' %></h2>
+          <p><%= q ? '换一个关键词再试试。' : '你可以搜索标题、摘要或关键词。' %></p>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>

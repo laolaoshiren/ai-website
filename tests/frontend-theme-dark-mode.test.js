@@ -10,6 +10,7 @@ const themes = [
   { id: 'ink-scroll', css: 'ink-scroll.css', bodyClass: 'ink-body' },
   { id: 'star-harbor', css: 'star-harbor.css', bodyClass: 'sh-body' },
   { id: 'lumen-flow', css: 'lumen-flow.css', bodyClass: 'lf-body' },
+  { id: 'neo-blog', css: 'neo-blog.css', bodyClass: 'nb-body' },
 ];
 
 test('non-default frontend templates expose a light and dark mode switch contract', () => {

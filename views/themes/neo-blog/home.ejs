@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="<%= siteLanguage %>">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body class="nb-body">
+  <%- include('partials/header') %>
+  <%
+    var safeFeatured = typeof featured !== 'undefined' && featured ? featured : [];
+    var safeLatest = typeof latest !== 'undefined' && latest ? latest : [];
+    var safeCategories = typeof categories !== 'undefined' && categories ? categories : [];
+    var lead = safeFeatured[0] || safeLatest[0] || null;
+    var secondLead = safeFeatured[1] || safeLatest[1] || lead;
+    var leadImage = lead && lead.image_review_status === 'pass' ? (lead.cover_image || lead.card_image || lead.cover_thumbnail) : '';
+    var secondLeadImage = secondLead && secondLead.image_review_status === 'pass' ? (secondLead.cover_image || secondLead.card_image || secondLead.cover_thumbnail) : '';
+    var sideLatest = safeLatest.slice(0, 6);
+    var totalArticleCount = typeof totalArticles !== 'undefined' ? totalArticles : safeLatest.length;
+  %>
+  <main class="nb-home-main">
+    <section class="nb-container nb-showcase" id="top">
+      <div class="nb-showcase-grid">
+        <a class="nb-billboard-card" href="<%= lead ? '/article/' + lead.slug : '/archive' %>" <%- leadImage ? 'style="--nb-card-image:url(' + leadImage + ')"' : '' %>>
+          <span class="nb-card-kicker"><%= lead && lead.category_name ? lead.category_name : 'AI Blog' %></span>
+          <h1><%= lead ? lead.title : siteTitle %></h1>
+          <p><%= lead && lead.summary ? lead.summary : (siteDescription || '由 AI 全自动维护的高质量内容网站') %></p>
+          <div class="nb-floating-badges" aria-hidden="true">
+            <span>AI</span>
+            <span>SEO</span>
+            <span>CMS</span>
+            <span>Auto</span>
+          </div>
+        </a>
+
+        <a class="nb-spotlight-card" href="<%= secondLead ? '/article/' + secondLead.slug : '/archive' %>" <%- secondLeadImage ? 'style="--nb-card-image:url(' + secondLeadImage + ')"' : '' %>>
+          <span class="nb-card-kicker">推荐阅读</span>
+          <h2><%= secondLead ? secondLead.title : '内容正在生成' %></h2>
+          <p><%= secondLead && secondLead.summary ? secondLead.summary : 'AI 完成栏目规划和内容审核后，这里会自动出现重点文章。' %></p>
+        </a>
+      </div>
+
+      <div class="nb-quick-tiles" aria-label="快捷入口">
+        <a class="nb-quick-tile is-blue" href="#recent-posts"><span>最新</span><strong>继续阅读</strong></a>
+        <a class="nb-quick-tile is-red" href="/archive"><span>归档</span><strong>全部文章</strong></a>
+        <a class="nb-quick-tile is-green" href="<%= safeCategories[0] ? '/category/' + safeCategories[0].slug : '/archive' %>"><span>栏目</span><strong><%= safeCategories[0] ? safeCategories[0].name : '内容导航' %></strong></a>
+      </div>
+
+      <nav class="nb-topic-tabs" aria-label="栏目导航">
+        <a class="is-active" href="/">首页</a>
+        <% safeCategories.slice(0, 7).forEach(function(cat) { %>
+          <a href="/category/<%= cat.slug %>"><%= cat.name %></a>
+        <% }); %>
+        <a href="/archive">更多</a>
+      </nav>
+    </section>
+
+    <section class="nb-container nb-home-layout" id="recent-posts">
+      <div class="nb-feed">
+        <div class="nb-section-title">
+          <span>Recent Posts</span>
+          <h2>最新文章</h2>
+        </div>
+
+        <% if (safeLatest.length > 0) { %>
+          <div class="nb-post-grid">
+            <% safeLatest.forEach(function(article) { %>
+              <%- include('partials/article-card', { article: article }) %>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="nb-empty">
+            <h2>内容正在生成</h2>
+            <p>AI 完成栏目规划和内容审核后，这里会自动出现文章。</p>
+          </div>
+        <% } %>
+      </div>
+
+      <aside class="nb-sidebar" aria-label="站点侧栏">
+        <section class="nb-widget nb-author-card">
+          <div class="nb-avatar"><%= (siteTitle || 'AI').slice(0, 1) %></div>
+          <h2><%= siteTitle %></h2>
+          <p><%= siteDescription || 'AI 自动运营内容站' %></p>
+          <div class="nb-author-stats">
+            <span><strong><%= totalArticleCount || safeLatest.length %></strong>文章</span>
+            <span><strong><%= safeCategories.length %></strong>栏目</span>
+          </div>
+        </section>
+
+        <% if (safeCategories.length > 0) { %>
+          <section class="nb-widget">
+            <div class="nb-widget-title"><span>分类</span><a href="/archive">归档</a></div>
+            <div class="nb-category-cloud">
+              <% safeCategories.slice(0, 14).forEach(function(cat) { %>
+                <a href="/category/<%= cat.slug %>"><%= cat.name %></a>
+              <% }); %>
+            </div>
+          </section>
+        <% } %>
+
+        <% if (sideLatest.length > 0) { %>
+          <section class="nb-widget">
+            <div class="nb-widget-title"><span>近期更新</span><a href="/rss.xml">RSS</a></div>
+            <div class="nb-side-list">
+              <% sideLatest.forEach(function(item) { %>
+                <a href="/article/<%= item.slug %>">
+                  <strong><%= item.title %></strong>
+                  <% if (item.published_at) { %><time><%= item.published_at %></time><% } %>
+                </a>
+              <% }); %>
+            </div>
+          </section>
+        <% } %>
+      </aside>
+    </section>
+  </main>
+  <%- include('partials/footer') %>
+  <script src="/js/analytics.js"></script>
+</body>
+</html>
