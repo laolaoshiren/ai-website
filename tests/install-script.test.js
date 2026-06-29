@@ -14,11 +14,17 @@ test('one-click install script provisions a standalone Docker deployment', () =>
   assert.match(script, /set -euo pipefail/);
   assert.match(script, /https:\/\/get\.docker\.com/);
   assert.match(script, /ghcr\.io\/laolaoshiren\/ai-website:\$\{IMAGE_TAG:-latest\}/);
+  assert.match(script, /read -r -p "是否需要自动设置反代域名/);
+  assert.match(script, /留空则跳过/);
   assert.match(script, /image: caddy:2-alpine/);
   assert.match(script, /reverse_proxy ai-website:3000/);
   assert.match(script, /127\.0\.0\.1:\$\{APP_PORT:-3001\}:3000/);
+  assert.match(script, /0\.0\.0\.0:\$\{APP_PORT:-3001\}:3000/);
   assert.match(script, /docker compose pull/);
   assert.match(script, /docker compose up -d --force-recreate/);
+  assert.doesNotMatch(script, /--domain/);
+  assert.doesNotMatch(script, /--ai-key/);
+  assert.doesNotMatch(script, /AI_API_KEY/);
 });
 
 test('readme starts with the one-command server install instruction', () => {
@@ -28,7 +34,10 @@ test('readme starts with the one-command server install instruction', () => {
 
   assert.ok(firstInstallSection > 0, 'README should include a one-click install section near the top');
   assert.ok(firstInstallSection < featureSection, 'install command should appear before the feature overview');
-  assert.match(readme, /curl -fsSL https:\/\/raw\.githubusercontent\.com\/laolaoshiren\/ai-website\/master\/install\.sh \| sudo bash -s -- --domain your-domain\.com/);
+  assert.match(readme, /curl -fsSL https:\/\/raw\.githubusercontent\.com\/laolaoshiren\/ai-website\/master\/install\.sh \| sudo bash/);
+  assert.doesNotMatch(readme, /install\.sh \| sudo bash[^\n]*--/);
+  assert.doesNotMatch(readme, /--ai-key/);
+  assert.match(readme, /运行后只会询问是否需要自动设置反代域名/);
 });
 
 test('shell scripts keep Linux line endings in git', () => {

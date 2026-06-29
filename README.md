@@ -9,16 +9,10 @@
 在一台新 Linux 服务器上执行下面一条命令，即可用 Docker 自动部署项目：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/install.sh | sudo bash -s -- --domain your-domain.com
+curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/install.sh | sudo bash
 ```
 
-安装脚本会自动安装/检查 Docker，创建 `/opt/ai-website`，生成 `.env`、`docker-compose.yml` 和 Caddy HTTPS 反向代理配置，拉取 `ghcr.io/laolaoshiren/ai-website:latest` 并启动服务。域名需要先解析到服务器 IP。
-
-如需首次启动时顺便写入文字 AI 提供商，可以追加参数：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/install.sh | sudo bash -s -- --domain your-domain.com --ai-key sk-xxx --ai-base-url https://api.openai.com/v1 --ai-model gpt-4o
-```
+运行后只会询问是否需要自动设置反代域名。输入域名会自动启用 Caddy HTTPS 反向代理；直接回车则跳过反代，只通过服务器 `3001` 端口访问。安装脚本只负责把系统跑起来，其余网站设置、AI 提供商、Tavily、生图等配置都进入后台完成。
 
 ## ✨ 核心特性
 
