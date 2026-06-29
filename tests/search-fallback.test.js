@@ -84,16 +84,72 @@ test('maskTavilyKey hides the secret while keeping it recognizable', () => {
 
 test('testTavilyKeys validates each key independently', async () => {
   const results = await testTavilyKeys('good-key\nbad-key', {
+    getJSON: async () => ({ key: { usage: 0, limit: 1000 }, account: { plan_usage: 0, plan_limit: 1000 } }),
     postJSON: async (url, payload) => {
       if (payload.api_key === 'bad-key') throw new Error('unauthorized');
       return { results: [{ title: 'ok' }] };
     },
   });
 
-  assert.deepEqual(results.map(item => ({ key: item.key, ok: item.ok, error: item.error })), [
-    { key: 'good-key', ok: true, error: '' },
-    { key: 'bad-key', ok: false, error: 'unauthorized' },
-  ]);
+  assert.equal(results[0].key, 'good-key');
+  assert.equal(results[0].ok, true);
+  assert.equal(results[0].error, '');
+  assert.equal(results[1].key, 'bad-key');
+  assert.equal(results[1].ok, false);
+  assert.match(results[1].error, /API Key 无效或缺失/);
+});
+
+test('testTavilyKeys reports Tavily usage quota for valid keys', async () => {
+  const results = await testTavilyKeys('good-key', {
+    getJSON: async (url, options) => {
+      assert.equal(url, 'https://api.tavily.com/usage');
+      assert.equal(options.headers.Authorization, 'Bearer good-key');
+      return {
+        key: { usage: 230, limit: 1000, search_usage: 180 },
+        account: { current_plan: 'Researcher', plan_usage: 400, plan_limit: 1000 },
+      };
+    },
+    postJSON: async () => ({ results: [{ title: 'ok' }] }),
+  });
+
+  assert.equal(results[0].ok, true);
+  assert.equal(results[0].quota.key.used, 230);
+  assert.equal(results[0].quota.key.limit, 1000);
+  assert.equal(results[0].quota.key.remaining, 770);
+  assert.equal(results[0].quota.account.plan, 'Researcher');
+  assert.equal(results[0].quota.account.remaining, 600);
+  assert.match(results[0].quotaText, /Key 剩余额度：770\/1000/);
+  assert.match(results[0].quotaText, /账号剩余额度：600\/1000/);
+});
+
+test('testTavilyKeys explains official Tavily failure reasons clearly', async () => {
+  const results = await testTavilyKeys('bad-key\nlimited-key', {
+    getJSON: async (url, options) => {
+      const key = options.headers.Authorization.replace('Bearer ', '');
+      if (key === 'bad-key') {
+        const err = new Error('Unauthorized: missing or invalid API key.');
+        err.statusCode = 401;
+        err.body = { detail: { error: 'Unauthorized: missing or invalid API key.' } };
+        throw err;
+      }
+      return { key: { usage: 1000, limit: 1000 }, account: { plan_usage: 1000, plan_limit: 1000 } };
+    },
+    postJSON: async (url, payload) => {
+      if (payload.api_key === 'limited-key') {
+        const err = new Error("This request exceeds your plan's set usage limit. Please upgrade your plan or contact support@tavily.com");
+        err.statusCode = 432;
+        err.body = { detail: { error: err.message } };
+        throw err;
+      }
+      return { results: [{ title: 'ok' }] };
+    },
+  });
+
+  assert.equal(results[0].ok, false);
+  assert.match(results[0].error, /API Key 无效或缺失/);
+  assert.equal(results[1].ok, false);
+  assert.match(results[1].error, /套餐或 Key 额度已用尽/);
+  assert.match(results[1].quotaText, /Key 剩余额度：0\/1000/);
 });
 
 test('searchTavily rotates keys and retries the next key on failure', async () => {

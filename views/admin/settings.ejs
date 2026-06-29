@@ -283,7 +283,11 @@ document.getElementById('tavilyValidateBtn')?.addEventListener('click', async fu
     resultBox.classList.add(data.valid > 0 ? 'is-success' : 'is-error');
     resultBox.innerHTML = '<strong>验证完成：' + data.valid + '/' + data.total + ' 可用</strong>' +
       '<ul>' + data.results.map(function(item) {
-        return '<li><span>' + escapeHtml(item.key) + '</span><b>' + (item.ok ? '可用' : '失败') + '</b>' + (item.error ? '<small>' + escapeHtml(item.error) + '</small>' : '') + '</li>';
+        var detail = item.ok
+          ? (item.quotaText || '可用，官方未返回剩余额度信息')
+          : (item.error || '不可用，Tavily 未返回具体原因');
+        var quota = !item.ok && item.quotaText ? '<small>' + escapeHtml(item.quotaText) + '</small>' : '';
+        return '<li><span>' + escapeHtml(item.key) + '</span><b>' + (item.ok ? '可用' : '不可用') + '</b><small>' + escapeHtml(detail) + '</small>' + quota + '</li>';
       }).join('') + '</ul>';
   } catch (err) {
     resultBox.classList.add('is-error');

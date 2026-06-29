@@ -51,26 +51,65 @@ function fetchUrl(url, timeout = 10000) {
   });
 }
 
-function postJSON(url, data, timeout = 15000) {
+function requestJSON(method, url, data = null, timeout = 15000, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify(data);
+    const body = data == null ? '' : JSON.stringify(data);
     const parsed = new URL(url);
     const options = {
-      hostname: parsed.hostname, port: parsed.port || 443,
-      path: parsed.pathname, method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      hostname: parsed.hostname,
+      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      path: `${parsed.pathname}${parsed.search}`,
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...extraHeaders,
+      },
     };
-    const req = https.request(options, (res) => {
+    if (body) {
+      options.headers['Content-Type'] = 'application/json';
+      options.headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    const mod = parsed.protocol === 'https:' ? https : http;
+    const req = mod.request(options, (res) => {
       let responseBody = '';
       res.setEncoding('utf8');
       res.on('data', chunk => responseBody += chunk);
-      res.on('end', () => { try { resolve(JSON.parse(responseBody)); } catch { reject(new Error('JSON 解析失败')); } });
+      res.on('end', () => {
+        let parsedBody = null;
+        try {
+          parsedBody = responseBody ? JSON.parse(responseBody) : {};
+        } catch {
+          const err = new Error('JSON 解析失败');
+          err.statusCode = res.statusCode;
+          err.responseText = responseBody;
+          reject(err);
+          return;
+        }
+        if (res.statusCode >= 400) {
+          const message = parsedBody?.detail?.error || parsedBody?.error || `HTTP ${res.statusCode}`;
+          const err = new Error(message);
+          err.statusCode = res.statusCode;
+          err.body = parsedBody;
+          err.headers = res.headers;
+          reject(err);
+          return;
+        }
+        resolve(parsedBody);
+      });
     });
     req.on('error', reject);
     req.setTimeout(timeout, () => { req.destroy(); reject(new Error('请求超时')); });
-    req.write(body);
+    if (body) req.write(body);
     req.end();
   });
+}
+
+function postJSON(url, data, timeout = 15000) {
+  return requestJSON('POST', url, data, timeout);
+}
+
+function getJSON(url, options = {}, timeout = 15000) {
+  return requestJSON('GET', url, null, timeout, options.headers || {});
 }
 
 function getConfig(key) {
@@ -255,6 +294,89 @@ function maskTavilyKey(key = '') {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
+function toFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function buildQuotaPart(usedValue, limitValue, extra = {}) {
+  const used = toFiniteNumber(usedValue);
+  const limit = toFiniteNumber(limitValue);
+  const unlimited = limitValue === null || limitValue === undefined;
+  return {
+    ...extra,
+    used,
+    limit,
+    unlimited,
+    remaining: unlimited || used === null || limit === null ? null : Math.max(limit - used, 0),
+  };
+}
+
+function buildTavilyQuota(usage = {}) {
+  const key = usage.key || {};
+  const account = usage.account || {};
+  return {
+    key: buildQuotaPart(key.usage, key.limit, {
+      searchUsed: toFiniteNumber(key.search_usage),
+      extractUsed: toFiniteNumber(key.extract_usage),
+      crawlUsed: toFiniteNumber(key.crawl_usage),
+      mapUsed: toFiniteNumber(key.map_usage),
+      researchUsed: toFiniteNumber(key.research_usage),
+    }),
+    account: buildQuotaPart(account.plan_usage, account.plan_limit, {
+      plan: account.current_plan || '',
+      paygoUsed: toFiniteNumber(account.paygo_usage),
+      paygoLimit: toFiniteNumber(account.paygo_limit),
+      searchUsed: toFiniteNumber(account.search_usage),
+      extractUsed: toFiniteNumber(account.extract_usage),
+      crawlUsed: toFiniteNumber(account.crawl_usage),
+      mapUsed: toFiniteNumber(account.map_usage),
+      researchUsed: toFiniteNumber(account.research_usage),
+    }),
+  };
+}
+
+function formatQuotaPart(label, part) {
+  if (!part) return '';
+  if (part.unlimited) {
+    return part.used === null ? `${label}：无限制` : `${label}：已用 ${part.used} / 无限制`;
+  }
+  if (part.remaining === null || part.limit === null) return '';
+  return `${label}：${part.remaining}/${part.limit}（已用 ${part.used || 0}）`;
+}
+
+function formatTavilyQuotaText(quota) {
+  const parts = [
+    formatQuotaPart('Key 剩余额度', quota?.key),
+    formatQuotaPart('账号剩余额度', quota?.account),
+  ].filter(Boolean);
+  const plan = quota?.account?.plan ? `套餐：${quota.account.plan}` : '';
+  if (plan) parts.push(plan);
+  return parts.join('；') || '官方未返回额度信息';
+}
+
+function getTavilyErrorText(err) {
+  const statusCode = err?.statusCode;
+  const raw = String(err?.body?.detail?.error || err?.body?.error || err?.message || '未知错误').trim();
+  const lower = raw.toLowerCase();
+  if (statusCode === 401 || /unauthorized|invalid api key|missing or invalid/.test(lower)) {
+    return `API Key 无效或缺失（Tavily：${raw}）`;
+  }
+  if (statusCode === 429 || /too many|excessive requests|rate limit/.test(lower)) {
+    return `请求过于频繁，触发 Tavily 速率限制，请稍后重试（Tavily：${raw}）`;
+  }
+  if (statusCode === 432 || /plan.*usage limit|set usage limit|key limit|plan limit/.test(lower)) {
+    return `套餐或 Key 额度已用尽（Tavily：${raw}）`;
+  }
+  if (/pay-as-you-go|paygo/.test(lower)) {
+    return `PAYGO 额度已用尽（Tavily：${raw}）`;
+  }
+  if (/timeout|超时/.test(lower)) {
+    return `请求超时：${raw}`;
+  }
+  return `Tavily 返回错误：${raw}`;
+}
+
 async function searchTavily(query, maxResults = 5, options = {}) {
   const keys = parseTavilyKeys(options.apiKeys ?? getConfig('tavily_api_key'));
   if (keys.length === 0) return [];
@@ -290,11 +412,19 @@ async function searchTavily(query, maxResults = 5, options = {}) {
 async function testTavilyKeys(keysInput, options = {}) {
   const keys = parseTavilyKeys(keysInput);
   const post = options.postJSON || postJSON;
+  const get = options.getJSON || getJSON;
   const query = options.query || 'AI news';
   const timeoutMs = options.timeoutMs || 15000;
   const results = [];
   for (const key of keys) {
+    let quota = null;
+    let quotaText = '';
     try {
+      const usage = await get('https://api.tavily.com/usage', {
+        headers: { Authorization: `Bearer ${key}` },
+      }, timeoutMs);
+      quota = buildTavilyQuota(usage);
+      quotaText = formatTavilyQuotaText(quota);
       const response = await post('https://api.tavily.com/search', {
         api_key: key,
         query,
@@ -303,9 +433,23 @@ async function testTavilyKeys(keysInput, options = {}) {
         include_answer: false,
       }, timeoutMs);
       const ok = Array.isArray(response.results);
-      results.push({ key, ok, resultCount: ok ? response.results.length : 0, error: ok ? '' : '返回格式异常' });
+      results.push({
+        key,
+        ok,
+        resultCount: ok ? response.results.length : 0,
+        error: ok ? '' : '返回格式异常',
+        quota,
+        quotaText: quotaText || '官方未返回额度信息',
+      });
     } catch (err) {
-      results.push({ key, ok: false, resultCount: 0, error: err.message });
+      results.push({
+        key,
+        ok: false,
+        resultCount: 0,
+        error: getTavilyErrorText(err),
+        quota,
+        quotaText: quotaText || (quota ? formatTavilyQuotaText(quota) : ''),
+      });
     }
   }
   return results;
