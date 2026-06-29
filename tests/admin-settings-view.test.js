@@ -86,6 +86,8 @@ test('admin settings page manages Tavily keys with a modal and validation action
   assert.match(html, /\/admin\/settings\/tavily\/save/);
   assert.match(html, /\/admin\/settings\/tavily\/test/);
   assert.match(html, /一键验证|验证/);
+  assert.match(html, /剩余额度/);
+  assert.match(html, /不可用/);
 });
 
 test('admin settings Tavily modal apply persists keys before leaving the page', async () => {
