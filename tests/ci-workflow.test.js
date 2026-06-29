@@ -18,3 +18,13 @@ test('production Docker image includes runtime utility modules', () => {
 
   assert.match(dockerfile, /COPY --from=builder \/app\/utils \.\/utils/, 'Dockerfile must copy utils into production image');
 });
+
+test('docker image records the source revision for admin update checks', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'docker.yml'), 'utf8');
+  const dockerfile = fs.readFileSync(path.join(__dirname, '..', 'Dockerfile'), 'utf8');
+
+  assert.match(dockerfile, /ARG APP_REVISION=unknown/);
+  assert.match(dockerfile, /ENV APP_REVISION=\$\{APP_REVISION\}/);
+  assert.match(workflow, /build-args:/);
+  assert.match(workflow, /APP_REVISION=\$\{\{ github\.sha \}\}/);
+});

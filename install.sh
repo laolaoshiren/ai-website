@@ -11,6 +11,7 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 APP_PORT="${APP_PORT:-3001}"
 DOMAIN=""
 ENABLE_CADDY="0"
+SELF_UPDATE_INSTALLER_URL="${SELF_UPDATE_INSTALLER_URL:-https://raw.githubusercontent.com/laolaoshiren/ai-website/master/scripts/install-self-update-worker.sh}"
 
 COMPOSE_IMAGE='ghcr.io/laolaoshiren/ai-website:${IMAGE_TAG:-latest}'
 APP_LOCAL_PORT='127.0.0.1:${APP_PORT:-3001}:3000'
@@ -119,6 +120,7 @@ write_env_file() {
     printf 'APP_PORT=%s\n' "$APP_PORT"
     printf 'NODE_ENV=production\n'
     printf 'PORT=3000\n'
+    printf 'AI_WEBSITE_INSTALL_TYPE=docker\n'
     if [ "$ENABLE_CADDY" = "1" ]; then
       printf 'SITE_URL=https://%s\n' "$DOMAIN"
     fi
@@ -195,6 +197,15 @@ EOF
   fi
 }
 
+install_self_update_worker() {
+  log "安装后台网页更新执行器..."
+  if curl -fsSL "$SELF_UPDATE_INSTALLER_URL" | INSTALL_DIR="$INSTALL_DIR" bash; then
+    ok "更新执行器已安装"
+  else
+    warn "更新执行器安装失败，网站仍可正常运行，但后台网页更新按钮会显示不可用"
+  fi
+}
+
 wait_for_health() {
   log "等待服务就绪：http://127.0.0.1:${APP_PORT}/api/health"
   for _ in $(seq 1 60); do
@@ -221,6 +232,7 @@ main() {
 
   write_env_file
   write_compose_file
+  install_self_update_worker
 
   log "拉取镜像并启动服务..."
   cd "$INSTALL_DIR"
