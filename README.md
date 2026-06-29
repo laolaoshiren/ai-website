@@ -14,6 +14,8 @@ curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/inst
 
 运行后只会询问是否需要自动设置反代域名。输入域名会自动启用 Caddy HTTPS 反向代理；直接回车则跳过反代，只通过服务器 `3001` 端口访问。安装脚本只负责把系统跑起来，其余网站设置、AI 提供商、Tavily、生图等配置都进入后台完成。
 
+Docker 一键安装会同时安装“后台网页更新执行器”。之后进入后台 `系统更新`，即可检测当前服务器是否为 GitHub 最新版；发现新版本时可直接点击更新，无需再登录服务器执行命令。
+
 ## ✨ 核心特性
 
 ### 🧠 多 Agent 协同系统（13 个角色）
@@ -97,6 +99,7 @@ curl -fsSL https://raw.githubusercontent.com/laolaoshiren/ai-website/master/inst
 - 前台模板设置、模板预览和模板切换
 - 文章自动配图开关和图片清理参数
 - 备份/还原（AI 提供商、广告、友情链接、Tavily KEY、网站设置）
+- 系统更新：检测 GitHub 最新版，Docker 一键安装环境可从后台直接触发热更新
 - 定时任务管理
 
 ### 💾 备份与还原

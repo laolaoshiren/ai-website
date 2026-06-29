@@ -9,9 +9,12 @@ COPY . .
 # ---- Production Stage ----
 FROM node:20-alpine
 
+ARG APP_REVISION=unknown
+
 LABEL org.opencontainers.image.source="https://github.com/laolaoshiren/ai-website"
 LABEL org.opencontainers.image.description="AI 智能网站 - 完全由 AI 驱动的自动运营网站系统"
 LABEL org.opencontainers.image.title="AI 智能网站"
+LABEL org.opencontainers.image.revision="${APP_REVISION}"
 
 WORKDIR /app
 
@@ -34,6 +37,7 @@ COPY --from=builder /app/docker-entrypoint.sh ./
 
 # Create data & logs dirs
 RUN mkdir -p /app/data /app/logs /app/public/images && \
+    printf '%s\n' "$APP_REVISION" > /app/.build-revision && \
     chmod +x /app/docker-entrypoint.sh
 
 # Data persisted via volume
@@ -43,6 +47,7 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV APP_REVISION=${APP_REVISION}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -sf http://localhost:3000/api/health || exit 1

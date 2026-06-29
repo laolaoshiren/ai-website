@@ -17,6 +17,7 @@ const { validateCategoryInput } = require('../ai/category-policy');
 const { listFrontendThemes, resolveFrontendTheme, isValidFrontendTheme } = require('./frontend-theme');
 const { BACKUP_SECTIONS, buildBackupZip, inspectBackupInput, normalizeSections, restoreBackup } = require('../utils/admin-backup');
 const { parseMultipartForm } = require('../utils/multipart-form');
+const selfUpdate = require('../utils/self-update');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -241,6 +242,37 @@ router.get('/', (req, res) => {
   let autonomyPlan = { snapshot: {}, actions: [] };
   try { autonomyPlan = require('../ai/autonomy-director').buildCurrentAutonomyPlan(db.getDb()); } catch {}
   res.render('admin/dashboard', { title: '控制面板', stats, agentLogs, agentStatuses, agentRoles: AGENT_ROLES, agentRoleNames: AGENT_ROLE_NAMES, schedules, outage, rageStatus, workMode, activityBrief, autonomyPlan, getConfig, csrfToken: req.session?.csrf || '', success: req.query.success, error: req.query.error });
+});
+
+// ============ 系统更新 ============
+router.get('/update', async (req, res) => {
+  const status = await selfUpdate.buildUpdateStatus();
+  res.render('admin/update', {
+    title: '系统更新',
+    status,
+    csrfToken: req.session?.csrf || '',
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.get('/update/check', async (req, res) => {
+  try {
+    const status = await selfUpdate.buildUpdateStatus();
+    res.json({ success: true, status });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+router.post('/update/run', requireCsrf, async (req, res) => {
+  try {
+    const result = await selfUpdate.requestSelfUpdate();
+    const status = await selfUpdate.buildUpdateStatus();
+    res.json({ success: true, result, status });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // ============ 系统设置 ============

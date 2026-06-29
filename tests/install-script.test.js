@@ -22,6 +22,8 @@ test('one-click install script provisions a standalone Docker deployment', () =>
   assert.match(script, /0\.0\.0\.0:\$\{APP_PORT:-3001\}:3000/);
   assert.match(script, /docker compose pull/);
   assert.match(script, /docker compose up -d --force-recreate/);
+  assert.match(script, /AI_WEBSITE_INSTALL_TYPE=docker/);
+  assert.match(script, /install-self-update-worker\.sh/);
   assert.doesNotMatch(script, /--domain/);
   assert.doesNotMatch(script, /--ai-key/);
   assert.doesNotMatch(script, /AI_API_KEY/);
@@ -43,4 +45,18 @@ test('readme starts with the one-command server install instruction', () => {
 test('shell scripts keep Linux line endings in git', () => {
   const attributes = fs.readFileSync(path.join(root, '.gitattributes'), 'utf8');
   assert.match(attributes, /\*\.sh text eol=lf/);
+});
+
+test('self-update worker installer runs docker compose updates from the host', () => {
+  const installerPath = path.join(root, 'scripts', 'install-self-update-worker.sh');
+  assert.equal(fs.existsSync(installerPath), true, 'worker installer should exist');
+
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  assert.match(installer, /^#!\/usr\/bin\/env bash/);
+  assert.match(installer, /self-update-request\.json/);
+  assert.match(installer, /self-update-status\.json/);
+  assert.match(installer, /docker compose pull/);
+  assert.match(installer, /docker compose up -d --force-recreate/);
+  assert.match(installer, /systemctl enable --now ai-website-self-update\.timer/);
+  assert.match(installer, /\/etc\/cron\.d\/ai-website-self-update/);
 });

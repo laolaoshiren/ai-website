@@ -1,0 +1,183 @@
+<%- include('layout-open') %>
+<%
+  const initialStatus = status || {};
+  const runtime = initialStatus.runtime || {};
+  function text(value, fallback) {
+    return value === undefined || value === null || value === '' ? fallback : value;
+  }
+%>
+<div
+  class="admin-page update-admin-page"
+  data-update-page
+  data-check-url="/admin/update/check"
+  data-run-url="/admin/update/run"
+  data-csrf-token="<%= csrfToken %>"
+>
+  <div class="page-header-bar">
+    <h1>⬆️ 系统更新</h1>
+    <div class="header-actions">
+      <button type="button" class="btn btn-outline" data-update-check>重新检测</button>
+      <button type="button" class="btn btn-primary" data-update-run <%= initialStatus.canUpdate ? '' : 'disabled' %>>立即更新</button>
+    </div>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success">✅ <%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error">❌ <%= error %></div><% } %>
+
+  <section class="admin-panel update-hero-panel">
+    <div>
+      <p class="update-kicker">Update Center</p>
+      <h2 data-update-label><%= initialStatus.statusLabel || '正在检测' %></h2>
+      <p class="text-muted" data-update-message>
+        <% if (initialStatus.updateBlockedReason) { %>
+          <%= initialStatus.updateBlockedReason %>
+        <% } else if (initialStatus.hasUpdate) { %>
+          检测到新版本，可以直接从后台发起更新。
+        <% } else { %>
+          当前部署版本与 GitHub 主分支一致。
+        <% } %>
+      </p>
+    </div>
+    <div class="update-status-pill" data-update-pill><%= initialStatus.hasUpdate ? '可更新' : '已检测' %></div>
+  </section>
+
+  <section class="update-grid">
+    <div class="admin-panel update-info-panel">
+      <h2>部署信息</h2>
+      <dl class="update-info-list">
+        <div><dt>安装方式</dt><dd data-update-install><%= text(initialStatus.install && initialStatus.install.label, '未识别') %></dd></div>
+        <div><dt>当前版本</dt><dd data-update-current><%= text(initialStatus.currentShort, '未知') %></dd></div>
+        <div><dt>最新版本</dt><dd data-update-latest><%= text(initialStatus.latestShort, '检测中') %></dd></div>
+        <div><dt>更新方式</dt><dd data-update-mode><%= text(initialStatus.updateMode, 'unavailable') %></dd></div>
+      </dl>
+    </div>
+
+    <div class="admin-panel update-info-panel">
+      <h2>执行状态</h2>
+      <dl class="update-info-list">
+        <div><dt>任务状态</dt><dd data-update-runtime-status><%= text(runtime.status, 'unknown') %></dd></div>
+        <div><dt>执行器</dt><dd data-update-worker><%= runtime.worker_ready ? '就绪' : '未就绪' %></dd></div>
+        <div><dt>更新时间</dt><dd data-update-runtime-time><%= text(runtime.updated_at, '暂无') %></dd></div>
+        <div><dt>目标版本</dt><dd data-update-target><%= text(runtime.target_revision ? runtime.target_revision.slice(0, 7) : '', '暂无') %></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="admin-panel update-log-panel">
+    <div class="panel-title-row">
+      <h2>更新日志</h2>
+      <span class="text-muted" data-update-log-hint>只显示最近日志</span>
+    </div>
+    <pre data-update-log><%= runtime.log_tail || '暂无更新日志' %></pre>
+  </section>
+</div>
+
+<script>
+const updatePage = document.querySelector('[data-update-page]');
+const updateRunButton = document.querySelector('[data-update-run]');
+const updateCheckButton = document.querySelector('[data-update-check]');
+let updatePollTimer = null;
+let updateStatus = <%- JSON.stringify(initialStatus).replace(/</g, '\\u003c') %>;
+
+function setUpdateText(selector, value) {
+  const node = document.querySelector(selector);
+  if (node) node.textContent = value || '暂无';
+}
+
+function shortRevision(value) {
+  return value ? String(value).slice(0, 7) : '未知';
+}
+
+function renderUpdateStatus(status) {
+  updateStatus = status || {};
+  const runtime = updateStatus.runtime || {};
+  setUpdateText('[data-update-label]', updateStatus.statusLabel || '检测完成');
+  setUpdateText('[data-update-message]', updateStatus.updateBlockedReason || (updateStatus.hasUpdate ? '检测到新版本，可以直接从后台发起更新。' : '当前部署版本与 GitHub 主分支一致。'));
+  setUpdateText('[data-update-install]', updateStatus.install && updateStatus.install.label);
+  setUpdateText('[data-update-current]', updateStatus.currentShort || shortRevision(updateStatus.currentRevision));
+  setUpdateText('[data-update-latest]', updateStatus.latestShort || shortRevision(updateStatus.latestRevision));
+  setUpdateText('[data-update-mode]', updateStatus.updateMode || 'unavailable');
+  setUpdateText('[data-update-runtime-status]', runtime.status || 'unknown');
+  setUpdateText('[data-update-worker]', runtime.worker_ready ? '就绪' : '未就绪');
+  setUpdateText('[data-update-runtime-time]', runtime.updated_at || '暂无');
+  setUpdateText('[data-update-target]', shortRevision(runtime.target_revision));
+  setUpdateText('[data-update-log]', runtime.log_tail || '暂无更新日志');
+
+  const pill = document.querySelector('[data-update-pill]');
+  if (pill) {
+    pill.textContent = updateStatus.hasUpdate ? '可更新' : (updateStatus.latestError ? '检测失败' : '已最新');
+    pill.classList.toggle('is-ready', !!updateStatus.canUpdate);
+  }
+
+  if (updateRunButton) {
+    const busy = ['queued', 'running'].includes(runtime.status);
+    updateRunButton.disabled = !updateStatus.canUpdate || busy;
+    updateRunButton.textContent = busy ? '更新中...' : '立即更新';
+  }
+}
+
+async function fetchUpdateStatus() {
+  const response = await fetch(updatePage.dataset.checkUrl, { headers: { Accept: 'application/json' } });
+  const data = await response.json();
+  if (!data.success) throw new Error(data.error || '检测失败');
+  renderUpdateStatus(data.status);
+  const runtimeStatus = data.status && data.status.runtime && data.status.runtime.status;
+  if (!['queued', 'running'].includes(runtimeStatus)) stopUpdatePolling();
+  return data.status;
+}
+
+function startUpdatePolling() {
+  stopUpdatePolling();
+  updatePollTimer = setInterval(function() {
+    fetchUpdateStatus().catch(function(err) {
+      setUpdateText('[data-update-message]', err.message);
+    });
+  }, 8000);
+}
+
+function stopUpdatePolling() {
+  if (updatePollTimer) clearInterval(updatePollTimer);
+  updatePollTimer = null;
+}
+
+updateCheckButton?.addEventListener('click', async function() {
+  updateCheckButton.disabled = true;
+  setUpdateText('[data-update-message]', '正在检测 GitHub 最新版本...');
+  try {
+    await fetchUpdateStatus();
+  } catch (err) {
+    setUpdateText('[data-update-message]', err.message);
+  } finally {
+    updateCheckButton.disabled = false;
+  }
+});
+
+updateRunButton?.addEventListener('click', async function() {
+  if (!updateStatus.canUpdate) return;
+  if (!confirm('确认现在执行系统更新？更新期间服务可能会短暂重启。')) return;
+  updateRunButton.disabled = true;
+  setUpdateText('[data-update-message]', '正在提交更新请求...');
+  try {
+    const response = await fetch(updatePage.dataset.runUrl, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': updatePage.dataset.csrfToken || '',
+      },
+      body: JSON.stringify({ csrf_token: updatePage.dataset.csrfToken || '' }),
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || '更新请求失败');
+    renderUpdateStatus(data.status);
+    startUpdatePolling();
+  } catch (err) {
+    setUpdateText('[data-update-message]', err.message);
+    updateRunButton.disabled = false;
+  }
+});
+
+renderUpdateStatus(updateStatus);
+if (['queued', 'running'].includes(updateStatus.runtime && updateStatus.runtime.status)) startUpdatePolling();
+</script>
+<%- include('layout-close') %>
