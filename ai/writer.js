@@ -31,6 +31,7 @@ async function prepareArticleForPublication(data, context = {}) {
   });
   const article = normalizeGeneratedData(result.draft, rawDraft);
   const audit = result.audit || { status: 'review', humanScore: 0, issues: [], metrics: {} };
+  const reviewerMeta = result.reviewerMeta || {};
 
   return {
     article,
@@ -42,6 +43,11 @@ async function prepareArticleForPublication(data, context = {}) {
       style_metrics: JSON.stringify(audit.metrics || {}),
       style_rewrite_attempts: result.attempts || 0,
       style_checked_at: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' '),
+      reviewer_provider: reviewerMeta.provider || '',
+      reviewer_model: reviewerMeta.model || '',
+      reviewer_reason: reviewerMeta.reason || '',
+      reviewer_creator_score: reviewerMeta.creatorScore ?? null,
+      reviewer_score: reviewerMeta.reviewerScore ?? null,
     },
   };
 }
@@ -114,25 +120,43 @@ function buildArticleImageLogMeta(imageResult = {}, fallbackMeta = {}) {
   };
 }
 
+function buildReviewerLogMeta(meta = {}) {
+  return {
+    provider: meta.reviewer_provider || '',
+    model: meta.reviewer_model || '',
+    reviewer_reason: meta.reviewer_reason || '',
+  };
+}
+
+function buildArticleImageReviewerLogMeta(imageResult = {}, fallbackMeta = {}) {
+  return {
+    provider: imageResult.review?.reviewer_provider || fallbackMeta.provider || '',
+    model: imageResult.review?.reviewer_model || fallbackMeta.model || '',
+    ai_mode: fallbackMeta.ai_mode || '',
+    reviewer_reason: imageResult.review?.reviewer_reason || '',
+  };
+}
+
 function logArticleImageOutcome(logAgent, article = {}, imageResult = {}, fallbackMeta = {}) {
   if (typeof logAgent !== 'function' || !imageResult) return;
   const title = article.title || '未命名文章';
   const reason = imageResult.reason || 'skipped';
-  const meta = buildArticleImageLogMeta(imageResult, fallbackMeta);
+  const designerMeta = buildArticleImageLogMeta(imageResult, fallbackMeta);
+  const reviewerMeta = buildArticleImageReviewerLogMeta(imageResult, fallbackMeta);
 
   if (imageResult.skipped) {
     if (/review/i.test(reason)) {
-      logAgent('image_designer', '生成文章配图', 'success', `生成完成，等待审核: ${title}`, meta);
-      logAgent('image_reviewer', '审核文章配图', 'failed', `审核未通过: ${title} (${reason})`, meta);
+      logAgent('image_designer', '生成文章配图', 'success', `生成完成，等待审核: ${title}`, designerMeta);
+      logAgent('image_reviewer', '审核文章配图', 'failed', `审核未通过: ${title} (${reason})`, reviewerMeta);
       return;
     }
 
-    logAgent('image_designer', '生成文章配图', 'success', `跳过配图: ${title} (${reason})`, meta);
+    logAgent('image_designer', '生成文章配图', 'success', `跳过配图: ${title} (${reason})`, designerMeta);
     return;
   }
 
-  logAgent('image_designer', '生成文章配图', 'success', `生成完成: ${title}`, meta);
-  logAgent('image_reviewer', '审核文章配图', 'success', `审核通过: ${title}`, meta);
+  logAgent('image_designer', '生成文章配图', 'success', `生成完成: ${title}`, designerMeta);
+  logAgent('image_reviewer', '审核文章配图', 'success', `审核通过: ${title}`, reviewerMeta);
 }
 
 async function generateArticle(page) {
@@ -181,12 +205,13 @@ async function generateArticle(page) {
     creatorModel: model,
   });
   const finalData = prepared.article;
+  const reviewerLogMeta = buildReviewerLogMeta(prepared.meta);
   if (prepared.meta.style_status === 'rewritten') {
-    logAgent('editor', '去AI味重写', 'success', `已重写: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
+    logAgent('editor', '去AI味重写', 'success', `已重写: ${finalData.title} (${prepared.meta.style_score}分)`, reviewerLogMeta);
   } else if (!prepared.publishable) {
-    logAgent('editor', '去AI味质检', 'failed', `未达标，保留待写重试: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
+    logAgent('editor', '去AI味质检', 'failed', `未达标，保留待写重试: ${finalData.title} (${prepared.meta.style_score}分)`, reviewerLogMeta);
   } else {
-    logAgent('editor', '去AI味质检', 'success', `通过: ${finalData.title} (${prepared.meta.style_score}分)`, aiMeta);
+    logAgent('editor', '去AI味质检', 'success', `通过: ${finalData.title} (${prepared.meta.style_score}分)`, reviewerLogMeta);
   }
 
   // 渲染
@@ -261,6 +286,9 @@ async function generateArticle(page) {
     moa_error: aiMeta.moa_error,
     searchUsed: searchResults.length > 0,
     styleScore: prepared.meta.style_score,
+    reviewer_provider: prepared.meta.reviewer_provider,
+    reviewer_model: prepared.meta.reviewer_model,
+    reviewer_reason: prepared.meta.reviewer_reason,
     published: prepared.publishable,
     imageGenerated: !!imageUpdates.cover_image,
     imageProvider: imageUpdates.image_provider || '',

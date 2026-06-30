@@ -42,7 +42,13 @@ test('writer logs article image designer success before reviewer success when im
       skipped: false,
       provider: 'Agnes Image',
       model: 'agnes-image-2.1-flash',
-      review: { status: 'pass', reason: 'semantic_review_passed' },
+      review: {
+        status: 'pass',
+        reason: 'semantic_review_passed',
+        reviewer_provider: 'OpenRouter',
+        reviewer_model: 'gemini-2.5-pro',
+        reviewer_reason: 'stronger_model',
+      },
     },
   );
 
@@ -54,6 +60,9 @@ test('writer logs article image designer success before reviewer success when im
   assert.match(calls[0][3], /生成完成/);
   assert.equal(calls[0][4].provider, 'Agnes Image');
   assert.equal(calls[0][4].model, 'agnes-image-2.1-flash');
+  assert.equal(calls[1][4].provider, 'OpenRouter');
+  assert.equal(calls[1][4].model, 'gemini-2.5-pro');
+  assert.equal(calls[1][4].reviewer_reason, 'stronger_model');
 });
 
 test('writer logs article image reviewer failure without leaving designer stuck running', () => {

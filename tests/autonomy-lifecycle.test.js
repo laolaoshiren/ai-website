@@ -226,7 +226,30 @@ test('article outcome logs do not approve unpublished drafts', () => {
       action: '审核文章',
       status: 'failed',
       detail: '未发布，等待重写: 质检未通过的文章 (72分)',
-      meta: { provider: 'provider-a', model: '' },
+      meta: { provider: '', model: '' },
     },
+  ]);
+});
+
+test('article outcome logs use reviewer AI metadata separately from writer metadata', () => {
+  const { buildArticleOutcomeLogs } = require('../scheduler/article-outcome');
+
+  const logs = buildArticleOutcomeLogs(
+    { title: 'Published article' },
+    {
+      title: 'Published article',
+      published: true,
+      provider: 'MoA:agnes',
+      model: 'agnes-2.0-flash',
+      reviewer_provider: 'OpenRouter',
+      reviewer_model: 'claude-4.8-opus',
+      reviewer_reason: 'stronger_model',
+    },
+    { reviewerAction: '审核文章' },
+  );
+
+  assert.deepEqual(logs.map(log => ({ role: log.role, meta: log.meta })), [
+    { role: 'writer', meta: { provider: 'MoA:agnes', model: 'agnes-2.0-flash' } },
+    { role: 'reviewer', meta: { provider: 'OpenRouter', model: 'claude-4.8-opus', reviewer_reason: 'stronger_model' } },
   ]);
 });

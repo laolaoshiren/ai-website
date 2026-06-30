@@ -880,6 +880,7 @@ function hasDisqualifyingSemanticIssue(review = {}) {
 }
 
 function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
+  const reviewerMeta = review.__reviewerMeta || review.reviewerMeta || {};
   if (review?.required_json && typeof review.required_json === 'object') {
     review = review.required_json;
   }
@@ -902,6 +903,11 @@ function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
     semantic_status: uninformativeReject ? 'uninformative_reject_ignored' : undefined,
     semantic_score: hasMeaningfulScore ? score : null,
     semantic_issues: issues,
+    reviewer_provider: reviewerMeta.provider || '',
+    reviewer_model: reviewerMeta.model || '',
+    reviewer_reason: reviewerMeta.reason || '',
+    reviewer_creator_score: reviewerMeta.creatorScore ?? null,
+    reviewer_score: reviewerMeta.reviewerScore ?? null,
   };
 }
 
@@ -959,7 +965,7 @@ async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
   const dataUrl = `data:${imageMimeType(filePath, buffer)};base64,${buffer.toString('base64')}`;
   const { callAIForJSON } = require('./client');
   const creatorModel = options.creatorModel || article?.image_planner_model || article?.ai_model || article?.model || '';
-  const { data } = await callAIForJSON(
+  const result = await callAIForJSON(
     buildImageReviewMessages({ article, prompt, dataUrl }),
     {
       taskType: 'image_review',
@@ -973,7 +979,17 @@ async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
     },
   );
 
-  return data;
+  const routing = result.reviewRouting || {};
+  return {
+    ...result.data,
+    __reviewerMeta: {
+      provider: result.provider || '',
+      model: result.model || '',
+      reason: routing.reason || '',
+      creatorScore: routing.creatorScore,
+      reviewerScore: routing.reviewerScore,
+    },
+  };
 }
 
 async function reviewArticleImage({ filePath, prompt, article }, options = {}) {

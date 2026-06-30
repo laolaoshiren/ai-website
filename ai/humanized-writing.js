@@ -85,14 +85,24 @@ async function defaultRewriteFn({ draft, audit, context }) {
   const { callAIForJSON } = require('./client');
   const messages = buildRewriteMessages(draft, audit, context);
   const creatorModel = context.creatorModel || context.creator_model || context.ai_model || '';
-  const { data } = await callAIForJSON(messages, {
+  const result = await callAIForJSON(messages, {
     taskType: 'style_review',
     reviewCapability: 'writing',
     preferReviewerOverModel: creatorModel,
     maxTokens: 8192,
     temperature: 0.82,
   });
-  return data;
+  const routing = result.reviewRouting || {};
+  return {
+    ...result.data,
+    __reviewerMeta: {
+      provider: result.provider || '',
+      model: result.model || '',
+      reason: routing.reason || '',
+      creatorScore: routing.creatorScore,
+      reviewerScore: routing.reviewerScore,
+    },
+  };
 }
 
 async function humanizeArticleDraft(draftInput, options = {}) {
@@ -103,6 +113,7 @@ async function humanizeArticleDraft(draftInput, options = {}) {
 
   let bestDraft = normalizeDraft(draftInput);
   let bestAudit = auditArticleStyle(bestDraft, { minHumanScore });
+  let bestReviewerMeta = null;
   let currentDraft = bestDraft;
   let currentAudit = bestAudit;
 
@@ -111,22 +122,25 @@ async function humanizeArticleDraft(draftInput, options = {}) {
   }
 
   for (let attempt = 1; attempt <= maxRewriteRounds; attempt += 1) {
+    const rewriteResult = await rewriteFn({ draft: currentDraft, audit: currentAudit, context, attempt });
     const rewritten = normalizeDraft(
-      await rewriteFn({ draft: currentDraft, audit: currentAudit, context, attempt }),
+      rewriteResult,
       currentDraft
     );
+    const reviewerMeta = rewriteResult?.__reviewerMeta || null;
     const rewrittenAudit = auditArticleStyle(rewritten, { minHumanScore });
 
     if (rewrittenAudit.humanScore > bestAudit.humanScore) {
       bestDraft = rewritten;
       bestAudit = rewrittenAudit;
+      bestReviewerMeta = reviewerMeta;
     }
 
     currentDraft = rewritten;
     currentAudit = rewrittenAudit;
 
     if (currentAudit.status === 'pass') {
-      return { status: 'rewritten', attempts: attempt, draft: currentDraft, audit: currentAudit };
+      return { status: 'rewritten', attempts: attempt, draft: currentDraft, audit: currentAudit, reviewerMeta };
     }
   }
 
@@ -135,6 +149,7 @@ async function humanizeArticleDraft(draftInput, options = {}) {
     attempts: maxRewriteRounds,
     draft: bestDraft,
     audit: bestAudit,
+    reviewerMeta: bestReviewerMeta,
   };
 }
 
