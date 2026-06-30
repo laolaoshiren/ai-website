@@ -84,8 +84,11 @@ ${draft.content_md}
 async function defaultRewriteFn({ draft, audit, context }) {
   const { callAIForJSON } = require('./client');
   const messages = buildRewriteMessages(draft, audit, context);
+  const creatorModel = context.creatorModel || context.creator_model || context.ai_model || '';
   const { data } = await callAIForJSON(messages, {
-    taskType: 'humanize_content',
+    taskType: 'style_review',
+    reviewCapability: 'writing',
+    preferReviewerOverModel: creatorModel,
     maxTokens: 8192,
     temperature: 0.82,
   });

@@ -96,6 +96,7 @@ const DEFAULT_DATA = {
     { id: 8, task_type: 'user_test', cron_expr: '0 4 * * 3', description: '每周三 4:00 用户体验测评', enabled: 1, last_run: null },
     { id: 9, task_type: 'template_review', cron_expr: '0 4 * * 0', description: '每周日 4:00 模板审查', enabled: 1, last_run: null },
     { id: 10, task_type: 'vision_model_scan', cron_expr: '0 */6 * * *', description: '每6小时静默检测文字 AI 多模态能力', enabled: 1, last_run: null },
+    { id: 11, task_type: 'model_rank_update', cron_expr: '0 5 * * 0', description: '每周日 5:00 更新模型能力排行', enabled: 1, last_run: null },
   ],
 
   // 分析数据
@@ -153,7 +154,7 @@ async function initDb() {
   if (!data.agent_logs) data.agent_logs = [];
   if (!data.agent_status) data.agent_status = {};
   // 初始化所有 Agent 状态（确保面板显示完整）
-  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'image_designer', 'image_reviewer', 'seo_expert', 'user_tester', 'analyzer', 'technician', 'polisher'];
+  const ALL_AGENTS = ['site_manager', 'planner', 'news_collector', 'writer', 'reviewer', 'editor', 'image_designer', 'image_reviewer', 'seo_expert', 'user_tester', 'analyzer', 'technician', 'model_ranker', 'polisher'];
   for (const role of ALL_AGENTS) {
     if (!data.agent_status[role]) {
       data.agent_status[role] = { status: 'idle', current_task: null, updated_at: null };

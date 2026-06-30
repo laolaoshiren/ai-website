@@ -958,9 +958,19 @@ async function reviewImageWithAI({ filePath, prompt, article }, options = {}) {
   const buffer = fs.readFileSync(filePath);
   const dataUrl = `data:${imageMimeType(filePath, buffer)};base64,${buffer.toString('base64')}`;
   const { callAIForJSON } = require('./client');
+  const creatorModel = options.creatorModel || article?.image_planner_model || article?.ai_model || article?.model || '';
   const { data } = await callAIForJSON(
     buildImageReviewMessages({ article, prompt, dataUrl }),
-    { taskType: 'image_review', maxTokens: 800, temperature: 0, moa: false, requireVision: true, timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS },
+    {
+      taskType: 'image_review',
+      maxTokens: 800,
+      temperature: 0,
+      moa: false,
+      requireVision: true,
+      reviewCapability: 'vision',
+      preferReviewerOverModel: creatorModel,
+      timeoutMs: options.timeoutMs || DEFAULT_IMAGE_TIMEOUT_MS,
+    },
   );
 
   return data;
