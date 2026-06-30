@@ -223,6 +223,7 @@ function shouldAttemptArticleImage(article = {}, config = {}, providers = [], op
   const textLength = `${title} ${summary} ${content}`.replace(/<[^>]+>/g, ' ').trim().length;
   if (/(快讯|简讯|公告|通知|周报)/.test(title) && textLength < 800) return { ok: false, reason: 'brief_article' };
   if (textLength < 120) return { ok: false, reason: 'too_short' };
+  if (options.publicationPriority) return { ok: true, reason: 'publication_priority' };
   if (textLength >= 800 || summary.length >= 50) return { ok: true, reason: 'substantial_article' };
   return deterministicBucket(article.slug || article.id || title) < 0.65
     ? { ok: true, reason: 'sampled_in' }
@@ -828,7 +829,7 @@ function readImageDimensions(buffer) {
 
 function promptRequestsTextLikeAssets(prompt = '') {
   const value = String(prompt || '');
-  if (!/(鏂囧瓧|text|logo|watermark|姘村嵃|typography|caption|signboard|brand mark)/i.test(value)) {
+  if (!/(鏂囧瓧|姘村嵃|\b(?:text|logos?|watermarks?|typography|captions?|signboards?|brand marks?|ui labels?|screenshots?)\b)/i.test(value)) {
     return false;
   }
   return !/(no\s+(?:readable\s+|pseudo\s+|visible\s+)?(?:text|ui labels?|numbers?|logo|logos|watermarks?|screenshots?)|without\s+readable\s+labels|typography-free|all\s+surfaces\s+blank|text-bearing\s+surfaces?\s+blank|surfaces?\s+(?:blank|turned away|out of focus)|abstract\s+non-legible|non-legible\s+shapes?|cropped away|avoid[^.]{0,140}(?:brand marks?|watermarks?|captions?|signboards?|logos?|text|screenshots?|ui labels?)|do not[^.]{0,120}(?:visible ui|readable words?|pseudo text|text|logos?|watermarks?|screenshots?)|涓嶈鏂囧瓧|no logo|鏃犳枃瀛?)/i.test(value);
