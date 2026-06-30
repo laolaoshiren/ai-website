@@ -1,0 +1,149 @@
+<%- include('layout-open') %>
+<%
+  rows = Array.isArray(rows) ? rows : [];
+  manualRankings = Array.isArray(manualRankings) ? manualRankings : [];
+  rankingSnapshot = rankingSnapshot || {};
+  var initialOrder = rows.map(function(row) { return row.key; }).join(',');
+  function scoreValue(row, key) {
+    return row && row.scores ? (row.scores[key] || 0) : 0;
+  }
+  function sourceLabel(row) {
+    return row.source === 'manual' ? '人工' : '自动';
+  }
+%>
+<div class="admin-page model-ranking-page">
+  <div class="page-header-bar">
+    <div>
+      <h1>模型排行</h1>
+      <p class="text-muted">用于决定审核、质检、图片审核等任务优先调用哪个文字模型。拖动排序并保存后，人工顺序会优先于自动榜单。</p>
+    </div>
+    <form method="POST" action="/admin/model-rankings/reset" onsubmit="return confirm('确认恢复自动模型排行？')">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-outline">恢复自动排行</button>
+    </form>
+  </div>
+
+  <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+  <% if (typeof error !== 'undefined' && error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+  <section class="admin-panel model-ranking-summary">
+    <div>
+      <span class="model-ranking-kicker">Ranking Source</span>
+      <strong><%= manualRankings.length ? '人工排序优先' : '自动评分排序' %></strong>
+      <small>人工改动后，AI 后续更新榜单只刷新评分，不覆盖人工顺序。</small>
+    </div>
+    <div>
+      <span class="model-ranking-kicker">Models</span>
+      <strong><%= rows.length %></strong>
+      <small>当前有效文字模型</small>
+    </div>
+    <div>
+      <span class="model-ranking-kicker">Auto Updated</span>
+      <strong><%= rankingSnapshot.updated_at || '未更新' %></strong>
+      <small><%= rankingSnapshot.source || 'seeded/inferred' %></small>
+    </div>
+  </section>
+
+  <form method="POST" action="/admin/model-rankings/save" class="model-ranking-form">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>">
+    <input type="hidden" name="model_order" value="<%= initialOrder %>">
+
+    <section class="admin-panel model-ranking-panel">
+      <div class="panel-title-row">
+        <div>
+          <h2>可用模型</h2>
+          <p class="panel-subtle">拖动左侧手柄调整顺序。排在前面的模型会优先用于审核类任务。</p>
+        </div>
+        <button type="submit" class="btn btn-primary">保存排序</button>
+      </div>
+
+      <% if (rows.length > 0) { %>
+        <div class="model-ranking-list" data-model-ranking-list>
+          <% rows.forEach(function(row, index) { %>
+            <div class="model-ranking-row" data-model-ranking-row data-model-key="<%= row.key %>" draggable="true">
+              <button type="button" class="model-drag-handle" aria-label="拖动排序">⋮⋮</button>
+              <div class="model-rank-number"><%= index + 1 %></div>
+              <div class="model-rank-main">
+                <div class="model-rank-title">
+                  <strong><%= row.model %></strong>
+                  <span class="model-source-badge <%= row.source === 'manual' ? 'is-manual' : 'is-auto' %>"><%= sourceLabel(row) %></span>
+                </div>
+                <div class="model-provider-line"><%= (row.providers || []).join('、') || '未知提供商' %></div>
+              </div>
+              <div class="model-score-grid" aria-label="模型能力评分">
+                <span><small>综合</small><b><%= scoreValue(row, 'general_score') %></b></span>
+                <span><small>推理</small><b><%= scoreValue(row, 'reasoning_score') %></b></span>
+                <span><small>写作</small><b><%= scoreValue(row, 'writing_score') %></b></span>
+                <span><small>视觉</small><b><%= scoreValue(row, 'vision_score') %></b></span>
+              </div>
+              <div class="model-rank-meta">
+                <span><%= row.manual_rank ? '人工 #' + row.manual_rank : '自动评分' %></span>
+                <code><%= row.confidence || 'inferred' %></code>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <p>还没有可排序的文字模型</p>
+          <p>请先在 AI 提供商里添加并启用文字 AI 模型。</p>
+        </div>
+      <% } %>
+    </section>
+  </form>
+</div>
+
+<script>
+(function() {
+  var list = document.querySelector('[data-model-ranking-list]');
+  var input = document.querySelector('input[name="model_order"]');
+  if (!list || !input) return;
+
+  var dragging = null;
+
+  function updateOrder() {
+    var rows = Array.prototype.slice.call(list.querySelectorAll('[data-model-ranking-row]'));
+    input.value = rows.map(function(row) { return row.dataset.modelKey; }).join(',');
+    rows.forEach(function(row, index) {
+      var number = row.querySelector('.model-rank-number');
+      if (number) number.textContent = String(index + 1);
+    });
+  }
+
+  function rowAfterPointer(y) {
+    var rows = Array.prototype.slice.call(list.querySelectorAll('[data-model-ranking-row]:not(.is-dragging)'));
+    return rows.reduce(function(closest, row) {
+      var box = row.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset: offset, row: row };
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, row: null }).row;
+  }
+
+  list.addEventListener('dragstart', function(event) {
+    var row = event.target.closest('[data-model-ranking-row]');
+    if (!row) return;
+    dragging = row;
+    row.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', row.dataset.modelKey || '');
+  });
+
+  list.addEventListener('dragover', function(event) {
+    event.preventDefault();
+    if (!dragging) return;
+    var after = rowAfterPointer(event.clientY);
+    if (after) list.insertBefore(dragging, after);
+    else list.appendChild(dragging);
+  });
+
+  list.addEventListener('dragend', function() {
+    if (dragging) dragging.classList.remove('is-dragging');
+    dragging = null;
+    updateOrder();
+  });
+
+  updateOrder();
+})();
+</script>
+<%- include('layout-close') %>

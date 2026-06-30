@@ -1,10 +1,10 @@
 /**
  * AI 通用客户端 v3 - 多提供商、负载均衡、故障自动恢复
  */
-const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider } = require('../db/database');
+const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider, getSetting } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 const { shouldUseMoA, runMoA } = require('./moa');
-const { selectReviewerModel } = require('./model-intelligence');
+const { selectReviewerModel, normalizeManualRankings } = require('./model-intelligence');
 
 const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_VISION_CAPABILITY_TTL_MS = 6 * 60 * 60 * 1000;
@@ -69,6 +69,7 @@ function routeReviewProviders(providers = [], options = {}) {
     creatorModel: options.preferReviewerOverModel || '',
     capability: options.reviewCapability || (options.requireVision ? 'vision' : 'reasoning'),
     requireVision: options.requireVision,
+    manualRankings: options.manualRankings || [],
   });
   if (!selected) return { providers, routing: null };
 
@@ -76,6 +77,14 @@ function routeReviewProviders(providers = [], options = {}) {
     providers: [{ ...selected.provider, model: selected.model }],
     routing: selected,
   };
+}
+
+function getManualModelRankings() {
+  try {
+    return normalizeManualRankings(getSetting('model_intelligence_manual_rankings') || '[]');
+  } catch {
+    return [];
+  }
 }
 
 function chooseProviderCredential(provider, options = {}) {
@@ -274,6 +283,22 @@ function markProviderSuccess(provider, result = {}) {
   } catch {}
 }
 
+function attachAIErrorMeta(err, provider = {}, model = '') {
+  if (!err || typeof err !== 'object') return err;
+  if (!err.ai_provider) err.ai_provider = provider.name || '';
+  if (!err.ai_provider_id) err.ai_provider_id = provider.id || null;
+  if (!err.ai_model) err.ai_model = model || '';
+  return err;
+}
+
+function copyAIErrorMeta(target, source = {}) {
+  if (!target || typeof target !== 'object') return target;
+  if (source.ai_provider) target.ai_provider = source.ai_provider;
+  if (source.ai_provider_id) target.ai_provider_id = source.ai_provider_id;
+  if (source.ai_model) target.ai_model = source.ai_model;
+  return target;
+}
+
 // ============ 故障恢复系统 ============
 const outageState = {
   active: false,        // 是否处于故障状态
@@ -382,7 +407,10 @@ async function callAI(messages, options = {}) {
   }
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
 
-  const reviewRoute = routeReviewProviders(providers, options);
+  const reviewRoute = routeReviewProviders(providers, {
+    ...options,
+    manualRankings: options.manualRankings || getManualModelRankings(),
+  });
   providers = reviewRoute.providers;
 
   let moaFallbackError = null;
@@ -436,7 +464,8 @@ async function callAI(messages, options = {}) {
   // 所有 provider 都失败 → 启动故障恢复
   if (!outageState.active) startRecovery();
 
-  throw new Error(`所有 AI 提供商均失败，最后错误: ${lastError?.message}`);
+  const finalError = new Error(`所有 AI 提供商均失败，最后错误: ${lastError?.message}`);
+  throw copyAIErrorMeta(finalError, lastError);
 }
 
 async function callProvider(provider, messages, options = {}) {
@@ -453,26 +482,30 @@ async function callProvider(provider, messages, options = {}) {
   if (options.jsonMode) body.response_format = { type: 'json_object' };
   if (options.useTools) body.tools = getToolDefinitions();
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS),
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMsg;
-    try { errorMsg = JSON.parse(errorText).error?.message || errorText; } catch { errorMsg = errorText; }
-    throw new Error(`API 错误 (${response.status}): ${errorMsg}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMsg;
+      try { errorMsg = JSON.parse(errorText).error?.message || errorText; } catch { errorMsg = errorText; }
+      throw attachAIErrorMeta(new Error(`API 错误 (${response.status}): ${errorMsg}`), provider, model);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const tokensUsed = data.usage?.total_tokens || 0;
+    const toolCalls = data.choices?.[0]?.message?.tool_calls || null;
+
+    return { content, model: data.model || model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
+  } catch (err) {
+    throw attachAIErrorMeta(err, provider, model);
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
-  const tokensUsed = data.usage?.total_tokens || 0;
-  const toolCalls = data.choices?.[0]?.message?.tool_calls || null;
-
-  return { content, model: data.model || model, tokensUsed, provider: provider.name, providerId: provider.id, toolCalls };
 }
 
 function applyMoAFallbackMarker(result = {}, err) {
@@ -543,7 +576,7 @@ async function callAIForJSON(messages, options = {}) {
         const fallback = await callAI(messages, { ...options, jsonMode: true, moa: false });
         return { ...fallback, data: parseJSON(fallback.content), moaFallback: true, moaError: parseErr.message };
       }
-      throw parseErr;
+      throw attachAIErrorMeta(parseErr, { name: result.provider || '', id: result.providerId || null }, result.model || '');
     }
   } catch (err) {
     if (err.message.includes('response_format') || err.message.includes('json_object')) {
@@ -666,4 +699,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, DEFAULT_VISION_CAPABILITY_TTL_MS, rankAIProviders, routeReviewProviders, classifyProviderError, chooseProviderCredential, parseAIProviderKeys, parseAIProviderModels, testProviderVisionCapabilities, visionCapableProviderCandidates, ensureVisionProviderCapabilities, shouldFallbackFromMoAParseError, applyMoAFallbackMarker };
+module.exports = { callAI, callProvider, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, DEFAULT_VISION_CAPABILITY_TTL_MS, rankAIProviders, routeReviewProviders, classifyProviderError, chooseProviderCredential, parseAIProviderKeys, parseAIProviderModels, testProviderVisionCapabilities, visionCapableProviderCandidates, ensureVisionProviderCapabilities, shouldFallbackFromMoAParseError, applyMoAFallbackMarker };
