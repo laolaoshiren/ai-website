@@ -119,3 +119,42 @@ test('semantic image review requires a vision-capable text AI model', async () =
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('semantic image review carries creator model into reviewer routing', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const client = require('../ai/client');
+  const original = client.callAIForJSON;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-review-routing-'));
+  const filePath = path.join(root, 'cover.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+  let capturedOptions = null;
+
+  client.callAIForJSON = async (messages, options) => {
+    capturedOptions = options;
+    return {
+      data: { status: 'pass', score: 84, reason: 'usable and relevant', issues: [] },
+      provider: 'Vision Text AI',
+      model: 'gemini-2.5-pro',
+    };
+  };
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Fresh vegetables on a kitchen table, no text, no logos.',
+        article: { title: 'Seasonal cooking notes', summary: 'Food guide', ai_model: 'gpt-4.1-mini' },
+      },
+      { creatorModel: 'gpt-4.1-mini' },
+    );
+
+    assert.equal(review.status, 'pass');
+    assert.equal(capturedOptions.taskType, 'image_review');
+    assert.equal(capturedOptions.requireVision, true);
+    assert.equal(capturedOptions.reviewCapability, 'vision');
+    assert.equal(capturedOptions.preferReviewerOverModel, 'gpt-4.1-mini');
+  } finally {
+    client.callAIForJSON = original;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

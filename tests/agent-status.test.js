@@ -19,18 +19,22 @@ test('includes every built-in agent role with readable Chinese names', () => {
       'user_tester',
       'analyzer',
       'technician',
+      'model_ranker',
       'polisher',
     ],
   );
 
   assert.equal(AGENT_ROLE_NAMES.image_designer, '配图设计师');
   assert.equal(AGENT_ROLE_NAMES.image_reviewer, '配图审核员');
+  assert.equal(AGENT_ROLE_NAMES.model_ranker, '模型排行员');
 
   const statuses = buildAgentStatuses({}, []);
   assert.equal(statuses.image_designer.roleName, '配图设计师');
   assert.equal(statuses.image_designer.displayText, '空闲');
   assert.equal(statuses.image_reviewer.roleName, '配图审核员');
   assert.equal(statuses.image_reviewer.displayText, '空闲');
+  assert.equal(statuses.model_ranker.roleName, '模型排行员');
+  assert.equal(statuses.model_ranker.displayText, '空闲');
 });
 
 test('derives visible agent status from latest logs instead of stale idle state', () => {

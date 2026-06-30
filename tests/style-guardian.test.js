@@ -120,3 +120,32 @@ test('rewrites AI-flavored drafts until the style gate passes', async () => {
   assert.equal(result.draft.title, humanDraft.title);
   assert.ok(result.audit.humanScore >= 78);
 });
+
+test('default humanizing rewrite carries creator model into reviewer routing', async () => {
+  const client = require('../ai/client');
+  const original = client.callAIForJSON;
+  let capturedOptions = null;
+
+  client.callAIForJSON = async (messages, options) => {
+    capturedOptions = options;
+    assert.ok(messages.length >= 2);
+    return { data: humanDraft, provider: 'Reviewer AI', model: 'claude-4.8-opus' };
+  };
+
+  try {
+    const result = await humanizeArticleDraft(aiLikeDraft, {
+      minHumanScore: 78,
+      maxRewriteRounds: 1,
+      context: {
+        creatorModel: 'gpt-4.1-mini',
+      },
+    });
+
+    assert.equal(result.status, 'rewritten');
+    assert.equal(capturedOptions.taskType, 'style_review');
+    assert.equal(capturedOptions.reviewCapability, 'writing');
+    assert.equal(capturedOptions.preferReviewerOverModel, 'gpt-4.1-mini');
+  } finally {
+    client.callAIForJSON = original;
+  }
+});

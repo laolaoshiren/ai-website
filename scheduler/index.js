@@ -2,7 +2,7 @@
  * 定时任务调度器 v2 - 多 Agent 协同
  */
 const cron = require('node-cron');
-const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, recoverExpiredWritingPages, getStats, logAgent, updateAgentStatus, getAIProviders } = require('../db/database');
+const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, recoverExpiredWritingPages, getStats, logAgent, updateAgentStatus, getAIProviders, setSetting } = require('../db/database');
 const { isAIConfigured } = require('../config');
 const { logArticleOutcome } = require('./article-outcome');
 
@@ -22,11 +22,13 @@ const AGENT_ROLES = {
   seo_expert_audit: 'seo_expert',
   user_test: 'user_tester',
   vision_model_scan: 'technician',
+  model_rank_update: 'model_ranker',
 };
 
 async function executeTask(taskType) {
+  const providerOptionalTasks = new Set(['model_rank_update']);
   const providers = getAIProviders().filter(p => p.enabled);
-  if (providers.length === 0) throw new Error('没有可用的 AI 提供商');
+  if (!providerOptionalTasks.has(taskType) && providers.length === 0) throw new Error('没有可用的 AI 提供商');
   const recovered = recoverExpiredWritingPages(`before-${taskType}`);
   if (recovered > 0) {
     logAgent('site_manager', '任务自愈', 'success', `恢复 ${recovered} 篇过期写作锁文章`);
@@ -110,6 +112,14 @@ async function executeTask(taskType) {
           .reduce((sum, provider) => sum + parseAIProviderModels(provider.model).length, 0);
         logAgent('technician', '视觉模型能力扫描', 'success', `完成: ${visionModels}/${totalModels} 个文字模型可用于图片审核`);
         result = { providers: activeProviders.length, totalModels, visionModels };
+        break;
+      }
+      case 'model_rank_update': {
+        const { updateModelRankingsFromOpenRouter } = require('../ai/model-intelligence');
+        const rankings = await updateModelRankingsFromOpenRouter();
+        setSetting('model_intelligence_rankings', JSON.stringify(rankings));
+        logAgent('model_ranker', '模型能力排行更新', 'success', `完成: ${rankings.models.length} 个模型，来源 ${rankings.source}`);
+        result = { source: rankings.source, models: rankings.models.length, updated_at: rankings.updated_at };
         break;
       }
       case 'heartbeat': {

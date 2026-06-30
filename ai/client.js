@@ -4,9 +4,11 @@
 const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 const { shouldUseMoA, runMoA } = require('./moa');
+const { selectReviewerModel } = require('./model-intelligence');
 
 const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_VISION_CAPABILITY_TTL_MS = 6 * 60 * 60 * 1000;
+const REVIEW_TASKS = new Set(['style_review', 'content_review', 'image_review', 'quality_review', 'template_review']);
 
 function timestamp() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ');
@@ -57,6 +59,23 @@ function rankAIProviders(providers = []) {
   return providers
     .slice()
     .sort((a, b) => providerHealthPenalty(a) - providerHealthPenalty(b) || (a.request_count || 0) - (b.request_count || 0) || (a.id || 0) - (b.id || 0));
+}
+
+function routeReviewProviders(providers = [], options = {}) {
+  const isReviewTask = REVIEW_TASKS.has(options.taskType) || !!options.preferReviewerOverModel;
+  if (!isReviewTask) return { providers, routing: null };
+
+  const selected = selectReviewerModel(providers, {
+    creatorModel: options.preferReviewerOverModel || '',
+    capability: options.reviewCapability || (options.requireVision ? 'vision' : 'reasoning'),
+    requireVision: options.requireVision,
+  });
+  if (!selected) return { providers, routing: null };
+
+  return {
+    providers: [{ ...selected.provider, model: selected.model }],
+    routing: selected,
+  };
 }
 
 function chooseProviderCredential(provider, options = {}) {
@@ -363,10 +382,13 @@ async function callAI(messages, options = {}) {
   }
   if (providers.length === 0) throw new Error('没有可用的 AI 提供商，请在后台添加');
 
+  const reviewRoute = routeReviewProviders(providers, options);
+  providers = reviewRoute.providers;
+
   let moaFallbackError = null;
   try {
     const config = require('../config').getConfig();
-    if (!options.requireVision && shouldUseMoA(options, config)) {
+    if (!reviewRoute.routing && !options.requireVision && shouldUseMoA(options, config)) {
       return await runMoA(messages, options, {
         getProviders: () => getAIProviders().filter(p => p.enabled),
         rankProviders: rankAIProviders,
@@ -395,7 +417,8 @@ async function callAI(messages, options = {}) {
         markProviderSuccess(provider, result);
         // 如果之前在故障状态，成功后停止恢复轮询
         if (outageState.active) stopRecovery();
-        return moaFallbackError ? applyMoAFallbackMarker(result, moaFallbackError) : result;
+        const routedResult = reviewRoute.routing ? { ...result, reviewRouting: reviewRoute.routing } : result;
+        return moaFallbackError ? applyMoAFallbackMarker(routedResult, moaFallbackError) : routedResult;
       } catch (err) {
         incrementProviderUsage(provider.id, false);
         const errorType = markProviderFailure(provider, err);
@@ -643,4 +666,4 @@ async function testConnection(provider) {
   } catch (err) { return { success: false, error: err.message }; }
 }
 
-module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, DEFAULT_VISION_CAPABILITY_TTL_MS, rankAIProviders, classifyProviderError, chooseProviderCredential, parseAIProviderKeys, parseAIProviderModels, testProviderVisionCapabilities, visionCapableProviderCandidates, ensureVisionProviderCapabilities, shouldFallbackFromMoAParseError, applyMoAFallbackMarker };
+module.exports = { callAI, callAIWithTools, callAIForJSON, parseJSON, testConnection, getOutageStatus, setRecoveryCallback, DEFAULT_AI_TIMEOUT_MS, DEFAULT_VISION_CAPABILITY_TTL_MS, rankAIProviders, routeReviewProviders, classifyProviderError, chooseProviderCredential, parseAIProviderKeys, parseAIProviderModels, testProviderVisionCapabilities, visionCapableProviderCandidates, ensureVisionProviderCapabilities, shouldFallbackFromMoAParseError, applyMoAFallbackMarker };

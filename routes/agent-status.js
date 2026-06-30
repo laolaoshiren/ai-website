@@ -11,6 +11,7 @@ const AGENT_ROLES = [
   'user_tester',
   'analyzer',
   'technician',
+  'model_ranker',
   'polisher',
 ];
 
@@ -27,6 +28,7 @@ const AGENT_ROLE_NAMES = {
   user_tester: '用户测评员',
   analyzer: '数据分析师',
   technician: '技术员',
+  model_ranker: '模型排行员',
   polisher: '润色师',
 };
 

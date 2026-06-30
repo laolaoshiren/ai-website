@@ -178,6 +178,7 @@ async function generateArticle(page) {
     category,
     keywords,
     searchResults,
+    creatorModel: model,
   });
   const finalData = prepared.article;
   if (prepared.meta.style_status === 'rewritten') {
@@ -205,13 +206,14 @@ async function generateArticle(page) {
         content_md: finalData.content_md || '',
         content_html: cleanHtml,
         category_name: category?.name || page.category_name || '',
+        ai_model: model,
       };
       const config = getConfig();
       const imageProviders = getImageProviders();
       const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders, { publicationPriority: true });
       if (imageDecision.ok) {
         logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, { provider: '', model: '', ai_mode: '' });
-        imageResult = await generateArticleImage(imageArticle, { config, publicationPriority: true });
+        imageResult = await generateArticleImage(imageArticle, { config, publicationPriority: true, creatorModel: model });
         logArticleImageOutcome(logAgent, imageArticle, imageResult);
       }
     } catch (err) {
