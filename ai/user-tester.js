@@ -5,20 +5,21 @@ const { callAIForJSON } = require('./client');
 const { getUserTesterPrompt } = require('./prompts');
 const { getPublishedPages, getCategories, logAgent } = require('../db/database');
 const { getSiteConfig } = require('../config');
+const { withAgentLogContext } = require('./agent-log-context');
 
 async function runUserTester() {
   const pages = getPublishedPages(50);
   const categories = getCategories();
   const siteConfig = getSiteConfig();
 
-  logAgent('user_tester', '用户体验测评', 'running', '开始从用户角度全面审查网站...');
+  const testLogId = logAgent('user_tester', '用户体验测评', 'running', '开始从用户角度全面审查网站...');
 
   const messages = getUserTesterPrompt(pages, categories, siteConfig.url, siteConfig);
-  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
+  const { data, model, tokensUsed, provider } = await withAgentLogContext(testLogId, () => callAIForJSON(messages, {
     taskType: 'user_test',
     maxTokens: 8192,
     temperature: 0.5,
-  });
+  }));
   const aiMeta = { provider, model };
 
   const scores = data.overall_score || {};

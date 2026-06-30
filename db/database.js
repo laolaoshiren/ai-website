@@ -441,6 +441,16 @@ function logAgent(agentRole, action, status, detail, meta) {
     return log.id;
   });
 }
+function updateAgentLogMeta(id, meta = {}) {
+  return withLock(() => {
+    const log = getDb().agent_logs.find(item => item.id === parseInt(id, 10));
+    if (!log) return null;
+    const currentMeta = log.meta && typeof log.meta === 'object' ? log.meta : {};
+    log.meta = { ...currentMeta, ...meta };
+    scheduleSave();
+    return log;
+  });
+}
 function updateAgentStatus(agentRole, status, currentTask) {
   return withLock(() => {
     getDb().agent_status[agentRole] = { status, current_task: currentTask, updated_at: now() };
@@ -777,7 +787,7 @@ module.exports = {
   getAIProviders, getActiveAIProvider, addAIProvider, updateAIProvider, deleteAIProvider, incrementProviderUsage,
   getImageProviders, addImageProvider, updateImageProvider, deleteImageProvider, incrementImageProviderUsage,
   getSetting, setSetting, getAllSettings,
-  logAgent, updateAgentStatus, getAgentLogs, getAgentStatuses,
+  logAgent, updateAgentLogMeta, updateAgentStatus, getAgentLogs, getAgentStatuses,
   getCategories, getCategoryBySlug, getCategoryById, upsertCategory, addCategory, updateCategory, deleteCategory,
   getPublishedPages, getPageBySlug, getPageById, getAllPages, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, repairExistingPageCategories, recoverExpiredWritingPages, repairPublishedContentQuality, insertPage, updatePage, deletePage,
   enrichPage, getStats,

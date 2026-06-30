@@ -1,10 +1,11 @@
 /**
  * AI 通用客户端 v3 - 多提供商、负载均衡、故障自动恢复
  */
-const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider, getSetting } = require('../db/database');
+const { getActiveAIProvider, incrementProviderUsage, getAIProviders, updateAIProvider, getSetting, updateAgentLogMeta } = require('../db/database');
 const { executeTool, getToolDefinitions } = require('./tools');
 const { shouldUseMoA, runMoA } = require('./moa');
 const { selectReviewerModel, normalizeManualRankings } = require('./model-intelligence');
+const { getAgentLogContext } = require('./agent-log-context');
 
 const DEFAULT_AI_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_VISION_CAPABILITY_TTL_MS = 6 * 60 * 60 * 1000;
@@ -299,6 +300,31 @@ function copyAIErrorMeta(target, source = {}) {
   return target;
 }
 
+function notifyProviderSelected(provider = {}, model = '', options = {}) {
+  const meta = {
+    provider: provider.name || '',
+    model: model || '',
+    provider_id: provider.id || null,
+  };
+
+  if (typeof options.onProviderSelected === 'function') {
+    try { options.onProviderSelected(meta, provider); } catch {}
+  }
+
+  const context = getAgentLogContext();
+  const logIds = [
+    ...new Set([
+      ...(context.logIds || []),
+      ...(Array.isArray(options.agentLogIds) ? options.agentLogIds : []),
+      options.agentLogId,
+    ].filter(Boolean)),
+  ];
+
+  for (const logId of logIds) {
+    try { updateAgentLogMeta(logId, meta); } catch {}
+  }
+}
+
 // ============ 故障恢复系统 ============
 const outageState = {
   active: false,        // 是否处于故障状态
@@ -471,6 +497,7 @@ async function callAI(messages, options = {}) {
 async function callProvider(provider, messages, options = {}) {
   // 多密钥/多模型：逗号分隔，随机选择实现负载均衡
   const { apiKey, model } = chooseProviderCredential(provider, options);
+  notifyProviderSelected(provider, model, options);
 
   const url = `${provider.base_url.replace(/\/+$/, '')}/chat/completions`;
   const body = {
