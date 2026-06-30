@@ -880,6 +880,9 @@ function hasDisqualifyingSemanticIssue(review = {}) {
 }
 
 function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
+  if (review?.required_json && typeof review.required_json === 'object') {
+    review = review.required_json;
+  }
   const rawScore = Number(review.score ?? review.quality_score ?? review.qualityScore ?? 0);
   const score = Number.isFinite(rawScore) && rawScore > 0 && rawScore <= 10 ? rawScore * 10 : rawScore;
   const hasHardIssue = hasDisqualifyingSemanticIssue(review);

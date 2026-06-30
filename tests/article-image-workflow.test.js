@@ -478,6 +478,45 @@ test('semantic review fails when the reviewer reports garbled text despite pass 
   }
 });
 
+test('semantic review unwraps nested required_json responses from vision models', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'nested-review.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Editorial scene with blank production props, no text, no logos.',
+        article: {
+          title: 'Video model production risks',
+          summary: 'A technology article about generated video and production workflows.',
+          category_name: 'Technology',
+        },
+      },
+      {
+        reviewer: async () => ({
+          required_json: {
+            status: 'failed',
+            score: 0,
+            reason: 'Image contains prominent illegible text overlays and a barcode logo.',
+            issues: ['Visible text overlay', 'Barcode/logo in the corner'],
+          },
+        }),
+      },
+    );
+
+    assert.equal(review.status, 'failed');
+    assert.match(review.reason, /text overlays/i);
+    assert.deepEqual(review.semantic_issues, ['Visible text overlay', 'Barcode/logo in the corner']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('semantic review does not reject negated generic-template wording', async () => {
   const { reviewArticleImage } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
