@@ -151,6 +151,37 @@ a { color: var(--primary); text-decoration: none; }
 .provider-test-result.is-success { color: #6ee7b7; }
 .provider-test-result.is-error { color: #fca5a5; }
 
+/* Model rankings */
+.model-ranking-page { padding-bottom: 3rem; }
+.model-ranking-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; border: 1px solid rgba(96,165,250,0.18); background: #12121d; }
+.model-ranking-summary > div { min-width: 0; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.025); }
+.model-ranking-kicker { display: block; margin-bottom: 0.25rem; color: var(--primary-dark); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.model-ranking-summary strong { display: block; color: var(--text); font-size: 1.05rem; overflow-wrap: anywhere; }
+.model-ranking-summary small { display: block; margin-top: 0.2rem; color: var(--text-light); font-size: 0.78rem; }
+.model-ranking-panel { padding: 0; overflow: hidden; border: 1px solid var(--border); }
+.model-ranking-panel .panel-title-row { margin: 0; padding: 1.25rem; border-bottom: 1px solid var(--border); background: #141420; }
+.model-ranking-panel .panel-title-row h2 { margin: 0 0 0.2rem; }
+.model-ranking-list { display: grid; gap: 0.65rem; padding: 1rem 1.25rem 1.25rem; }
+.model-ranking-row { display: grid; grid-template-columns: 34px 42px minmax(180px, 1fr) minmax(260px, 0.75fr) minmax(120px, 0.36fr); gap: 0.8rem; align-items: center; min-width: 0; padding: 0.85rem; border: 1px solid var(--border); border-radius: 8px; background: #10101a; transition: border-color 0.15s, background 0.15s, opacity 0.15s; }
+.model-ranking-row:hover { border-color: rgba(96,165,250,0.42); background: #151525; }
+.model-ranking-row.is-dragging { opacity: 0.48; border-color: var(--primary); }
+.model-drag-handle { width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 8px; background: #141420; color: #93c5fd; cursor: grab; font-size: 1rem; line-height: 1; }
+.model-drag-handle:active { cursor: grabbing; }
+.model-rank-number { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(96,165,250,0.14); color: #bfdbfe; font-weight: 900; }
+.model-rank-main { min-width: 0; }
+.model-rank-title { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.model-rank-title strong { min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.9rem; }
+.model-provider-line { margin-top: 0.18rem; color: var(--text-light); font-size: 0.78rem; overflow-wrap: anywhere; }
+.model-source-badge { flex: 0 0 auto; padding: 0.12rem 0.42rem; border-radius: 999px; font-size: 0.7rem; font-weight: 900; }
+.model-source-badge.is-manual { background: rgba(34,197,94,0.14); color: #86efac; border: 1px solid rgba(34,197,94,0.26); }
+.model-source-badge.is-auto { background: rgba(148,163,184,0.12); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.18); }
+.model-score-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; min-width: 0; }
+.model-score-grid span { display: grid; gap: 0.1rem; min-width: 0; padding: 0.45rem; border: 1px solid rgba(148,163,184,0.14); border-radius: 6px; background: #141420; text-align: center; }
+.model-score-grid small { color: var(--text-light); font-size: 0.68rem; }
+.model-score-grid b { color: var(--text); font-size: 0.9rem; line-height: 1.2; }
+.model-rank-meta { display: grid; justify-items: end; gap: 0.28rem; min-width: 0; color: var(--text-light); font-size: 0.76rem; }
+.model-rank-meta code { max-width: 100%; padding: 0.15rem 0.35rem; border-radius: 5px; background: #141420; color: #94a3b8; overflow-wrap: anywhere; }
+
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; }
 .btn:disabled { cursor: wait; opacity: 0.65; }
@@ -334,6 +365,9 @@ a { color: var(--primary); text-decoration: none; }
   .settings-form-grid { grid-template-columns: 1fr; }
   .settings-field-wide { grid-column: auto; }
   .providers-grid { grid-template-columns: 1fr; }
+  .model-ranking-summary { grid-template-columns: 1fr; }
+  .model-ranking-row { grid-template-columns: 34px 38px minmax(0, 1fr); align-items: start; }
+  .model-score-grid, .model-rank-meta { grid-column: 1 / -1; justify-items: stretch; }
   .brief-moa-card { grid-template-columns: 1fr; }
   .brief-model-tags { justify-content: flex-start; }
   .template-active-summary, .template-library-heading { grid-template-columns: 1fr; }

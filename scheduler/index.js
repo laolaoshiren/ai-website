@@ -12,6 +12,10 @@ function aiMeta(result = {}) {
   return { provider: result.provider || '', model: result.model || '' };
 }
 
+function aiErrorMeta(err = {}) {
+  return { provider: err.ai_provider || err.provider || '', model: err.ai_model || err.model || '' };
+}
+
 const AGENT_ROLES = {
   news_collector: 'news_collector',
   plan_structure: 'planner',
@@ -79,7 +83,7 @@ async function executeTask(taskType) {
             results.push(r);
           } catch (err) {
             releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
-            logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
+            logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`, aiErrorMeta(err));
           }
         }
         result = results;
@@ -136,7 +140,7 @@ async function executeTask(taskType) {
             logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`, aiMeta(planResult));
             planned = claimPlannedPages(2, workerId, 45);
           } catch (err) {
-            logAgent('planner', '补充规划', 'failed', err.message);
+            logAgent('planner', '补充规划', 'failed', err.message, aiErrorMeta(err));
           }
         }
 
@@ -150,7 +154,7 @@ async function executeTask(taskType) {
               logArticleOutcome(logAgent, page, r, { reviewerAction: '审核文章' });
             } catch (err) {
               releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
-              logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
+              logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`, aiErrorMeta(err));
             }
           }
         } else {
@@ -177,7 +181,7 @@ async function executeTask(taskType) {
     updateAgentStatus(agentRole, 'idle', null);
     return result;
   } catch (err) {
-    logAgent(agentRole, taskType, 'failed', err.message);
+    logAgent(agentRole, taskType, 'failed', err.message, aiErrorMeta(err));
     updateAgentStatus(agentRole, 'error', err.message);
     throw err;
   }
@@ -269,7 +273,7 @@ async function coldStart() {
           return result;
         } catch (err) {
           releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
-          logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`);
+          logAgent('writer', '撰写文章', 'failed', `失败: ${page.title} - ${err.message}`, aiErrorMeta(err));
           throw err;
         }
       })
@@ -345,7 +349,7 @@ function startRageMode(level = 3) {
         await planStructure();
         planned = claimPlannedPages(concurrency, `rage-${cycleCount}-${Date.now()}`, 45);
       } catch (err) {
-        logAgent('planner', '狂暴规划', 'failed', err.message);
+        logAgent('planner', '狂暴规划', 'failed', err.message, aiErrorMeta(err));
       }
     }
 
@@ -368,7 +372,7 @@ function startRageMode(level = 3) {
           return r;
         } catch (err) {
           releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
-          logAgent('writer', `写手#${writerId}`, 'failed', err.message.slice(0, 60));
+          logAgent('writer', `写手#${writerId}`, 'failed', err.message.slice(0, 60), aiErrorMeta(err));
           throw err;
         }
       })

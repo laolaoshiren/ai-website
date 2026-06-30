@@ -34,6 +34,40 @@ test('review routing prefers a stronger available model than the creator model',
   assert.equal(selected.reason, 'stronger_model');
 });
 
+test('manual model ranking overrides inferred scores for reviewer routing', () => {
+  const { selectReviewerModel } = require('../ai/model-intelligence');
+  const providers = [
+    { id: 1, name: 'Mini Provider', enabled: true, model: 'gpt-4.1-mini' },
+    { id: 2, name: 'Claude Provider', enabled: true, model: 'claude-4.8-opus' },
+  ];
+
+  const selected = selectReviewerModel(providers, {
+    creatorModel: 'claude-4.8-opus',
+    capability: 'reasoning',
+    manualRankings: ['gpt-4.1-mini', 'claude-4.8-opus'],
+  });
+
+  assert.equal(selected.provider.name, 'Mini Provider');
+  assert.equal(selected.model, 'gpt-4.1-mini');
+  assert.equal(selected.reason, 'manual_override');
+});
+
+test('model ranking rows keep manual order ahead of automatic scores', () => {
+  const { buildModelRankingRows } = require('../ai/model-intelligence');
+  const rows = buildModelRankingRows(
+    [
+      { id: 1, name: 'A', enabled: true, model: 'claude-4.8-opus,gpt-4.1-mini' },
+      { id: 2, name: 'B', enabled: true, model: 'gemini-2.5-pro' },
+    ],
+    { manualRankings: ['gemini-2.5-pro', 'gpt-4.1-mini'] },
+  );
+
+  assert.deepEqual(rows.slice(0, 3).map(row => row.model), ['gemini-2.5-pro', 'gpt-4.1-mini', 'claude-4.8-opus']);
+  assert.equal(rows[0].manual_rank, 1);
+  assert.equal(rows[1].manual_rank, 2);
+  assert.equal(rows[2].manual_rank, null);
+});
+
 test('review routing only falls back to same level when no stronger model is available', () => {
   const { selectReviewerModel } = require('../ai/model-intelligence');
   const providers = [{ id: 1, name: 'Solo', enabled: true, model: 'gpt-4.1-mini' }];

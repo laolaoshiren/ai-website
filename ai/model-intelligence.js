@@ -54,6 +54,34 @@ function parseDelimitedList(value) {
     });
 }
 
+function normalizeManualRankings(value) {
+  let input = value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('[')) {
+      try { input = JSON.parse(trimmed); } catch { input = trimmed; }
+    }
+  }
+
+  const items = Array.isArray(input) ? input : parseDelimitedList(input);
+  const seen = new Set();
+  return items
+    .map(item => normalizeModelName(item))
+    .filter(item => {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+}
+
+function buildManualRankMap(manualRankings = []) {
+  const map = new Map();
+  normalizeManualRankings(manualRankings).forEach((model, index) => {
+    if (!map.has(model)) map.set(model, index);
+  });
+  return map;
+}
+
 function versionBonus(name) {
   const matches = [...String(name || '').matchAll(/(?:^|[^a-z])v?(\d+)(?:\.(\d+))?/gi)];
   if (matches.length === 0) return 0;
@@ -151,6 +179,53 @@ function expandProviderModelCandidates(providers = [], options = {}) {
     .sort((a, b) => b.capabilityScore - a.capabilityScore || b.scores.general_score - a.scores.general_score);
 }
 
+function buildModelRankingRows(providers = [], options = {}) {
+  const manualRankMap = buildManualRankMap(options.manualRankings);
+  const rows = new Map();
+
+  providers
+    .filter(provider => provider && provider.enabled !== false)
+    .forEach(provider => {
+      parseDelimitedList(provider.model).forEach(model => {
+        const key = normalizeModelName(model);
+        if (!key) return;
+        const scores = scoreModel(model);
+        const existing = rows.get(key);
+        if (existing) {
+          if (!existing.providers.includes(provider.name)) existing.providers.push(provider.name);
+          existing.provider_ids.push(provider.id);
+          if (scores.general_score > existing.scores.general_score) {
+            existing.model = model;
+            existing.scores = scores;
+            existing.confidence = scores.confidence;
+          }
+          return;
+        }
+
+        const manualIndex = manualRankMap.has(key) ? manualRankMap.get(key) : null;
+        rows.set(key, {
+          key,
+          model,
+          providers: provider.name ? [provider.name] : [],
+          provider_ids: [provider.id],
+          scores,
+          manual_rank: manualIndex === null ? null : manualIndex + 1,
+          confidence: scores.confidence,
+          source: manualIndex === null ? 'auto' : 'manual',
+        });
+      });
+    });
+
+  return Array.from(rows.values()).sort((a, b) => {
+    const aManual = a.manual_rank ?? Infinity;
+    const bManual = b.manual_rank ?? Infinity;
+    if (aManual !== bManual) return aManual - bManual;
+    return b.scores.general_score - a.scores.general_score
+      || b.scores.reasoning_score - a.scores.reasoning_score
+      || a.model.localeCompare(b.model);
+  });
+}
+
 function selectReviewerModel(providers = [], context = {}) {
   const capability = context.capability || (context.requireVision ? 'vision' : 'reasoning');
   const candidates = expandProviderModelCandidates(providers, {
@@ -161,6 +236,28 @@ function selectReviewerModel(providers = [], context = {}) {
 
   const creatorModel = context.creatorModel || '';
   const creatorScore = creatorModel ? capabilityScore(scoreModel(creatorModel), capability) : -Infinity;
+  const manualRankMap = buildManualRankMap(context.manualRankings);
+  const manualCandidates = candidates
+    .filter(candidate => manualRankMap.has(normalizeModelName(candidate.model)))
+    .sort((a, b) => {
+      const aRank = manualRankMap.get(normalizeModelName(a.model));
+      const bRank = manualRankMap.get(normalizeModelName(b.model));
+      return aRank - bRank || b.capabilityScore - a.capabilityScore;
+    });
+
+  if (manualCandidates.length > 0) {
+    const selected = manualCandidates[0];
+    return {
+      provider: selected.provider,
+      model: selected.model,
+      scores: selected.scores,
+      reason: 'manual_override',
+      creatorScore,
+      reviewerScore: selected.capabilityScore,
+      manualRank: manualRankMap.get(normalizeModelName(selected.model)) + 1,
+    };
+  }
+
   const stronger = candidates.find(candidate => candidate.capabilityScore > creatorScore);
   const selected = stronger || candidates[0];
   return {
@@ -204,6 +301,8 @@ module.exports = {
   scoreModel,
   compareModels,
   expandProviderModelCandidates,
+  buildModelRankingRows,
+  normalizeManualRankings,
   selectReviewerModel,
   updateModelRankingsFromOpenRouter,
 };

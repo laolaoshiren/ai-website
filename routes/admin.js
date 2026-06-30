@@ -18,6 +18,7 @@ const { listFrontendThemes, resolveFrontendTheme, isValidFrontendTheme } = requi
 const { BACKUP_SECTIONS, buildBackupZip, inspectBackupInput, normalizeSections, restoreBackup } = require('../utils/admin-backup');
 const { parseMultipartForm } = require('../utils/multipart-form');
 const selfUpdate = require('../utils/self-update');
+const { buildModelRankingRows, normalizeManualRankings } = require('../ai/model-intelligence');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -48,6 +49,19 @@ function normalizePositiveSetting(value, fallback, min = 0, max = 100000) {
   const num = parseInt(normalizeSettingValue(value), 10);
   if (!Number.isFinite(num)) return String(fallback);
   return String(Math.max(min, Math.min(max, num)));
+}
+
+function getManualModelRankingsSetting() {
+  return normalizeManualRankings(db.getSetting('model_intelligence_manual_rankings') || '[]');
+}
+
+function getModelRankingSnapshot() {
+  try {
+    const parsed = JSON.parse(db.getSetting('model_intelligence_rankings') || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function queueVisionCapabilityRefresh(providers = null, options = {}) {
@@ -465,6 +479,41 @@ router.post('/work-mode', requireCsrf, (req, res) => {
   } catch (err) {
     res.redirect('/admin/settings?error=' + encodeURIComponent(err.message));
   }
+});
+
+// ============ AI 模型排行 ============
+router.get('/model-rankings', (req, res) => {
+  const manualRankings = getManualModelRankingsSetting();
+  const rankingSnapshot = getModelRankingSnapshot();
+  const rows = buildModelRankingRows(db.getAIProviders(), { manualRankings, rankingSnapshot });
+  res.render('admin/model-rankings', {
+    title: '模型排行',
+    rows,
+    manualRankings,
+    rankingSnapshot,
+    csrfToken: req.session?.csrf || '',
+    success: req.query.success,
+    error: req.query.error,
+  });
+});
+
+router.post('/model-rankings/save', requireCsrf, (req, res) => {
+  const requestedOrder = normalizeManualRankings(req.body.model_order || '');
+  const availableRows = buildModelRankingRows(db.getAIProviders());
+  const availableKeys = new Set(availableRows.map(row => row.key));
+  const order = requestedOrder.filter(model => availableKeys.has(model));
+
+  if (order.length === 0) {
+    return res.redirect('/admin/model-rankings?error=' + encodeURIComponent('没有可保存的模型排序，请先添加可用文字 AI 提供商'));
+  }
+
+  db.setSetting('model_intelligence_manual_rankings', JSON.stringify(order));
+  res.redirect('/admin/model-rankings?success=' + encodeURIComponent('模型人工排序已保存，后续审核模型选择将优先遵守该顺序'));
+});
+
+router.post('/model-rankings/reset', requireCsrf, (req, res) => {
+  db.setSetting('model_intelligence_manual_rankings', '[]');
+  res.redirect('/admin/model-rankings?success=' + encodeURIComponent('已恢复自动模型排行'));
 });
 
 // ============ AI 提供商管理 ============
