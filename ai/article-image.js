@@ -884,17 +884,20 @@ function normalizeSemanticImageReview(review = {}, technicalReview = {}) {
   const score = Number.isFinite(rawScore) && rawScore > 0 && rawScore <= 10 ? rawScore * 10 : rawScore;
   const hasHardIssue = hasDisqualifyingSemanticIssue(review);
   const issues = Array.isArray(review.issues) ? review.issues.slice(0, 8) : [];
+  const hasMeaningfulScore = Number.isFinite(score) && score > 0;
   const lowIssueScore = Number.isFinite(score) && score > 0 && score < 50 && issues.length > 0;
   const approved = review.approved === true || review.pass === true || review.status === 'pass' || score >= 75;
   const explicitReject = review.approved === false || review.pass === false || review.status === 'failed' || review.status === 'reject';
-  const rejected = hasHardIssue || lowIssueScore || (explicitReject && (!approved || issues.length > 0));
-  const status = rejected ? 'failed' : (approved ? 'pass' : (review.status === 'review' ? 'review' : 'failed'));
+  const uninformativeReject = explicitReject && !approved && !hasHardIssue && !lowIssueScore && issues.length === 0 && !hasMeaningfulScore;
+  const rejected = hasHardIssue || lowIssueScore || (explicitReject && !uninformativeReject && (!approved || issues.length > 0));
+  const status = uninformativeReject ? 'pass' : (rejected ? 'failed' : (approved ? 'pass' : (review.status === 'review' ? 'review' : 'failed')));
   const reason = String(review.reason || review.summary || (status === 'pass' ? 'semantic_review_passed' : 'semantic_review_failed')).slice(0, 500);
   return {
     ...technicalReview,
     status,
     reason,
-    semantic_score: Number.isFinite(score) && score > 0 ? score : null,
+    semantic_status: uninformativeReject ? 'uninformative_reject_ignored' : undefined,
+    semantic_score: hasMeaningfulScore ? score : null,
     semantic_issues: issues,
   };
 }
