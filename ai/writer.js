@@ -208,10 +208,10 @@ async function generateArticle(page) {
       };
       const config = getConfig();
       const imageProviders = getImageProviders();
-      const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders);
+      const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders, { publicationPriority: true });
       if (imageDecision.ok) {
         logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, { provider: '', model: '', ai_mode: '' });
-        imageResult = await generateArticleImage(imageArticle, { config });
+        imageResult = await generateArticleImage(imageArticle, { config, publicationPriority: true });
         logArticleImageOutcome(logAgent, imageArticle, imageResult);
       }
     } catch (err) {

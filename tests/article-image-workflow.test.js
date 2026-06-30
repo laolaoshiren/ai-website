@@ -124,6 +124,23 @@ test('article image workflow stores only reviewed local images', async () => {
   }
 });
 
+test('published article image priority bypasses random sampling for normal articles', () => {
+  const { shouldAttemptArticleImage } = require('../ai/article-image');
+  const providers = [{ enabled: true, base_url: 'https://example.com/v1', api_key: 'key', model: 'image-model' }];
+  const article = {
+    slug: 'sample-0',
+    title: 'A normal article that should still receive a cover image',
+    summary: 'Short summary',
+    content_md: 'This article has enough editorial substance for a useful cover image, but not enough length to bypass the old sampling path automatically.',
+  };
+
+  assert.equal(shouldAttemptArticleImage(article, { image_generation_enabled: '1' }, providers).ok, false);
+  assert.deepEqual(
+    shouldAttemptArticleImage(article, { image_generation_enabled: '1' }, providers, { publicationPriority: true }),
+    { ok: true, reason: 'publication_priority' },
+  );
+});
+
 test('image reviewer rejects tiny or broken images before article metadata is updated', () => {
   const { reviewGeneratedImage } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
@@ -321,6 +338,46 @@ test('image reviewer allows blank-surface wording even when no-text wording is t
     const review = reviewGeneratedImage({
       filePath,
       prompt: 'If the chosen subject includes phones, computers, documents, books, menus, signs, labels, dashboards, packaging, charts or any screen, keep text-bearing surfaces blank, turned away, out of focus, cropped away, or represented only by abstract non-legible shapes.',
+    });
+
+    assert.equal(review.status, 'pass');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('image reviewer allows default safety wording that forbids readable text', () => {
+  const { reviewGeneratedImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'default-safety-valid.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = reviewGeneratedImage({
+      filePath,
+      prompt: 'Editorial cover image for a real article. Avoid close-up portraits, distorted faces, prominent hands, readable text, logos, watermarks, screenshots, captions, signboards and messy clutter. If the chosen subject includes phones, computers, tablets, documents, books, menus, signs, labels, dashboards, packaging, charts or any screen, keep text-bearing surfaces blank, turned away, out of focus, cropped away, or represented only by abstract non-legible shapes.',
+    });
+
+    assert.equal(review.status, 'pass');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('image reviewer does not treat context words as text requests', () => {
+  const { reviewGeneratedImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'context-valid.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = reviewGeneratedImage({
+      filePath,
+      prompt: 'Let the article decide the subject: people in context, concrete objects, documents as blank surfaces, and one clear focal subject from the article.',
     });
 
     assert.equal(review.status, 'pass');
