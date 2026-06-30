@@ -114,6 +114,8 @@ test('semantic image review requires a vision-capable text AI model', async () =
 
     assert.equal(review.status, 'pass');
     assert.equal(review.semantic_score, 82);
+    assert.equal(review.reviewer_provider, 'Vision Text AI');
+    assert.equal(review.reviewer_model, 'vision-model');
   } finally {
     client.callAIForJSON = original;
     fs.rmSync(root, { recursive: true, force: true });
@@ -149,6 +151,8 @@ test('semantic image review carries creator model into reviewer routing', async 
     );
 
     assert.equal(review.status, 'pass');
+    assert.equal(review.reviewer_provider, 'Vision Text AI');
+    assert.equal(review.reviewer_model, 'gemini-2.5-pro');
     assert.equal(capturedOptions.taskType, 'image_review');
     assert.equal(capturedOptions.requireVision, true);
     assert.equal(capturedOptions.reviewCapability, 'vision');

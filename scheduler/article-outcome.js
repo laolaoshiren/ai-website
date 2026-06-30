@@ -6,9 +6,7 @@ function scoreSuffix(result) {
   return Number.isFinite(Number(result?.styleScore)) ? ` (${result.styleScore}分)` : '';
 }
 
-function buildArticleOutcomeLogs(page, result, options = {}) {
-  const title = result?.title || page?.title || '未命名文章';
-  const reviewerAction = options.reviewerAction || '审核文章';
+function buildWriterMeta(result = {}) {
   const meta = {
     provider: result?.provider || '',
     model: result?.model || '',
@@ -17,6 +15,23 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
   if (result?.moa_candidates) meta.moa_candidates = result.moa_candidates;
   if (result?.moa_failed_candidates) meta.moa_failed_candidates = result.moa_failed_candidates;
   if (result?.moa_error) meta.moa_error = result.moa_error;
+  return meta;
+}
+
+function buildReviewerMeta(result = {}) {
+  const meta = {
+    provider: result?.reviewer_provider || '',
+    model: result?.reviewer_model || '',
+  };
+  if (result?.reviewer_reason) meta.reviewer_reason = result.reviewer_reason;
+  return meta;
+}
+
+function buildArticleOutcomeLogs(page, result, options = {}) {
+  const title = result?.title || page?.title || '未命名文章';
+  const reviewerAction = options.reviewerAction || '审核文章';
+  const writerMeta = buildWriterMeta(result);
+  const reviewerMeta = buildReviewerMeta(result);
 
   if (result?.published) {
     return [
@@ -25,14 +40,14 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
         action: '撰写文章',
         status: 'success',
         detail: `完成: ${title}${providerSuffix(result)}`,
-        meta,
+        meta: writerMeta,
       },
       {
         role: 'reviewer',
         action: reviewerAction,
         status: 'success',
         detail: `通过: ${title}`,
-        meta,
+        meta: reviewerMeta,
       },
     ];
   }
@@ -43,14 +58,14 @@ function buildArticleOutcomeLogs(page, result, options = {}) {
       action: '撰写文章',
       status: 'success',
       detail: `生成待重写: ${title}${providerSuffix(result)}`,
-      meta,
+      meta: writerMeta,
     },
     {
       role: 'reviewer',
       action: reviewerAction,
       status: 'failed',
       detail: `未发布，等待重写: ${title}${scoreSuffix(result)}`,
-      meta,
+      meta: reviewerMeta,
     },
   ];
 }

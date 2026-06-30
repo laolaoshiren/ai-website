@@ -142,10 +142,34 @@ test('default humanizing rewrite carries creator model into reviewer routing', a
     });
 
     assert.equal(result.status, 'rewritten');
+    assert.equal(result.reviewerMeta.provider, 'Reviewer AI');
+    assert.equal(result.reviewerMeta.model, 'claude-4.8-opus');
     assert.equal(capturedOptions.taskType, 'style_review');
     assert.equal(capturedOptions.reviewCapability, 'writing');
     assert.equal(capturedOptions.preferReviewerOverModel, 'gpt-4.1-mini');
   } finally {
     client.callAIForJSON = original;
   }
+});
+
+test('publication preparation stores reviewer model metadata when a rewrite uses LLM', async () => {
+  const { prepareArticleForPublication } = require('../ai/writer');
+  const prepared = await prepareArticleForPublication(aiLikeDraft, {
+    articleTitle: aiLikeDraft.title,
+    humanizeArticleDraft: async () => ({
+      status: 'rewritten',
+      attempts: 1,
+      draft: humanDraft,
+      audit: { status: 'pass', humanScore: 88, issues: [], metrics: {} },
+      reviewerMeta: {
+        provider: 'OpenRouter',
+        model: 'claude-4.8-opus',
+        reason: 'stronger_model',
+      },
+    }),
+  });
+
+  assert.equal(prepared.meta.reviewer_provider, 'OpenRouter');
+  assert.equal(prepared.meta.reviewer_model, 'claude-4.8-opus');
+  assert.equal(prepared.meta.reviewer_reason, 'stronger_model');
 });
