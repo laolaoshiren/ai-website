@@ -549,6 +549,41 @@ test('semantic review accepts 10-point scores when the review text is positive',
   }
 });
 
+test('semantic review does not discard a technically valid image for an uninformative rejection', async () => {
+  const { reviewArticleImage } = require('../ai/article-image');
+  const { root, publicDir } = makeTempPublicDir();
+  const imageDir = path.join(publicDir, 'generated-images', 'articles');
+  fs.mkdirSync(imageDir, { recursive: true });
+  const filePath = path.join(imageDir, 'generic-failed-review.png');
+  fs.writeFileSync(filePath, Buffer.from(pngBase64(), 'base64'));
+
+  try {
+    const review = await reviewArticleImage(
+      {
+        filePath,
+        prompt: 'Editorial still life of physical film production props and simulation tools, no text, no logos.',
+        article: {
+          title: 'Film VFX teams use physics engines after video model failures',
+          summary: 'A technology article about production certainty and physics simulation.',
+          category_name: 'Technology',
+        },
+      },
+      {
+        reviewer: async () => ({
+          status: 'failed',
+          reason: 'semantic_review_failed',
+          issues: [],
+        }),
+      },
+    );
+
+    assert.equal(review.status, 'pass');
+    assert.equal(review.semantic_status, 'uninformative_reject_ignored');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('article image generation retries with stricter prompt after review failure', async () => {
   const { generateArticleImage } = require('../ai/article-image');
   const { root, publicDir } = makeTempPublicDir();
