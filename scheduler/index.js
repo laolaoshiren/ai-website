@@ -5,6 +5,7 @@ const cron = require('node-cron');
 const { getSchedules, updateScheduleLastRun, getPlannedPages, claimPlannedPages, releasePageClaim, retryTimeAfterAttempts, recoverExpiredWritingPages, getStats, logAgent, updateAgentStatus, getAIProviders, setSetting } = require('../db/database');
 const { isAIConfigured } = require('../config');
 const { logArticleOutcome } = require('./article-outcome');
+const { withAgentLogContext } = require('../ai/agent-log-context');
 
 const cronJobs = [];
 
@@ -45,6 +46,7 @@ async function executeTask(taskType) {
   const startTime = Date.now();
 
   try {
+    return await withAgentLogContext(logId, async () => {
     let result;
     switch (taskType) {
       case 'news_collector': {
@@ -66,8 +68,8 @@ async function executeTask(taskType) {
         const planned = pages;
         if (planned.length === 0) {
           const { planStructure } = require('../ai/planner');
-          logAgent('planner', '补充规划', 'running', '待写文章不足，补充规划...');
-          await planStructure();
+          const plannerLogId = logAgent('planner', '补充规划', 'running', '待写文章不足，补充规划...');
+          await withAgentLogContext(plannerLogId, () => planStructure());
           pages = claimPlannedPages(2, workerId, 45);
           const newPlanned = pages;
           if (newPlanned.length === 0) { result = { skipped: true }; break; }
@@ -76,8 +78,8 @@ async function executeTask(taskType) {
         const results = [];
         for (const page of pages) {
           try {
-            logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
-            const r = await generateArticle(page);
+            const writerLogId = logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
+            const r = await withAgentLogContext(writerLogId, () => generateArticle(page));
             logAgent('reviewer', '审核文章', 'running', `审核: ${r.title}`);
             logArticleOutcome(logAgent, page, r, { reviewerAction: '审核文章' });
             results.push(r);
@@ -91,15 +93,15 @@ async function executeTask(taskType) {
       }
       case 'seo_update': {
         const { updateSEO } = require('../ai/seo-agent');
-        logAgent('seo_expert', 'SEO优化', 'running', '正在更新 Sitemap 和 SEO 文件...');
-        result = await updateSEO();
+        const seoLogId = logAgent('seo_expert', 'SEO优化', 'running', '正在更新 Sitemap 和 SEO 文件...');
+        result = await withAgentLogContext(seoLogId, () => updateSEO());
         logAgent('seo_expert', 'SEO优化', 'success', `完成: ${result.pages} 个页面`, aiMeta(result));
         break;
       }
       case 'analyze': {
         const { analyzeAndAdapt } = require('../ai/analyzer');
-        logAgent('analyzer', '数据分析', 'running', '正在分析流量数据...');
-        result = await analyzeAndAdapt();
+        const analyzerLogId = logAgent('analyzer', '数据分析', 'running', '正在分析流量数据...');
+        result = await withAgentLogContext(analyzerLogId, () => analyzeAndAdapt());
         logAgent('analyzer', '数据分析', 'success', `完成: ${result.insights} 条洞察`, aiMeta(result));
         break;
       }
@@ -136,7 +138,7 @@ async function executeTask(taskType) {
           logAgent('site_manager', '心跳检查', 'running', '待写文章为 0，触发内容规划...');
           try {
             const { planStructure } = require('../ai/planner');
-            const planResult = await planStructure();
+            const planResult = await withAgentLogContext(logId, () => planStructure());
             logAgent('planner', '补充规划', 'success', `新增 ${planResult.articles} 篇计划`, aiMeta(planResult));
             planned = claimPlannedPages(2, workerId, 45);
           } catch (err) {
@@ -149,8 +151,8 @@ async function executeTask(taskType) {
           const { generateArticle } = require('../ai/writer');
           for (const page of planned) {
             try {
-              logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
-              const r = await generateArticle(page);
+              const writerLogId = logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
+              const r = await withAgentLogContext(writerLogId, () => generateArticle(page));
               logArticleOutcome(logAgent, page, r, { reviewerAction: '审核文章' });
             } catch (err) {
               releasePageClaim(page.id, { status: 'planned', last_error: err.message, next_retry_at: retryTimeAfterAttempts(page.attempt_count) });
@@ -180,6 +182,7 @@ async function executeTask(taskType) {
     const duration = Date.now() - startTime;
     updateAgentStatus(agentRole, 'idle', null);
     return result;
+    });
   } catch (err) {
     logAgent(agentRole, taskType, 'failed', err.message, aiErrorMeta(err));
     updateAgentStatus(agentRole, 'error', err.message);
@@ -250,9 +253,9 @@ async function coldStart() {
   logAgent('site_manager', '冷启动', 'running', '开始初始化网站...');
 
   // 1. 规划
-  logAgent('planner', '结构规划', 'running', '规划网站结构和内容计划...');
+  const plannerLogId = logAgent('planner', '结构规划', 'running', '规划网站结构和内容计划...');
   const { planStructure } = require('../ai/planner');
-  const planResult = await planStructure();
+  const planResult = await withAgentLogContext(plannerLogId, () => planStructure());
   logAgent('planner', '结构规划', 'success', `创建了 ${planResult.categories} 个栏目, ${planResult.articles} 篇计划`, aiMeta(planResult));
 
   // 2. 批量生成文章（8篇，并发3路加速）
@@ -266,9 +269,9 @@ async function coldStart() {
     const batch = planned.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
       batch.map(async (page) => {
-        logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
+        const writerLogId = logAgent('writer', '撰写文章', 'running', `撰写: ${page.title}`);
         try {
-          const result = await generateArticle(page);
+          const result = await withAgentLogContext(writerLogId, () => generateArticle(page));
           logArticleOutcome(logAgent, page, result, { reviewerAction: '审核发布' });
           return result;
         } catch (err) {
@@ -285,7 +288,8 @@ async function coldStart() {
   // 3. SEO
   try {
     const { updateSEO } = require('../ai/seo-agent');
-    await updateSEO();
+    const seoInitLogId = logAgent('seo_expert', 'SEO初始化', 'running', '正在生成 Sitemap 和 SEO 文件...');
+    await withAgentLogContext(seoInitLogId, () => updateSEO());
     logAgent('seo_expert', 'SEO初始化', 'success', 'Sitemap 和 SEO 文件已生成');
   } catch {}
 
@@ -293,8 +297,8 @@ async function coldStart() {
   try {
     const { hasFavicon, generateFavicon } = require('../ai/favicon');
     if (!hasFavicon()) {
-      logAgent('technician', '生成站标', 'running', 'AI 正在生成网站站标...');
-      await generateFavicon();
+      const faviconLogId = logAgent('technician', '生成站标', 'running', 'AI 正在生成网站站标...');
+      await withAgentLogContext(faviconLogId, () => generateFavicon());
       logAgent('technician', '生成站标', 'success', '站标已生成');
     }
   } catch (err) {
@@ -345,8 +349,8 @@ function startRageMode(level = 3) {
     if (planned.length < concurrency) {
       try {
         const { planStructure } = require('../ai/planner');
-        logAgent('planner', '狂暴规划', 'running', `第 ${cycleCount} 轮：补充规划...`);
-        await planStructure();
+        const plannerLogId = logAgent('planner', '狂暴规划', 'running', `第 ${cycleCount} 轮：补充规划...`);
+        await withAgentLogContext(plannerLogId, () => planStructure());
         planned = claimPlannedPages(concurrency, `rage-${cycleCount}-${Date.now()}`, 45);
       } catch (err) {
         logAgent('planner', '狂暴规划', 'failed', err.message, aiErrorMeta(err));
@@ -365,9 +369,9 @@ function startRageMode(level = 3) {
     const results = await Promise.allSettled(
       planned.map(async (page) => {
         const writerId = Math.floor(Math.random() * 100);
-        logAgent('writer', `写手#${writerId}`, 'running', `撰写: ${page.title.slice(0, 30)}`);
+        const writerLogId = logAgent('writer', `写手#${writerId}`, 'running', `撰写: ${page.title.slice(0, 30)}`);
         try {
-          const r = await generateArticle(page);
+          const r = await withAgentLogContext(writerLogId, () => generateArticle(page));
           logArticleOutcome(logAgent, page, r, { reviewerAction: '审核' });
           return r;
         } catch (err) {

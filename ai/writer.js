@@ -8,6 +8,7 @@ const { marked } = require('marked');
 const { createDOMPurify } = require('./utils');
 const { searchWeb } = require('./search');
 const { humanizeArticleDraft } = require('./humanized-writing');
+const { withAgentLogContext } = require('./agent-log-context');
 
 function normalizeGeneratedData(data, fallback = {}) {
   return {
@@ -237,8 +238,8 @@ async function generateArticle(page) {
       const imageProviders = getImageProviders();
       const imageDecision = shouldAttemptArticleImage(imageArticle, config, imageProviders, { publicationPriority: true });
       if (imageDecision.ok) {
-        logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, { provider: '', model: '', ai_mode: '' });
-        imageResult = await generateArticleImage(imageArticle, { config, publicationPriority: true, creatorModel: model });
+        const imageLogId = logAgent('image_designer', '生成文章配图', 'running', `配图: ${imageArticle.title}`, { provider: '', model: '', ai_mode: '' });
+        imageResult = await withAgentLogContext(imageLogId, () => generateArticleImage(imageArticle, { config, publicationPriority: true, creatorModel: model }));
         logArticleImageOutcome(logAgent, imageArticle, imageResult);
       }
     } catch (err) {

@@ -5,6 +5,7 @@ const { callAIForJSON } = require('./client');
 const { getSEOExpertPrompt } = require('./prompts');
 const { getPublishedPages, getCategories, getAnalyticsSummary, logAgent, updatePage } = require('../db/database');
 const { getSiteConfig } = require('../config');
+const { withAgentLogContext } = require('./agent-log-context');
 
 async function runSEOExpert() {
   const pages = getPublishedPages(100);
@@ -13,14 +14,14 @@ async function runSEOExpert() {
   const siteConfig = getSiteConfig();
   const siteUrl = siteConfig.url;
 
-  logAgent('seo_expert', 'SEO 审计', 'running', `开始审计 ${pages.length} 篇文章...`);
+  const auditLogId = logAgent('seo_expert', 'SEO 审计', 'running', `开始审计 ${pages.length} 篇文章...`);
 
   const messages = getSEOExpertPrompt(pages, categories, analyticsSummary, siteUrl);
-  const { data, model, tokensUsed, provider } = await callAIForJSON(messages, {
+  const { data, model, tokensUsed, provider } = await withAgentLogContext(auditLogId, () => callAIForJSON(messages, {
     taskType: 'seo_expert_audit',
     maxTokens: 8192,
     temperature: 0.4,
-  });
+  }));
   const aiMeta = { provider, model };
 
   // 记录审计结果

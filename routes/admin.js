@@ -19,6 +19,7 @@ const { BACKUP_SECTIONS, buildBackupZip, inspectBackupInput, normalizeSections, 
 const { parseMultipartForm } = require('../utils/multipart-form');
 const selfUpdate = require('../utils/self-update');
 const { buildModelRankingRows, normalizeManualRankings } = require('../ai/model-intelligence');
+const { withAgentLogContext } = require('../ai/agent-log-context');
 
 // ============ 常量 ============
 const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 小时
@@ -759,11 +760,11 @@ router.post('/articles/:id/polish', requireCsrf, async (req, res) => {
     const article = db.getPageById(parseInt(req.params.id));
     if (!article) return res.redirect('/admin/articles?error=' + encodeURIComponent('文章不存在'));
     const { callAIForJSON } = require('../ai/client');
-    db.logAgent('editor', '润色文章', 'running', `润色: ${article.title}`);
-    const { data } = await callAIForJSON([
+    const polishLogId = db.logAgent('editor', '润色文章', 'running', `润色: ${article.title}`);
+    const { data } = await withAgentLogContext(polishLogId, () => callAIForJSON([
       { role: 'system', content: '你是专业的内容编辑。请润色以下文章，使其更专业、更有深度、更易读。保持原文结构和核心观点，但提升文字质量和信息密度。以 JSON 格式返回。' },
       { role: 'user', content: `请润色以下文章（当前日期：${new Date().toLocaleDateString('zh-CN')}）：\n\n标题：${article.title}\n\n${article.content_md}\n\n返回 JSON: {"title":"润色后标题","summary":"润色后摘要","content_md":"润色后全文","seo_title":"SEO标题","seo_description":"SEO描述"}` }
-    ], { maxTokens: 8192 });
+    ], { maxTokens: 8192 }));
     const { marked } = require('marked');
     const { createDOMPurify } = require('../ai/utils');
     const DOMPurify = createDOMPurify();
